@@ -8,6 +8,16 @@
 
 **Entrada**: Descripción del usuario: "Crear la especificación funcional para el Módulo 1: Gestión de Usuarios, Autenticación y Catálogo Base (Productos, Depósitos y Ubicaciones) de Stockmante. Alcance: CRUD de usuarios con roles Administrador/Gerente y Operario/Cajero; autenticación login/logout/sesión con RBAC; unicidad de correo; baja lógica de usuarios; CRUD de productos con SKU único y código de barras opcional/único; búsqueda rápida por SKU/código de barras/nombre/categoría para caja y almacén; baja lógica de productos; CRUD de depósitos y ubicaciones jerárquicas; asignación inicial de ubicaciones por producto; casos de uso para Administrador y Operario; edge cases (SKU duplicado, desactivar usuario en sesión, ubicaciones huérfanas)."
 
+## Clarifications
+
+### Session 2026-10-12
+
+- Q: ¿Qué formato debe cumplir el SKU de un producto para ser considerado válido? → A: Mayúsculas, dígitos y guiones; 3–30 caracteres; se normaliza a mayúsculas antes de validar unicidad (ej. `SKU-001`, `POL-CAJA-10`).
+- Q: ¿Quién define la contraseña inicial al crear un usuario y qué pasa si el operario la olvida? → A: El sistema genera una contraseña temporal y la envía por correo; el usuario debe cambiarla en el primer ingreso; la recuperación de contraseña olvidada queda fuera de este módulo (solicitar reinicio al Administrador).
+- Q: Cuando el fallo de login es por cuenta inactiva, ¿el mensaje debe ser genérico o específico? → A: Mensaje único genérico para todos los fallos de login ("Credenciales inválidas"), sin distinguir cuenta inexistente, contraseña incorrecta o cuenta inactiva; el estado inactivo se gestiona/consulta en la pantalla de administración de usuarios.
+- Q: ¿Un mismo usuario puede tener varias sesiones activas al mismo tiempo (varios navegadores/puestos) o al iniciar sesión se cierra la anterior? → A: Una sola sesión vigente por usuario; un nuevo inicio de sesión invalida la sesión anterior; al desactivar, la sesión vigente se invalida en el siguiente request.
+- Q: ¿Gerente y Administrador tienen los mismos permisos o el Gerente tiene un alcance más acotado? → A: Mismos permisos: una sola familia de gestión (Administrador/Gerente); diferenciar roles queda para un módulo posterior si el negocio lo pide.
+
 ## Escenarios de Usuario y Pruebas *(obligatorio)*
 
 ### User Story 1 - Autenticación y sesión segura (Prioridad: P1)
@@ -21,8 +31,8 @@ Como **Operario/Cajero**, quiero iniciar sesión con mi correo y contraseña par
 **Escenarios de aceptación**:
 
 1. **Dado** un usuario activo con rol Operario, **Cuando** envía correo y contraseña correctos, **Entonces** se crea una sesión y se redirige al panel operativo sin opciones de administración de usuarios.
-2. **Dado** un usuario inexistente o contraseña incorrecta, **Cuando** intenta iniciar sesión, **Entonces** se rechaza con mensaje genérico de credenciales inválidas (sin revelar si el correo existe).
-3. **Dado** un usuario inactivo, **Cuando** intenta iniciar sesión, **Entonces** se rechaza con mensaje claro de cuenta desactivada.
+2. **Dado** un usuario inexistente, contraseña incorrecta o cuenta inactiva, **Cuando** intenta iniciar sesión, **Entonces** se rechaza con el mismo mensaje genérico "Credenciales inválidas" (sin revelar cuál fue el motivo ni si el correo existe).
+3. **Dado** un usuario con sesión activa en un puesto, **Cuando** inicia sesión en otro puesto (u otro navegador), **Entonces** la sesión anterior queda invalidada de inmediato y cualquier request con el token viejo es rechazado.
 4. **Dado** un usuario con sesión activa, **Cuando** elige "Cerrar sesión", **Entonces** la sesión queda invalidada y cualquier request posterior exige autenticación.
 
 ---
@@ -37,11 +47,12 @@ Como **Administrador**, quiero crear, editar, desactivar y reactivar usuarios co
 
 **Escenarios de aceptación**:
 
-1. **Dado** un Administrador autenticado, **Cuando** crea un usuario con correo, nombre, rol y estado activo, **Entonces** el usuario queda registrado y puede iniciar sesión.
-2. **Dado** dos intentos de creación con el mismo correo, **Cuando** se envía el segundo, **Entonces** se rechaza por unicidad de correo con mensaje claro.
-3. **Dado** un usuario activo con sesión abierta, **Cuando** el Administrador lo desactiva, **Entonces** su sesión actual queda invalidada (o su siguiente request es rechazada) y no puede volver a iniciar sesión.
-4. **Dado** un usuario desactivado, **Cuando** el Administrador lo reactiva, **Entonces** puede volver a iniciar sesión con sus mismas credenciales.
-5. **Dado** un Operario autenticado, **Cuando** intenta acceder a la gestión de usuarios, **Entonces** se deniega el acceso.
+1. **Dado** un Administrador autenticado, **Cuando** crea un usuario con correo, nombre y rol, **Entonces** el sistema genera una contraseña temporal, la envía al correo del nuevo usuario y el usuario queda activo y puede iniciar sesión con esa contraseña.
+2. **Dado** un usuario que se autentica por primera vez con contraseña temporal, **Cuando** completa el cambio obligatorio de contraseña, **Entonces** la nueva contraseña queda activa y la temporal deja de ser válida.
+3. **Dado** dos intentos de creación con el mismo correo, **Cuando** se envía el segundo, **Entonces** se rechaza por unicidad de correo con mensaje claro.
+4. **Dado** un usuario activo con sesión abierta, **Cuando** el Administrador lo desactiva, **Entonces** su sesión actual queda invalidada (o su siguiente request es rechazada) y no puede volver a iniciar sesión.
+5. **Dado** un usuario desactivado, **Cuando** el Administrador lo reactiva, **Entonces** puede volver a iniciar sesión; si olvidó su contraseña, el Administrador puede generar una nueva temporal por el mismo medio del alta.
+6. **Dado** un Operario autenticado, **Cuando** intenta acceder a la gestión de usuarios, **Entonces** se deniega el acceso.
 
 ---
 
@@ -95,7 +106,7 @@ Como **Administrador**, quiero registrar depósitos y ubicaciones anidadas (por 
 2. **Dado** un depósito existente, **Cuando** se crea una ubicación hija (estantería, nivel, etc.) asociada a ese depósito, **Entonces** la ubicación queda registrada bajo el depósito.
 3. **Dado** un intento de crear una ubicación sin depósito padre o con un depósito inexistente, **Cuando** se envía, **Entonces** se rechaza (sin ubicaciones huérfanas).
 4. **Dado** un depósito con ubicaciones y productos asignados, **Cuando** se intenta eliminar el depósito, **Entonces** se impide el borrado físico mientras haya dependencias; se ofrece baja lógica si aplica.
-5. **Dado** un producto, **Cuando** el Administrador le asigna ubicaciones iniciales permitidas, **Entonces** el producto solo puede recibir stock en esas ubicaciones (regla que consumed los módulos de stock; aquí se define el registro de la asignación).
+5. **Dado** un producto, **Cuando** el Administrador le asigna ubicaciones iniciales permitidas, **Entonces** el producto solo puede recibir stock en esas ubicaciones (regla que consumen los módulos de stock; aquí se define el registro de la asignación).
 
 ---
 
@@ -117,7 +128,7 @@ Como **Gerente/Administrador**, quiero que las acciones sensibles (CRUD de usuar
 
 ### Casos Borde
 
-- **SKU duplicado**: segundo alta con mismo SKU → rechazo con mensaje que no revele datos sensibles de más; la búsqueda por SKU no debe devolver ambigüedad.
+- **SKU duplicado o mal formado**: segundo alta con mismo SKU → rechazo; SKU con espacios, minúsculas (tras normalizar igual a existente), caracteres fuera de mayúsculas/dígitos/guiones o longitud fuera de 3–30 → rechazo con mensaje claro; la búsqueda por SKU no debe devolver ambigüedad.
 - **Código de barras duplicado / vacío**: vacío es válido (opcional); duplicado se rechaza; se permite limpiar el código de un producto si no se usa en historial.
 - **Desactivación de usuario activo en sesión**: al desactivar, la sesión vigente queda inválida en el siguiente request (o de inmediato); no debe quedar una sesión "fantasma" que siga moviendo stock.
 - **Último Administrador activo**: el sistema no permite desactivar (ni eliminar lógicamente) al único Administrador activo, para no dejar el sistema sin administración.
@@ -125,7 +136,7 @@ Como **Gerente/Administrador**, quiero que las acciones sensibles (CRUD de usuar
 - **Producto con referencias**: borrado físico bloqueado si hay movimientos, ventas o asignaciones; se ofrece desactivación.
 - **Búsqueda sin resultados / término muy corto**: la búsqueda por nombre exige un mínimo de caracteres (por defecto 2) para no saturar; SKU y código de barras admiten valor exacto completo desde el primer carácter.
 - **Correo inválido o ya registrado**: validación de formato y unicidad en el momento del guardado, con mensaje claro.
-- **Credenciales en claro**: nunca se muestran ni se guardan en logs; el restablecimiento de contraseña (si se habilita fuera de este alcance mínimo) no forma parte de este módulo salvo decisión explícita en Supuestos.
+- **Credenciales en claro**: nunca se muestran ni se guardan en logs; la contraseña temporal solo se transmite por correo al usuario destinatario; el restablecimiento es solo por el Administrador (sin auto-servicio).
 
 ## Requisitos *(obligatorio)*
 
@@ -133,18 +144,19 @@ Como **Gerente/Administrador**, quiero que las acciones sensibles (CRUD de usuar
 
 **Autenticación y usuarios**
 
-- **FR-001**: El sistema DEBE permitir iniciar sesión con correo electrónico y contraseña; la sesión se mantiene hasta cierre explícito o expiración por inactividad (ver Supuestos: tiempo por defecto).
+- **FR-001**: El sistema DEBE permitir iniciar sesión con correo electrónico y contraseña; cada usuario DEBE tener como máximo una sesión vigente: un nuevo inicio de sesión invalida la sesión anterior. La sesión se mantiene hasta cierre explícito, inicio de sesión en otro puesto o expiración por inactividad (ver Supuestos: tiempo por defecto).
 - **FR-002**: El sistema DEBE permitir cerrar sesión, invalidando la sesión del cliente.
-- **FR-003**: El sistema DEBE aplicar control de acceso por rol (RBAC): Administrador/Gerente (gestión completa) y Operario/Cajero (operación de caja/consulta de catálogo, sin gestión de usuarios ni precios).
+- **FR-003**: El sistema DEBE aplicar control de acceso por rol (RBAC) con dos familias: gestión (Administrador/Gerente, mismos permisos en este módulo) y operación (Operario/Cajero: caja y consulta de catálogo, sin gestión de usuarios ni precios).
 - **FR-004**: El sistema DEBE garantizar unicidad del correo electrónico de usuario.
 - **FR-005**: El sistema DEBE soportar estado Activo/Inactivo mediante baja lógica; los usuarios inactivos no pueden iniciar sesión y sus sesiones activas se invalidan al desactivarse.
 - **FR-006**: El sistema DEBE impedir que se desactive al último Administrador activo.
 - **FR-007**: El CRUD de usuarios DEBE ser exclusivo del rol Administrador/Gerente.
 - **FR-008**: El sistema DEBE validar el formato del correo electrónico y rechazar guardados inválidos con mensaje claro.
+- **FR-008a**: Al crear un usuario, el sistema DEBE generar una contraseña temporal, enviarla al correo del usuario e impedir el uso del sistema más allá del cambio obligatorio de contraseña hasta completarlo. El reinicio de contraseña olvidada DEBE poder solicitarlo el Administrador generando una nueva contraseña temporal (no hay auto-servicio de recuperación en este módulo).
 
 **Productos y categorías**
 
-- **FR-009**: El sistema DEBE permitir CRUD de productos con: nombre, SKU (obligatorio y único), código de barras (opcional y único si se informa), categoría, unidad de medida, costo, precio de venta y stock mínimo de seguridad.
+- **FR-009**: El sistema DEBE permitir CRUD de productos con: nombre, SKU (obligatorio, único y con formato mayúsculas/dígitos/guiones, 3–30 caracteres, normalizado a mayúsculas), código de barras (opcional y único si se informa), categoría, unidad de medida, costo, precio de venta y stock mínimo de seguridad.
 - **FR-010**: El sistema DEBE soportar categorías de productos (al menos alta/listado básicos) para organización y filtrado.
 - **FR-011**: El sistema DEBE buscar y filtrar productos por SKU, código de barras, nombre y categoría, optimizado para caja y almacén (tiempos ver SC-002).
 - **FR-012**: El sistema DEBE impedir el borrado físico de productos con historial (movimientos, ventas u otras referencias) y ofrecer en su lugar baja lógica (estado inactivo).
@@ -175,7 +187,7 @@ Como **Gerente/Administrador**, quiero que las acciones sensibles (CRUD de usuar
 
 - **SC-001**: Un Administrador puede crear un usuario operativo y este puede iniciar sesión en menos de 2 minutos desde el alta (incluyendo la primera autenticación).
 - **SC-002**: El 95% de las búsquedas de producto por SKU o código de barras completo en interfaz de caja muestran el resultado en 1 segundo o menos.
-- **SC-003**: El 100% de los intentos de inicio de sesión de usuarios inactivos o con credenciales inválidas son rechazados, sin diferenciar en el mensaje si el correo existe.
+- **SC-003**: El 100% de los intentos de inicio de sesión de usuarios inactivos, inexistentes o con credenciales inválidas son rechazados con el mismo mensaje genérico, sin diferenciar el motivo ni revelar si el correo existe.
 - **SC-004**: Cero sesiones activas de usuarios desactivados pueden ejecutar acciones posteriores a la desactivación (validado en pruebas de seguridad).
 - **SC-005**: Cero ubicaciones existen sin depósito asociado (integridad referencial verificable).
 - **SC-006**: Cero SKUs duplicados y cero códigos de barras duplicados entre productos activos.
@@ -184,10 +196,10 @@ Como **Gerente/Administrador**, quiero que las acciones sensibles (CRUD de usuar
 
 ## Supuestos
 
-- **Autenticación**: se usa autenticación por correo y contraseña con sesión del servidor; MFA/SSO/OAuth quedan fuera de este módulo a menos que se agreguen como requisito posterior.
-- **Contraseñas**: almacenamiento con hash irreversible y política básica (longitud mínima 8, al menos una mayúscula y un dígito) salvo que se defina política corporativa distinta.
-- **Sesión**: expiración por inactividad por defecto de 8 horas hábiles (ajustable); cierre de sesión del lado del cliente invalida el token/sesión en el servidor.
-- **Roles**: se modelan dos familias (Administrador/Gerente y Operario/Cajero). Si Gerente y Administrador difieren en permisos, la diferencia se documenta en planificación; por defecto se tratan como permiso de gestión completo.
+- **Autenticación**: se usa autenticación por correo y contraseña con sesión del servidor; MFA/SSO/OAuth quedan fuera de este módulo a menos que se agreguen como requisito posterior. El mensaje genérico de fallo de login es una excepción deliberada de seguridad (anti-enumeración) al Principio III (Claridad en Mensajes), acotada al endpoint de autenticación.
+- **Contraseñas**: almacenamiento con hash irreversible; política básica (longitud mínima 8, al menos una mayúscula y un dígito) salvo política corporativa distinta. La contraseña inicial es temporal, generada por el sistema y enviada por correo; el usuario debe cambiarla en el primer ingreso. No hay flujo de "olvidé mi contraseña" de auto-servicio en este módulo: el Administrador genera una nueva temporal. La política de expiración periódica de contraseñas (cada N días) queda fuera de este módulo.
+- **Sesión**: expiración por inactividad por defecto de 8 horas hábiles (ajustable); una sola sesión vigente por usuario (nuevo login invalida la anterior); cierre de sesión del lado del cliente invalida el token/sesión en el servidor.
+- **Roles**: se modelan dos familias (Administrador/Gerente y Operario/Cajero). Administrador y Gerente tienen los mismos permisos en este módulo (familia de gestión); diferenciar sus permisos queda fuera de alcance salvo enmienda posterior.
 - **Auditoría**: se registra al menos autor y timestamp de altas/bajas/cambios sensibles de usuarios y productos; un log de auditoría rico es un candidato a módulo posterior.
 - **Categorías**: alta y listado incluidos; árbol de categorías anidadas no es requisito de v1 (lista plana).
 - **Unidad de medida**: catálogo fijo o lista configurable simple (ej. unidad, kg, caja); no se requiere conversión entre unidades en este módulo.
