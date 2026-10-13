@@ -20,3 +20,16 @@ chrono = { version = "0.4", features = ["serde"] }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 dotenvy = "0.15"
+async-trait = "0.1"
+
+[[test]]
+name = "test_password"
+path = "tests/unit/test_password.rs"
+
+[[test]]
+name = "test_apperror"
+path = "tests/unit/test_apperror.rs"
+
+[[test]]
+name = "test_mail"
+path = "tests/unit/test_mail.rs"
