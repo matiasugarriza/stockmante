@@ -28,11 +28,11 @@
 
 **Purpose**: Inicializar monorepo backend + frontend + entorno, sin lógica de negocio.
 
-- [ ] T001 Crear estructura de directorios del monorepo según plan.md: `backend/src/{models,services,handlers,auth,mail}`, `backend/tests/{unit,integration}`, `frontend/src/{lib/api,lib/schemas,lib/stores,lib/components,routes}`, `migrations/`, `.env.example` en la raíz. **Aceptación**: los paths existen; sin código de negocio aún.
-- [ ] T002 Inicializar `backend/Cargo.toml` con dependencias del plan (axum, sqlx postgres runtime-tokio, tokio, serde, serde_json, validator, argon2, tower-http cookies/cors, uuid, chrono, thiserror, lettre opcional feature). **Aceptación**: `cargo check` compila con un `main.rs` vacío que solo imprime versión.
-- [ ] T003 [P] Inicializar proyecto SvelteKit en `frontend/` en modo SPA (`@sveltejs/adapter-static`), Tailwind CSS, TypeScript estricto, vitest. **Aceptación**: `npm run dev` levanta la SPA; `npm test` corre un smoke test vacío en verde. Frontend = SvelteKit + Tailwind (no app Node).
-- [ ] T004 [P] Crear `.env.example` en la raíz con `DATABASE_URL`, `PUBLIC_API_URL`, `SESSION_COOKIE_NAME`, `SESSION_EXPIRY_HOURS`, `APP_URL`, `EMAIL_FROM`, `SMTP_URL`. **Aceptación**: archivo presente; ningún secreto real; alineado con quickstart.md.
-- [ ] T005 Configurar SQLx con `migrations_dir = "migrations"` (raíz) vía `sqlx.toml` o flags de `sqlx-cli` documentados en README. **Aceptación**: `sqlx migrate info` funciona desde la raíz apuntando a `/migrations`.
+- [X] T001 Crear estructura de directorios del monorepo según plan.md: `backend/src/{models,services,handlers,auth,mail}`, `backend/tests/{unit,integration}`, `frontend/src/{lib/api,lib/schemas,lib/stores,lib/components,routes}`, `migrations/`, `.env.example` en la raíz. **Aceptación**: los paths existen; sin código de negocio aún.
+- [X] T002 Inicializar `backend/Cargo.toml` con dependencias del plan (axum, sqlx postgres runtime-tokio, tokio, serde, serde_json, validator, argon2, tower-http cookies/cors, uuid, chrono, thiserror, lettre opcional feature). **Aceptación**: `cargo check` compila con un `main.rs` vacío que solo imprime versión.
+- [X] T003 [P] Inicializar proyecto SvelteKit en `frontend/` en modo SPA (`@sveltejs/adapter-static`), Tailwind CSS, TypeScript estricto, vitest. **Aceptación**: `npm run dev` levanta la SPA; `npm test` corre un smoke test vacío en verde. Frontend = SvelteKit + Tailwind (no app Node).
+- [X] T004 [P] Crear `.env.example` en la raíz con `DATABASE_URL`, `PUBLIC_API_URL`, `SESSION_COOKIE_NAME`, `SESSION_EXPIRY_HOURS`, `APP_URL`, `EMAIL_FROM`, `SMTP_URL`. **Aceptación**: archivo presente; ningún secreto real; alineado con quickstart.md.
+- [X] T005 Configurar SQLx con `migrations_dir = "migrations"` (raíz) vía `sqlx.toml` o flags de `sqlx-cli` documentados en README. **Aceptación**: `sqlx migrate info` funciona desde la raíz apuntando a `/migrations`.
 
 **Checkpoint**: monorepo compila/arranca vacío; migraciones configuradas.
 
@@ -44,7 +44,7 @@
 
 **⚠️ CRITICAL**: No empezar US1–US6 hasta completar esta fase.
 
-- [ ] T006 Verificar con Habilidad 2 (MCP o `sqlx table list` / `sqlx describe`) que la BD de desarrollo no tiene nombres en conflicto con las tablas del Módulo 1. **Aceptación**: reporte de tablas actuales; si hay conflicto, renombrar en data-model antes de migrar.
+- [X] T006 Verificar con Habilidad 2 (MCP o `sqlx table list` / `sqlx describe`) que la BD de desarrollo no tiene nombres en conflicto con las tablas del Módulo 1. **Aceptación**: reporte de tablas actuales; si hay conflicto, renombrar en data-model antes de migrar. *(2026-10-13: `\dt` sobre `stockmante` → solo `_sqlx_migrations`; sin conflictos.)*
 - [ ] T007 Crear migración `migrations/0001_usuarios_sesiones.sql`: tabla `usuarios` (campos y CHECK de data-model.md: email UNIQUE, `familia_rol CHECK IN ('GESTION','OPERACION')`, `activo`, `password_hash`, `password_temporal`) y `sesiones` (UUID PK, FK usuario, `expira_en`, `revocada_en`). **Aceptación**: `sqlx migrate run` aplica sin error; `sqlx describe usuarios` / `sesiones` coinciden con data-model.md.
 - [ ] T008 Crear migración `migrations/0002_categorias_productos.sql`: `categorias` (nombre UNIQUE), `productos` (SKU CHECK `^[A-Z0-9][A-Z0-9-]{2,29}$` + UNIQUE, `codigo_barras` UNIQUE NULLS NOT DISTINCT, FK categoría, costo/precio NUMERIC ≥0, stock_minimo ≥0, activo). **Aceptación**: `sqlx migrate run` OK; constraints visibles en `sqlx describe productos`.
 - [ ] T009 Crear migración `migrations/0003_depositos_ubicaciones.sql`: `depositos`, `ubicaciones` (FK deposito NOT NULL, FK padre, UNIQUE deposito+padre+nombre), `producto_ubicacion_permitida` (PK compuesta). **Aceptación**: `sqlx migrate run` OK; no se puede insertar ubicación sin deposito_id.
