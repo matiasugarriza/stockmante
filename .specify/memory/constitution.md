@@ -1,7 +1,18 @@
 <!-- Sync Impact Report
-- Version change: 1.0.0 → 1.1.0 (MINOR — reenfoque del Principio III, expansión
-  de guías de testing y quality gates, correcciones de redacción y alineación
-  con Spec Kit)
+- Version change: 1.0.0 → 1.1.0 (MINOR, luego corregido en 1.1.1) → 1.1.1 (PATCH)
+  - Razonamiento MAJOR vs MINOR del Principio III en 1.1.0: se consideró el
+    mismo principio con alcance ampliado, no una redefinición incompatible. El
+    núcleo normativo original ("mensajes claros para el operador/desarrollador,
+    errores específicos, no genéricos") se conservó íntegro; lo eliminado
+    (stdout/stderr de CLI, salidas machine-readable binarias) era una asunción
+    de herramienta que violaba el Principio I (YAGNI) porque el stack no expone
+    CLI. Por eso MINOR y no MAJOR. De todos modos, el cambio de título
+    (Terminal → Mensajes) y la eliminación de la definición CLI son materiales
+    y quedan documentados aquí como ampliación de alcance.
+  - 1.1.1 (PATCH): correcciones posteriores a la revisión de 1.1.0 — mapeo
+    HTTP de errores de dominio vs persistencia en el Principio V; referencia
+    al quality gate en el Principio IV; eliminación de la última mención a
+    una herramienta (Engram) en el flujo SDD; este párrafo de razonamiento.
 - Modified principles:
   - I. Simplicidad y Anti-Sobreingeniería — bullet roto unificado; etiqueta de
     título estandarizada a NO NEGOCIABLE.
@@ -10,10 +21,12 @@
     asunción de CLI (stdout/stderr/salidas machine-readable); conserva y amplía
     mensajes del backend, chatbot y frontend.
   - IV. Testabilidad Primero — agregado criterio de tests de frontend
-    ($lib/api/*.ts y stores); verificación de esquema referenciada, no duplicada.
+    ($lib/api/*.ts y stores); verificación de esquema referenciada, no
+    duplicada; 1.1.1 agrega referencia al quality gate cargo sqlx prepare --check.
   - V. Integridad de Datos y Manejo de Errores — eliminadas referencias a
-    herramientas/habilidades (MCP, SKILLS.md); AppError acotado a errores de
-    dominio o persistencia.
+    herramientas/habilidades (MCP, SKILLS.md); 1.1.1 separa mapeo HTTP:
+    errores de dominio → AppError específica con 409/422; infraestructura o
+    persistencia → AppError genérica con 500 sin exponer detalles internos.
 - Added sections: none
 - Removed sections: none (Verificación de esquema queda como única fuente
   canónica dentro de Restricciones Técnicas; Principio IV, V y el paso 2 del
@@ -21,7 +34,8 @@
 - Other changes:
   - Flujo SDD: ruta de specs alineada con Spec Kit (specs/<NNN-feature>/spec.md
     vía /speckit.specify, plan/tasks cuando corresponda); sin numeración de
-    herramientas en los pasos.
+    herramientas en los pasos; 1.1.1 elimina la última mención a Engram
+    (quedó solo "la memoria persistente del proyecto"; Engram vive en AGENTS.md).
   - Quality gates: cargo sqlx prepare → cargo sqlx prepare --check; suite
     frontend vinculada al Principio III/IV.
   - Idioma: "Rationale:" → "Justificación:"; "(NON-NEGOTIABLE)" →
@@ -69,7 +83,7 @@ Justificación: el operador y el desarrollador trabajan desde la interfaz web y 
 - Toda funcionalidad con resultado esperado claro DEBE tener un test; ante un bug, primero se escribe el test que reproduce el fallo (RED), luego la corrección (GREEN), luego se refactoriza manteniendo la suite en verde.
 - En frontend, la lógica de `$lib/api/*.ts` y de los stores DEBE tener tests; los componentes visuales se prueban si contienen lógica.
 - NO SE aceptan dependencias ocultas de reloj, aleatoriedad o red sin inyección o mock explícito.
-- Las consultas SQLx DEBEN ser verificables contra el esquema real (ver: Verificación de esquema); los tipos nullables se confirman con el esquema, no se suponen.
+- Las consultas SQLx DEBEN ser verificables contra el esquema real (ver: Verificación de esquema y el quality gate `cargo sqlx prepare --check`); los tipos nullables se confirman con el esquema, no se suponen.
 
 Justificación: el inventario es integridad de datos; los tests deterministas son la red de seguridad que permite cambiar sin miedo.
 
@@ -79,7 +93,7 @@ Justificación: el inventario es integridad de datos; los tests deterministas so
 - Fuente de verdad del stock: `stock_por_deposito(producto_id, deposito_id, cantidad)`. `productos.stock_actual` es únicamente un cache denormalizado del total global y DEBE actualizarse en la MISMA transacción que la tabla puente.
 - El stock NUNCA puede quedar negativo: guarda `CHECK (cantidad >= 0)` en la BD más guarda condicional en la consulta.
 - ANTES de escribir cualquier SQL, migración o struct `FromRow`, el esquema real DEBE verificarse (ver: Verificación de esquema).
-- Todo error de dominio o de persistencia DEBE mapearse a una variante específica de `AppError` (por ejemplo `StockInsuficiente`) y un código HTTP adecuado (409/422).
+- Todo error de dominio DEBE mapearse a una variante específica de `AppError` (por ejemplo `StockInsuficiente`) con código HTTP 409 o 422. Los errores de infraestructura o persistencia DEBEN mapearse a una variante genérica de `AppError` con código 500, sin exponer detalles internos al cliente.
 
 Justificación: un movimiento de stock parcial o corrupto es pérdida financiera directa e irreversible para el negocio.
 
@@ -108,7 +122,7 @@ Secuencia obligatoria para cada tarea:
 2. **Verificación de esquema**: contrastar la spec contra el esquema real de la BD antes de generar código (ver: Verificación de esquema).
 3. **Patrones operativos**: aplicar los patrones del catálogo (`SKILLS.md`); toda tarea que toque la BD comienza con la verificación de esquema.
 4. **Implementación incremental**: cambios pequeños, verificando que no rompan código previo; tests y docs junto al cambio (unidad de trabajo = commit).
-5. **Memoria**: consultar y actualizar la memoria persistente del proyecto (Engram) antes y después de cada sesión de desarrollo (decisiones de arquitectura, gotchas, convenciones).
+5. **Memoria**: consultar y actualizar la memoria persistente del proyecto antes y después de cada sesión de desarrollo (decisiones de arquitectura, gotchas, convenciones).
 
 Quality gates antes de considerar terminada una tarea:
 
@@ -123,4 +137,4 @@ Quality gates antes de considerar terminada una tarea:
 - **Versionado**: MAJOR = remoción o redefinición incompatible de un principio; MINOR = nuevo principio o sección, o expansión material de una guía; PATCH = clarificaciones, correcciones de redacción, cambios no semánticos.
 - **Cumplimiento**: cada PR y cada revisión DEBE verificar el cumplimiento de estos principios; cualquier complejidad añadida DEBE justificarse; las violaciones se corrigen en el mismo PR o se elevan como enmienda formal (nunca se ignoran por costumbre).
 
-**Version**: 1.1.0 | **Ratified**: 2026-10-11 | **Last Amended**: 2026-10-12
+**Version**: 1.1.1 | **Ratified**: 2026-10-11 | **Last Amended**: 2026-10-12
