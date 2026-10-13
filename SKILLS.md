@@ -2,6 +2,8 @@
 
 Este documento contiene los patrones de diseño, snippets de código obligatorios y guías paso a paso que el agente debe consultar y replicar para mantener consistencia en la arquitectura.
 
+Fuente de verdad del diseño del Módulo 1: `specs/001-user-auth-catalog/` (`spec.md`, `plan.md`, `data-model.md`, `contracts/`). Constitución: `.specify/memory/constitution.md` (v1.1.1).
+
 ---
 
 ## 🚦 Reglas Globales de Disparo
@@ -10,15 +12,268 @@ Antes de escribir código, el agente debe identificar el tipo de tarea y consult
 
 | Situación / Tarea | Habilidad a aplicar |
 |---|---|
-| Crear o modificar endpoints, lógica o servicios que registren movimientos de stock (entrada, salida, merma, ajuste, transferencia) | **Habilidad 1** |
-| Escribir migraciones, consultas SQLx (`query!`, `query_as!`) o structs `FromRow` | **Habilidad 2** (siempre primero) |
-| Implementar notificaciones, paneles de alertas o detectar productos bajo su umbral crítico | **Habilidad 3** |
-| Consumir la API desde el frontend o crear componentes Svelte que muestren datos de inventario | **Habilidad 4** |
-| Agregar capacidades al chatbot (consultar BD o ejecutar acciones de inventario mediante Tools) | **Habilidad 5** |
-| Implementar escaneo, búsqueda por código o generación de etiquetas / códigos de barra | **Habilidad 6** |
-| Implementar dashboards, reportes o cálculos de valorización financiera del inventario | **Habilidad 7** |
+| Migración SQL, `query!`/`query_as!`, structs `FromRow` (cualquier módulo) | **Habilidad 2** (siempre primero) |
+| Login, sesión, logout, cambio de contraseña, RBAC, cookie de sesión | **Habilidad M1-A** (Módulo 1) |
+| CRUD de usuarios, roles, baja lógica, contraseña temporal | **Habilidad M1-B** (Módulo 1) |
+| CRUD de productos/categorías, SKU, código de barras, búsqueda de caja | **Habilidad M1-C** (Módulo 1) |
+| Depósitos, ubicaciones jerárquicas, asignación producto–ubicación | **Habilidad M1-D** (Módulo 1) |
+| `AppError`, mapeo HTTP 4xx/500, mensajes de error (Principios III y V) | **Habilidad M1-E** (Módulo 1) |
+| Frontend SvelteKit: clientes `$lib/api`, Zod, stores de sesión, forms | **Habilidad M1-F** (Módulo 1) |
+| Comandos de entorno, migraciones, tests, quality gates del Módulo 1 | **Habilidad M1-G** (Módulo 1) |
+| Crear/modificar endpoints o servicios de movimientos de stock (entrada, salida, merma, ajuste, transferencia) | **Habilidad 1** (post-Módulo 1) |
+| Notificaciones, alertas de stock mínimo | **Habilidad 3** (post-Módulo 1) |
+| Consumo tipado de API de inventario en pantallas Svelte (genérico) | **Habilidad 4** |
+| Tools del chatbot (consultar BD / acciones vía API) | **Habilidad 5** (post-Módulo 1) |
+| Escaneo, EAN-13, utilidades de etiquetas | **Habilidad 6** |
+| Dashboards, reportes, valorización financiera | **Habilidad 7** (post-Módulo 1) |
 
-**Orden de ejecución:** toda tarea que toque la base de datos comienza con la **Habilidad 2** (verificación de esquema vía MCP) antes de aplicar cualquier otro patrón.
+**Orden de ejecución:** toda tarea que toque la base de datos comienza con la **Habilidad 2** (verificación de esquema vía MCP o `sqlx-cli`) antes de aplicar cualquier otro patrón.
+
+---
+
+# Módulo 1 — Habilidades de ejecución (Usuarios, Auth, Catálogo, Depósitos)
+
+Referencias: `specs/001-user-auth-catalog/contracts/api.md`, `data-model.md`, `validation.md`, `research.md`, `quickstart.md`.
+
+## 📌 Habilidad M1-G: Comandos, scripts y quality gates (Módulo 1)
+
+**Entorno local (raíz del repo):**
+
+```bash
+# Migraciones (siempre en /migrations de la raíz — constitución)
+sqlx migrate run
+sqlx migrate info
+
+# Backend
+cd backend
+cargo sqlx prepare          # regenerar caché de queries tras cambiar SQL
+cargo sqlx prepare --check  # CI / quality gate: sin diferencias
+cargo test
+cargo run                   # imprime en DEV el admin bootstrap + contraseña temporal
+
+# Frontend (SvelteKit + Tailwind — no es "app Node"; toolchain de build/dev)
+cd frontend
+npm install
+npm run dev                 # SPA en http://localhost:5173
+npm test                    # vitest: $lib/api, schemas Zod, stores
+```
+
+**Checklist al cerrar cada tarea del Módulo 1:**
+
+1. Verificar esquema real antes de SQL (Habilidad 2) — MCP `postgres_list_tables` / `postgres_describe_table` o fallback `sqlx table list` / `sqlx describe`.
+2. `cargo test` en verde.
+3. `cargo sqlx prepare --check` sin diferencias.
+4. Sin `unwrap()` / `panic!` / `expect()` en rutas de producción.
+5. Errores de dominio con variante `AppError` específica (Habilidad M1-E).
+6. Spec/docs actualizados si cambió el comportamiento (`specs/001-user-auth-catalog/`, `README.md` raíz).
+7. Unidad de trabajo = un commit convencional (`feat: …`, `fix: …`, `test: …`, `docs: …`).
+
+---
+
+## 📌 Habilidad M1-E: AppError y mapeo HTTP (Principios III y V)
+
+**Regla constitucional:** error de dominio → variante específica de `AppError` con 409/422 (o 401/403/404); error de infraestructura/persistencia → `AppError::Interno` con 500 genérico, sin exponer detalles de BD.
+
+**Patrón (backend Rust):**
+
+```rust
+// backend/src/error.rs
+#[derive(Debug)]
+pub enum AppError {
+    // Auth / dominio
+    CredencialesInvalidas,          // 401 — SIEMPRE el mismo mensaje (anti-enumeración)
+    SesionExpirada,                 // 401
+    NoAutorizado,                   // 403
+    NoEncontrado(&'static str),     // 404
+    EmailDuplicado,                 // 409
+    UltimoAdministrador,            // 409
+    SkuDuplicado(String),           // 409
+    CodigoBarrasDuplicado,          // 409
+    ProductoConReferencias,         // 409
+    DepositoConDependencias,        // 409
+    Validacion(Vec<String>),        // 422
+    // Infraestructura
+    Database(sqlx::Error),          // 500 genérico al cliente
+    Interno,                        // 500 genérico
+}
+
+// IntoResponse: dominio → status + { "error": { "codigo", "mensaje" } }
+// Database/Interno → 500 { "codigo": "interno", "mensaje": "Error interno. Contacte al administrador." }
+// NUNCA enviar el detalle de sqlx::Error al cliente.
+```
+
+**Mensajes en español de negocio, accionables** (Principio III), p. ej. `SkuDuplicado`: *"Ya existe un producto con SKU TEST-001."*
+
+**Login:** todos los fallos (email inexistente, password mal, usuario inactivo) → `CredencialesInvalidas` → 401 con texto idéntico. Excepción deliberada documentada en la spec (Supuestos).
+
+---
+
+## 📌 Habilidad M1-A: Sesión, login y RBAC (Axum)
+
+**Decisiones (research R1, R5):** cookie `HttpOnly` + `SameSite=Lax`; una sola sesión vigente por usuario (fila en `sesiones`; nuevo login revoca la anterior); expiración por `expira_en` (default 8h); Argon2id.
+
+**Patrón de sesión (servicio):**
+
+```rust
+pub async fn login(pool: &PgPool, email: &str, password: &str) -> Result<(Uuid, Usuario), AppError> {
+    let user = sqlx::query_as!(Usuario, r#"SELECT * FROM usuarios WHERE email = $1 AND activo = TRUE"#, email)
+        .fetch_optional(pool).await
+        .map_err(AppError::Database)?;
+
+    // Verificar SIEMPRE argon2 aunque user sea None (evitar timing oracle simple)
+    let hash_ok = match &user {
+        Some(u) => argon2_verify(&u.password_hash, password).unwrap_or(false),
+        None => { argon2_verify_dummy(password); false }
+    };
+    let Some(user) = user.filter(|_| hash_ok) else {
+        return Err(AppError::CredencialesInvalidas); // mismo mensaje que inactivo / hash mal
+    };
+
+    // Revocar sesión anterior (una sola vigente)
+    sqlx::query!(
+        r#"UPDATE sesiones SET revocada_en = now() WHERE usuario_id = $1 AND revocada_en IS NULL"#,
+        user.id
+    ).execute(pool).await.map_err(AppError::Database)?;
+
+    let session_id = Uuid::new_v4();
+    let expira = Utc::now() + chrono::Duration::hours(8); // SESSION_EXPIRY_HOURS
+    sqlx::query!(
+        r#"INSERT INTO sesiones (id, usuario_id, expira_en) VALUES ($1, $2, $3)"#,
+        session_id, user.id, expira
+    ).execute(pool).await.map_err(AppError::Database)?;
+
+    Ok((session_id, user))
+}
+```
+
+**Extractor de autorización (axum):**
+
+```rust
+// AuthUsuario: lee cookie → sesión vigente + usuario activo; si no, 401.
+// RequiereGestion: wrapper/extractor que exige familia_rol == "GESTION"; si no, 403.
+// Handlers de /api/usuarios, /api/productos (escritura), /api/depositos usan RequiereGestion.
+// /api/productos/buscar y /auth/* solo requieren AuthUsuario (o público en login).
+```
+
+**Cambio de contraseña temporal:** al login con `password_temporal = true`, el frontend fuerza `POST /auth/cambiar-password`; el servicio valida política y pone `password_temporal = FALSE`.
+
+---
+
+## 📌 Habilidad M1-B: Usuarios — CRUD y última regla de admin
+
+**Alta de usuario (servicio):**
+
+1. Validar email (formato) y unicidad → 409 `EmailDuplicado`.
+2. Mapear rol: ADMIN/GERENTE → `familia_rol = GESTION`; OPERARIO/CAJERO → `OPERACION`.
+3. Generar contraseña temporal con CSPRNG (≥12 chars), hashear Argon2id, `password_temporal = TRUE`.
+4. Insertar usuario; enviar contraseña temporal por `TraitEnvioCorreo` (en dev: log/consola; prod: SMTP).
+5. Nunca devolver el hash ni la contraseña temporal en respuestas de producción (solo en dev bootstrap).
+
+**Desactivar (último admin):**
+
+```rust
+// Dentro de una transacción:
+// SELECT count(*) FROM usuarios WHERE familia_rol = 'GESTION' AND activo = TRUE
+//   [AND id <> $usuario_a_desactivar] FOR UPDATE;
+// Si count == 0 → Err(AppError::UltimoAdministrador) // 409
+// UPDATE usuarios SET activo = FALSE; UPDATE sesiones SET revocada_en = now() WHERE usuario_id = $1 AND revocada_en IS NULL;
+```
+
+**Baja lógica:** nunca `DELETE` de usuarios en este módulo (trazabilidad de movimientos futuros).
+
+---
+
+## 📌 Habilidad M1-C: Productos, SKU y búsqueda de caja
+
+**Normalización de SKU (antes de validar unicidad):**
+
+```rust
+pub fn normalizar_sku(entrada: &str) -> Result<String, AppError> {
+    let sku = entrada.trim().to_uppercase().replace(' ', "");
+    // Regex: ^[A-Z0-9][A-Z0-9-]{2,29}$
+    if !SKU_RE.is_match(&sku) {
+        return Err(AppError::Validacion(vec!["SKU inválido: use 3–30 caracteres (letras, números y guiones).".into()]));
+    }
+    Ok(sku)
+}
+// Insert/update: unicidad global; violación unique → AppError::SkuDuplicado(sku) // 409
+// codigo_barras: NULLS NOT DISTINCT en PG15+; unique → CodigoBarrasDuplicado
+```
+
+**Búsqueda caja (SC-002 ≤1s):**
+
+- SKU o código de barras: match exacto (post-normalizar); traer **solo activos** por defecto.
+- Nombre: `q` mínimo 2 caracteres; `pg_trgm` + índice GIN o `LOWER(nombre) LIKE 'q%'` según migración.
+- Endpoint: `GET /api/productos/buscar?q=&campo=sku|codigo|nombre|categoria`.
+
+**Borrado físico vs lógico:** DELETE solo si no hay referencias (movimientos, asignaciones, …); si hay → 409 `ProductoConReferencias` y ofrecer `POST /productos/{id}/desactivar`. Inactivos no salen en búsqueda de caja (`?incluir_inactivos=true` solo gestión).
+
+---
+
+## 📌 Habilidad M1-D: Depósitos y ubicaciones jerárquicas
+
+**Sin huérfanas:** toda INSERT/UPDATE de `ubicaciones` exige `deposito_id` NOT NULL; si viene `padre_id`, el `deposito_id` debe ser el mismo que el del padre (validar en servicio → 422 `Validacion` / mensaje de ubicación inválida).
+
+```sql
+-- Garantías en migración
+ALTER TABLE ubicaciones
+  ADD CONSTRAINT ubicaciones_deposito_fk FOREIGN KEY (deposito_id) REFERENCES depositos(id) ON DELETE RESTRICT;
+-- UNIQUE (deposito_id, padre_id, nombre) para gemelos
+```
+
+**DELETE depósito:** solo si no hay ubicaciones/movimientos → si no, 409 `DepositoConDependencias`.
+**Asignación producto–ubicación:** `PUT /api/productos/{id}/ubicaciones` reemplaza el conjunto en `producto_ubicacion_permitida` (DELETE+INSERT en transacción o UPSERT diferencia).
+
+---
+
+## 📌 Habilidad M1-F: Frontend SvelteKit + Tailwind (Módulo 1)
+
+**Stack frontend:** SvelteKit modo SPA (`adapter-static`) + Tailwind CSS + Zod. No se trata como "app Node": Node solo corre el toolchain de build/dev.
+
+**Cliente API central (Principio II):**
+
+```typescript
+// frontend/src/lib/api/client.ts
+const API_BASE = import.meta.env.PUBLIC_API_URL ?? 'http://localhost:8080/api';
+
+export class ApiError extends Error {
+  constructor(public status: number, public codigo: string, message: string) {
+    super(message);
+  }
+}
+
+export async function api<T>(path: string, init?: RequestInit): Promise<T> {
+  const res = await fetch(`${API_BASE}${path}`, {
+    credentials: 'include', // cookie de sesión
+    headers: { 'Content-Type': 'application/json', ...init?.headers },
+    ...init,
+  });
+  if (!res.ok) {
+    const body = await res.json().catch(() => null);
+    throw new ApiError(res.status, body?.error?.codigo ?? 'desconocido',
+      body?.error?.mensaje ?? 'Error inesperado');
+  }
+  if (res.status === 204) return undefined as T;
+  return res.json();
+}
+```
+
+**Zod en `$lib/schemas/`** (ver `contracts/validation.md`): validar en forms ANTES del submit; el backend es la autoridad final.
+
+**Store de sesión:**
+
+```typescript
+// $lib/stores/sesion.ts — cargar GET /auth/sesion en el arranque del layout;
+// si 401 → redirigir a /login; si debe_cambiar_password → forzar pantalla de cambio.
+```
+
+**UI:** layouts `admin` (menú gestión) y `caja` (búsqueda SKU/código); tablas paginadas; modales de alta/edición; mensajes de error con el `mensaje` de `ApiError` (Principio III). Ocultar botones de gestión a familia operación (UX); **el backend igual deniega** con 403.
+
+---
+
+# Habilidades de módulos posteriores (referencia)
+
+Las habilidades 1–7 de abajo se usan al implementar stock, alertas, chatbot, etc. No las invoques para tareas del Módulo 1 salvo que el patrón sea genérico (Habilidad 2 siempre; Habilidad 4/6 si aplica).
 
 ---
 

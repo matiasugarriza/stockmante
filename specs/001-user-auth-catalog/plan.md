@@ -99,7 +99,7 @@ migrations/              # SQLx migrations en RAÍZ (constitución)
 └── 0001_*.sql …
 
 .env.example             # DATABASE_URL, SESSION_*, EMAIL_*, APP_URL
-README.md                # instalación, env, comandos (ver quickstart)
+README.md                # ENTREGABLE del Módulo 1: setup local + documentación del módulo (ver sección Configuración inicial y README)
 ```
 
 **Structure Decision**: monorepo web (`backend/` + `frontend/` + `/migrations` en raíz). El plan no crea código en esta fase; esta estructura es la que los tasks de implementación deben seguir. La constitución manda `/migrations` en la raíz del repo; SQLx apunta `migrations_dir` allí (o se usa `sqlx migrate` con `-m migrations`).
@@ -128,9 +128,77 @@ Entidades: `usuarios`, `sesiones`, `categorias`, `productos`, `depositos`, `ubic
 | SQLx | `cargo sqlx prepare --check` sin diferencias en cada cierre de tarea |
 | E2E manual | quickstart.md — login, alta usuario, búsqueda SKU, ubicación huérfana |
 
-## Configuración inicial y README
+## Configuración inicial y README (entregable del Módulo 1)
 
-El `README.md` de la raíz debe documentar: requisitos (Rust, **SvelteKit + Tailwind CSS** para el frontend, PostgreSQL), clonado, variables de `.env.example` (`DATABASE_URL`, `SESSION_COOKIE_NAME`, `SESSION_EXPIRY_HOURS`, `APP_URL`, `EMAIL_FROM`, `SMTP_*` opcionales), comandos (`sqlx migrate run`, `cargo run`, y el comando dev/build del proyecto SvelteKit), y credenciales del admin de bootstrap (solo indicando que se imprimen en consola de dev). Plantilla exacta de comandos en [quickstart.md](./quickstart.md).
+### Creación de `README.md` en la raíz del repo
+
+Dentro de la implementación del Módulo 1 se **crea (o se reescribe) `README.md`** en la raíz del monorepo. No es documentación opcional: es parte del alcance de este módulo y debe cerrarse junto a la última tarea de backend/frontend, alineada a `quickstart.md` (fuente de comandos y variables).
+
+**Estructura requerida del README:**
+
+```markdown
+# Stockmante
+
+Descripción breve del sistema (gestión de inventario).
+
+## Stack
+- Frontend: SvelteKit (SPA) + Tailwind CSS
+- Backend: Rust + Axum + SQLx
+- Base de datos: PostgreSQL
+
+## Requisitos del entorno local
+- Rust (rustup)
+- PostgreSQL 15+
+- sqlx-cli
+- Toolchain de SvelteKit para el frontend
+
+## Configuración del entorno local
+1. Clonar el repo
+2. Copiar .env.example → .env y explicar cada variable
+   (DATABASE_URL, SESSION_COOKIE_NAME, SESSION_EXPIRY_HOURS,
+    APP_URL, EMAIL_FROM, SMTP_URL)
+3. sqlx migrate run
+4. Arrancar backend (cargo run) — nota sobre admin bootstrap
+5. Arrancar frontend SvelteKit (comando dev del proyecto)
+
+## Comandos útiles
+| Comando | Para qué |
+|---------|----------|
+| sqlx migrate run | Aplicar migraciones |
+| cargo test | Tests backend |
+| cargo sqlx prepare --check | Verificar caché de queries SQLx |
+| (dev del frontend) | Levantar SPA SvelteKit |
+| (test del frontend) | Tests vitest de $lib/api y stores |
+
+## Módulo 1 — Usuarios, Autenticación y Catálogo Base
+- Qué incluye: login/sesión (una por usuario), RBAC (gestión vs operación),
+  usuarios con baja lógica y contraseña temporal, productos/categorías con
+  SKU normalizado y búsqueda para caja, depósitos y ubicaciones jerárquicas.
+- Roles: Administrador/Gerente (idénticos en este módulo) y Operario/Cajero.
+- Seguridad de login: mensaje genérico de fallo (anti-enumeración).
+- Fuera de alcance de v1: movimientos de stock, transferencias, facturación,
+  alertas de stock mínimo.
+- Docs de diseño de este módulo: specs/001-user-auth-catalog/
+  (spec, plan, data-model, contracts, quickstart).
+
+## Calidad
+Sin unwrap/panic en producción; tests en verde; spec actualizada si cambia
+el comportamiento.
+```
+
+**Reglas del README:**
+- Idioma: español (equipo de proyecto).
+- Sin pasos inventados: los comandos deben coincidir con `quickstart.md`.
+- Las credenciales del admin bootstrap solo se explican ("se imprimen en consola
+  de dev"), nunca se pegan claves reales en el README.
+- Si el comportamiento del módulo cambia respecto de lo planificado, actualizar
+  README en el mismo PR (quality gate de constitución: docs junto al cambio).
+
+### Fuente de verdad de comandos y variables
+
+[quickstart.md](./quickstart.md) mantiene la guía de validación detallada
+(escenarios V1–V8). El README es la puerta de entrada resumida; en caso de
+conflicto, prevalece quickstart.md y se corrige el README en el mismo commit.
 
 ## Complexity Tracking
 
@@ -140,4 +208,4 @@ El `README.md` de la raíz debe documentar: requisitos (Rust, **SvelteKit + Tail
 
 ## Siguiente paso
 
-`/speckit.tasks` para descomponer en tareas TDD con unidades de trabajo (commits) por área: migraciones+esquema → error/AppError → auth+sesiones → usuarios → productos/categorías → depósitos/ubicaciones → frontend.
+`/speckit.tasks` para descomponer en tareas TDD con unidades de trabajo (commits) por área: migraciones+esquema → error/AppError → auth+sesiones → usuarios → productos/categorías → depósitos/ubicaciones → frontend → **README.md raíz (setup local + doc Módulo 1)**.
