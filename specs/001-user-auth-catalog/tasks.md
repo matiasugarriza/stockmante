@@ -69,19 +69,23 @@
 ### Tests FIRST (RED) para US1
 
 > Escribir estos tests y verlos fallar antes del servicio/handler.
+>
+> *(2026-10-20: los tests T017–T019 y el servicio T020 se escribieron en la misma
+> tanda por la deuda de contexto de la sesión; la cobertura y el mapeo de casos
+> T-AUTH-01..05 están verificados en verde, pero el paso RED formal no se observó.)*
 
-- [ ] T017 [P] [US1] Unit test servicio login: credenciales inválidas → `CredencialesInvalidas` (mismo resultado email inexistente, password mal, inactivo) en `backend/tests/unit/test_auth_login.rs`. **Aceptación**: test en rojo hasta implementar servicio.
-- [ ] T018 [P] [US1] Unit test sesión única: segundo login revoca `revocada_en` de la anterior en `backend/tests/unit/test_sesion_unica.rs`. **Aceptación**: RED inicial.
-- [ ] T019 [P] [US1] Unit test cambio de password temporal: tras cambio, `password_temporal == false` y hash viejo no verifica en `backend/tests/unit/test_cambio_password.rs`. **Aceptación**: RED inicial.
+- [X] T017 [P] [US1] Unit test servicio login: credenciales inválidas → `CredencialesInvalidas` (mismo resultado email inexistente, password mal, inactivo) en `backend/tests/unit/test_auth_login.rs`. **Aceptación**: test en rojo hasta implementar servicio.
+- [X] T018 [P] [US1] Unit test sesión única: segundo login revoca `revocada_en` de la anterior en `backend/tests/unit/test_sesion_unica.rs`. **Aceptación**: RED inicial.
+- [X] T019 [P] [US1] Unit test cambio de password temporal: tras cambio, `password_temporal == false` y hash viejo no verifica en `backend/tests/unit/test_cambio_password.rs`. **Aceptación**: RED inicial.
 
 ### Implementation para US1
 
-- [ ] T020 [US1] Implementar servicio `backend/src/services/auth.rs`: `login`, `logout`, `sesion_actual`, `cambiar_password` según Habilidad M1-A y research R1 (una sesión vigente, expiración con `Reloj`). **Aceptación**: T017–T019 en verde; `cargo test` completo en verde.
-- [ ] T021 [US1] Implementar extractores `backend/src/auth/extractors.rs`: `AuthUsuario` (cookie → usuario) y rechazo 401 `sesion_expirada`/no autenticada. **Aceptación**: integration test Axum con cookie válida/inválida.
-- [ ] T022 [US1] Implementar handlers `backend/src/handlers/auth.rs`: `POST /api/auth/login` (Set-Cookie HttpOnly, SameSite=Lax; 204 o 401 genérico), `POST /api/auth/logout`, `GET /api/auth/sesion`, `POST /api/auth/cambiar-password`. **Aceptación**: integration tests de cada endpoint contra BD de test; contrato de contracts/api.md.
-- [ ] T023 [US1] Seed/bootstrap: migración o binario `backend/src/bin/bootstrap.rs` que crea depósito "Principal" (si no existe) y admin inicial con password temporal impresa solo en consola DEV. **Aceptación**: en BD limpia, `sqlx migrate run` + bootstrap deja un admin activo; en prod no imprime secretos (flag/env).
-- [ ] T024 [P] [US1] Frontend: schema Zod `frontend/src/lib/schemas/auth.ts`, cliente `frontend/src/lib/api/auth.ts`, store `frontend/src/lib/stores/sesion.ts`. **Aceptación**: vitest de schemas + cliente mock 401/204.
-- [ ] T025 [US1] Frontend: ruta `frontend/src/routes/login/+page.svelte` y pantalla de cambio obligatorio de password; layout consulta sesión al arrancar y redirige. **Aceptación**: manual V1/V2 de quickstart.md; sin menú de admin si no hay sesión.
+- [X] T020 [US1] Implementar servicio `backend/src/services/auth.rs`: `login`, `logout`, `sesion_actual`, `cambiar_password` según Habilidad M1-A y research R1 (una sesión vigente, expiración con `Reloj`). **Aceptación**: T017–T019 en verde; `cargo test` completo en verde.
+- [X] T021 [US1] Implementar extractores `backend/src/auth/extractors.rs`: `AuthUsuario` (cookie → usuario) y rechazo 401 `sesion_expirada`/no autenticada. **Aceptación**: integration test Axum con cookie válida/inválida.
+- [X] T022 [US1] Implementar handlers `backend/src/handlers/auth.rs`: `POST /api/auth/login` (Set-Cookie HttpOnly, SameSite=Lax; 204 o 401 genérico), `POST /api/auth/logout`, `GET /api/auth/sesion`, `POST /api/auth/cambiar-password`. **Aceptación**: integration tests de cada endpoint contra BD de test; contrato de contracts/api.md.
+- [X] T023 [US1] Seed/bootstrap: migración o binario `backend/src/bin/bootstrap.rs` que crea depósito "Principal" (si no existe) y admin inicial con password temporal impresa solo en consola DEV. **Aceptación**: en BD limpia, `sqlx migrate run` + bootstrap deja un admin activo; en prod no imprime secretos (flag/env).
+- [X] T024 [P] [US1] Frontend: schema Zod `frontend/src/lib/schemas/auth.ts`, cliente `frontend/src/lib/api/auth.ts`, store `frontend/src/lib/stores/sesion.ts`. **Aceptación**: vitest de schemas + cliente mock 401/204.
+- [X] T025 [US1] Frontend: ruta `frontend/src/routes/login/+page.svelte` y pantalla de cambio obligatorio de password; layout consulta sesión al arrancar y redirige. **Aceptación**: manual V1/V2 de quickstart.md; sin menú de admin si no hay sesión.
 
 **Checkpoint**: MVP de autenticación usable end-to-end.
 

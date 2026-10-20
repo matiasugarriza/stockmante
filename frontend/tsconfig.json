@@ -1,7 +1,13 @@
 {
 	"extends": "$app/tsconfig",
 	"compilerOptions": {
-		"strict": true
+		"strict": true,
+		// SvelteKit 3 usa subpath imports (#lib) que Vite resuelve nativamente;
+		// TS en modo bundler no sondea extensiones para `imports`, así que acá se mapean.
+		"paths": {
+			"#lib": ["./src/lib/index"],
+			"#lib/*": ["./src/lib/*"]
+		}
 	},
 	"include": ["src", "vite.config.ts"]
 }

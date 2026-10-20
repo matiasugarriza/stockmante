@@ -21,6 +21,7 @@ tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 dotenvy = "0.15"
 async-trait = "0.1"
+time = "0.3"
 
 [[test]]
 name = "test_password"
@@ -33,3 +34,23 @@ path = "tests/unit/test_apperror.rs"
 [[test]]
 name = "test_mail"
 path = "tests/unit/test_mail.rs"
+
+[[test]]
+name = "test_auth_login"
+path = "tests/unit/test_auth_login.rs"
+
+[[test]]
+name = "test_sesion_unica"
+path = "tests/unit/test_sesion_unica.rs"
+
+[[test]]
+name = "test_cambio_password"
+path = "tests/unit/test_cambio_password.rs"
+
+[[test]]
+name = "test_auth_http"
+path = "tests/integration/test_auth_http.rs"
+
+[dev-dependencies]
+tower = { version = "0.5", features = ["util"] }
+http-body-util = "0.1"

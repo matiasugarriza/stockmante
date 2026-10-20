@@ -28,6 +28,20 @@ pub fn verify_password(password: &str, hash: &str) -> bool {
 
 const TEMP_LEN: usize = 14;
 
+/// Política de contraseña de usuario (validation.md): ≥8, ≥1 mayúscula, ≥1 dígito.
+pub fn validar_politica_password(password: &str) -> Result<(), AppError> {
+    let cumple = password.chars().count() >= 8
+        && password.chars().any(|c| c.is_ascii_uppercase())
+        && password.chars().any(|c| c.is_ascii_digit());
+    if cumple {
+        Ok(())
+    } else {
+        Err(AppError::Validacion(
+            "La contraseña debe tener al menos 8 caracteres, una mayúscula y un dígito".into(),
+        ))
+    }
+}
+
 /// Password temporal: >= 12 chars, 1 mayúscula, 1 dígito (CSPRNG).
 pub fn generar_password_temporal() -> String {
     let mut rng = rand::rng();

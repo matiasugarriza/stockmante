@@ -1,28 +1,12 @@
-use axum::{
-    http::{header, Method},
-    routing::get,
-    Json, Router,
-};
-use serde_json::json;
-use sqlx::PgPool;
-use std::sync::Arc;
 use stockmante_backend::{
-    auth::reloj::{Reloj, RelojSistema},
+    app::{construir_router, AppEstado},
+    auth::reloj::RelojSistema,
     config::AppConfig,
     db,
     error::AppError,
-    mail::envio::{CorreoDev, EnvioCorreo},
+    mail::envio::CorreoDev,
 };
-use tower_http::cors::CorsLayer;
-
-/// Estado compartido de la aplicación (Principio II: centralizado en un solo struct).
-#[derive(Clone)]
-pub struct AppEstado {
-    pub pool: PgPool,
-    pub config: AppConfig,
-    pub reloj: Arc<dyn Reloj>,
-    pub correo: Arc<dyn EnvioCorreo>,
-}
+use std::sync::Arc;
 
 #[tokio::main]
 async fn main() {
@@ -47,19 +31,7 @@ async fn arrancar() -> Result<(), AppError> {
         correo: Arc::new(CorreoDev::new()),
     };
 
-    let mut cors = CorsLayer::new()
-        .allow_methods([Method::GET, Method::POST, Method::PUT, Method::DELETE])
-        .allow_headers([header::CONTENT_TYPE, header::AUTHORIZATION])
-        .allow_credentials(true);
-    match config.app_url.parse::<header::HeaderValue>() {
-        Ok(origin) => cors = cors.allow_origin(origin),
-        Err(_) => tracing::warn!(app_url = %config.app_url, "APP_URL no es un origin válido; CORS sin allow_origin"),
-    }
-
-    let app = Router::new()
-        .route("/api/salud", get(salud))
-        .layer(cors)
-        .with_state(estado);
+    let app = construir_router(estado);
 
     let addr = format!("0.0.0.0:{}", config.port);
     let listener = tokio::net::TcpListener::bind(&addr).await.map_err(|e| {
@@ -72,8 +44,4 @@ async fn arrancar() -> Result<(), AppError> {
         AppError::Interno("servidor interrumpido".into())
     })?;
     Ok(())
-}
-
-async fn salud() -> Json<serde_json::Value> {
-    Json(json!({ "ok": true }))
 }
