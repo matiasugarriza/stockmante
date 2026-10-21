@@ -2,6 +2,8 @@
 name = "stockmante-backend"
 version = "0.1.0"
 edition = "2021"
+# Con src/bin/bootstrap.rs hay dos binarios; `cargo run` sin --bin debe levantar el servidor.
+default-run = "stockmante-backend"
 
 [dependencies]
 axum = "0.8"

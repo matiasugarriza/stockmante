@@ -1,5 +1,9 @@
 //! T023 — Bootstrap: depósito "Principal" + admin inicial (research R7).
 //! En DEV imprime la contraseña temporal en consola; en producción jamás.
+//!
+//! Uso:
+//!   cargo run --bin bootstrap                          # seed idempotente
+//!   cargo run --bin bootstrap -- --reset-admin-password  # DEV: regenera temporal del admin
 
 use stockmante_backend::auth::password::{generar_password_temporal, hash_password};
 use stockmante_backend::config::AppConfig;
@@ -11,13 +15,15 @@ async fn main() {
     tracing_subscriber::fmt::init();
     let _ = dotenvy::dotenv();
 
-    if let Err(e) = correr().await {
+    let reset_admin = std::env::args().any(|a| a == "--reset-admin-password");
+
+    if let Err(e) = correr(reset_admin).await {
         eprintln!("Bootstrap falló: {e}");
         std::process::exit(1);
     }
 }
 
-async fn correr() -> Result<(), AppError> {
+async fn correr(reset_admin: bool) -> Result<(), AppError> {
     let config = AppConfig::desde_entorno()?;
     let pool = db::crear_pool(&config.database_url).await?;
 
@@ -44,6 +50,9 @@ async fn correr() -> Result<(), AppError> {
         .await?;
 
     if existe {
+        if reset_admin {
+            return resetear_admin(&pool, &email_admin).await;
+        }
         tracing::info!(email = %email_admin, "el admin ya existe; no se toca");
         return Ok(());
     }
@@ -62,17 +71,63 @@ async fn correr() -> Result<(), AppError> {
     .await?;
     tracing::info!(id = admin_id, email = %email_admin, "admin inicial creado");
 
+    imprimir_credenciales(&email_admin, &password_temporal, "Admin inicial creado");
+    Ok(())
+}
+
+/// Regenera la contraseña temporal del admin y revoca sus sesiones.
+/// Solo DEV: en producción se rechaza (evita resetear credenciales sin trazabilidad).
+async fn resetear_admin(pool: &sqlx::PgPool, email: &str) -> Result<(), AppError> {
+    let entorno = std::env::var("APP_ENV").unwrap_or_else(|_| "development".into());
+    if entorno == "production" {
+        return Err(AppError::Validacion(
+            "--reset-admin-password no está permitido con APP_ENV=production".into(),
+        ));
+    }
+
+    let admin_id = sqlx::query_scalar::<_, i32>("SELECT id FROM usuarios WHERE email = $1")
+        .bind(email)
+        .fetch_one(pool)
+        .await?;
+
+    let password_temporal = generar_password_temporal();
+    let hash = hash_password(&password_temporal)?;
+
+    let mut tx = pool.begin().await?;
+    sqlx::query(
+        "UPDATE sesiones SET revocada_en = now() WHERE usuario_id = $1 AND revocada_en IS NULL",
+    )
+    .bind(admin_id)
+    .execute(&mut *tx)
+    .await?;
+    sqlx::query(
+        "UPDATE usuarios SET password_hash = $1, password_temporal = TRUE, actualizado_en = now() WHERE id = $2",
+    )
+    .bind(&hash)
+    .bind(admin_id)
+    .execute(&mut *tx)
+    .await?;
+    tx.commit().await?;
+
+    tracing::info!(email = %email, "contraseña temporal regenerada; sesiones revocadas");
+    imprimir_credenciales(email, &password_temporal, "Contraseña temporal regenerada");
+    Ok(())
+}
+
+fn imprimir_credenciales(email: &str, password_temporal: &str, titulo: &str) {
     // La contraseña temporal solo se imprime fuera de producción (SIR).
     let entorno = std::env::var("APP_ENV").unwrap_or_else(|_| "development".into());
     if entorno == "production" {
-        tracing::warn!("admin creado en producción SIN imprimir credenciales; regenerá la contraseña temporal desde una sesión de gestión");
+        tracing::warn!(
+            email = %email,
+            "credenciales generadas en producción SIN imprimir; entregarlas por canal seguro"
+        );
     } else {
         println!("──────────────────────────────────────────────");
-        println!(" Admin inicial creado (solo esta vez se imprime)");
-        println!("   email:    {email_admin}");
+        println!(" {titulo}");
+        println!("   email:    {email}");
         println!("   password: {password_temporal}");
         println!("   (login y forzar cambio de contraseña en /login)");
         println!("──────────────────────────────────────────────");
     }
-    Ok(())
 }
