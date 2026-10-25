@@ -1,8 +1,11 @@
-# Research: Módulo 1 — Usuarios, Autenticación y Catálogo Base
+# Research: base técnica y autenticación
 
-**Date**: 2026-10-12 | **Spec**: [spec.md](./spec.md) | **Plan**: [plan.md](./plan.md)
+**Date**: 2026-10-12 | **Dividido**: 2026-10-25 | **Spec**: [spec.md](./spec.md) | **Plan**: [plan.md](./plan.md)
 
 Todos los `NEEDS CLARIFICATION` del Technical Context quedaron resueltos. Sin pendientes.
+
+> R1–R8 son decisiones de la **base compartida** y las consumen 002–006. Las decisiones
+> propias de cada caso de uso viven en el `research.md` de su spec (por ejemplo, R9–R12 en 003).
 
 ## R1 — Mecanismo de sesión con invalidación única
 
@@ -36,7 +39,7 @@ Todos los `NEEDS CLARIFICATION` del Technical Context quedaron resueltos. Sin pe
 
 ## R6 — Estructura de repositorio (mono-repo backend + frontend)
 
-- **Decision**: mono-repo con `backend/` (Axum, SQLx, migraciones en `backend/migrations/` o raíz `/migrations` según constitución → **`/migrations`** en raíz) y `frontend/` (SvelteKit SPA + Tailwind). Contratos HTTP documentados en `specs/001-user-auth-catalog/contracts/api.md`.
+- **Decision**: mono-repo con `backend/` (Axum, SQLx, migraciones en `backend/migrations/` o raíz `/migrations` según constitución → **`/migrations`** en raíz) y `frontend/` (SvelteKit SPA + Tailwind). Contratos HTTP documentados por spec en `specs/*/contracts/api.md`; el contrato base (auth, sobre de errores y guards) vive en `specs/001-autenticacion-sesion/contracts/api.md`.
 - **Rationale**: constitución fija stack; `/migrations` versionadas en raíz es regla de la constitución.
 - **Alternatives considered**: monorepo con workspace Rust compartido (premature — un solo backend), `apps/`+`packages/` (mismo costo, paths alineados a constitución).
 
