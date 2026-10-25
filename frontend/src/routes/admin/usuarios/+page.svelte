@@ -14,9 +14,13 @@
 	import UsuarioTabla from '#lib/components/usuarios/UsuarioTabla.svelte';
 	import type { Rol, Usuario } from '#lib/schemas/usuarios';
 	import { sesion } from '#lib/stores/sesion';
+	import { paginaValida, totalPaginas } from '#lib/utils/paginacion';
+
+	const POR_PAGINA = 20;
 
 	let usuarios = $state<Usuario[]>([]);
 	let total = $state(0);
+	let pagina = $state(1);
 	let filtro = $state<FiltroActivo>('true');
 	let cargando = $state(false);
 	let cargado = $state(false);
@@ -26,6 +30,7 @@
 	let aviso = $state<string | null>(null);
 	let modalAbierto = $state(false);
 	let editando = $state<Usuario | null>(null);
+	const paginas = $derived(totalPaginas(total, POR_PAGINA));
 
 	$effect(() => {
 		if ($sesion.estado === 'activa' && $sesion.usuario.familia_rol !== 'GESTION') {
@@ -55,7 +60,22 @@
 		cargando = true;
 		error = null;
 		try {
-			const lista = await listarUsuarios({ activo: filtro, porPagina: 100 });
+			let lista = await listarUsuarios({
+				activo: filtro,
+				pagina,
+				porPagina: POR_PAGINA
+			});
+			// Una baja o un cambio de filtro puede vaciar la página actual:
+			// volvemos a la última página válida antes de pintar.
+			const valida = paginaValida(pagina, lista.total, POR_PAGINA);
+			if (valida !== pagina) {
+				pagina = valida;
+				lista = await listarUsuarios({
+					activo: filtro,
+					pagina,
+					porPagina: POR_PAGINA
+				});
+			}
 			usuarios = lista.items;
 			total = lista.total;
 		} catch (e) {
@@ -68,6 +88,13 @@
 	async function cambiarFiltro(nuevo: FiltroActivo) {
 		if (nuevo === filtro) return;
 		filtro = nuevo;
+		pagina = 1;
+		await cargar();
+	}
+
+	async function irAPagina(nueva: number) {
+		if (cargando || nueva === pagina || nueva < 1 || nueva > paginas) return;
+		pagina = nueva;
 		await cargar();
 	}
 
@@ -202,9 +229,28 @@
 			onAlternarEstado={(usuario) => void alternarEstado(usuario)}
 			onRegenerar={(usuario) => void regenerar(usuario)}
 		/>
-		<p class="text-xs text-slate-500">
-			{usuarios.length} de {total} usuario{total === 1 ? '' : 's'} en este filtro.
-		</p>
+		<div class="flex flex-wrap items-center justify-between gap-2">
+			<p class="text-xs text-slate-500">
+				{usuarios.length} de {total} usuario{total === 1 ? '' : 's'} en este filtro · página
+				{pagina} de {paginas}
+			</p>
+			<div class="flex items-center gap-2">
+				<button
+					class="rounded border border-slate-300 px-3 py-1 text-sm text-slate-600 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-40"
+					disabled={pagina <= 1}
+					onclick={() => void irAPagina(pagina - 1)}
+				>
+					Anterior
+				</button>
+				<button
+					class="rounded border border-slate-300 px-3 py-1 text-sm text-slate-600 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-40"
+					disabled={pagina >= paginas}
+					onclick={() => void irAPagina(pagina + 1)}
+				>
+					Siguiente
+				</button>
+			</div>
+		</div>
 	{/if}
 </div>
 
