@@ -25,6 +25,7 @@ async fn main() {
 
 async fn correr(reset_admin: bool) -> Result<(), AppError> {
     let config = AppConfig::desde_entorno()?;
+    let produccion = config.es_produccion();
     let pool = db::crear_pool(&config.database_url).await?;
 
     // 1) Depósito inicial "Principal" (idempotente)
@@ -51,7 +52,7 @@ async fn correr(reset_admin: bool) -> Result<(), AppError> {
 
     if existe {
         if reset_admin {
-            return resetear_admin(&pool, &email_admin).await;
+            return resetear_admin(&pool, &email_admin, produccion).await;
         }
         tracing::info!(email = %email_admin, "el admin ya existe; no se toca");
         return Ok(());
@@ -71,15 +72,23 @@ async fn correr(reset_admin: bool) -> Result<(), AppError> {
     .await?;
     tracing::info!(id = admin_id, email = %email_admin, "admin inicial creado");
 
-    imprimir_credenciales(&email_admin, &password_temporal, "Admin inicial creado");
+    imprimir_credenciales(
+        &email_admin,
+        &password_temporal,
+        "Admin inicial creado",
+        produccion,
+    );
     Ok(())
 }
 
 /// Regenera la contraseña temporal del admin y revoca sus sesiones.
 /// Solo DEV: en producción se rechaza (evita resetear credenciales sin trazabilidad).
-async fn resetear_admin(pool: &sqlx::PgPool, email: &str) -> Result<(), AppError> {
-    let entorno = std::env::var("APP_ENV").unwrap_or_else(|_| "development".into());
-    if entorno == "production" {
+async fn resetear_admin(
+    pool: &sqlx::PgPool,
+    email: &str,
+    produccion: bool,
+) -> Result<(), AppError> {
+    if produccion {
         return Err(AppError::Validacion(
             "--reset-admin-password no está permitido con APP_ENV=production".into(),
         ));
@@ -110,14 +119,18 @@ async fn resetear_admin(pool: &sqlx::PgPool, email: &str) -> Result<(), AppError
     tx.commit().await?;
 
     tracing::info!(email = %email, "contraseña temporal regenerada; sesiones revocadas");
-    imprimir_credenciales(email, &password_temporal, "Contraseña temporal regenerada");
+    imprimir_credenciales(
+        email,
+        &password_temporal,
+        "Contraseña temporal regenerada",
+        produccion,
+    );
     Ok(())
 }
 
-fn imprimir_credenciales(email: &str, password_temporal: &str, titulo: &str) {
+fn imprimir_credenciales(email: &str, password_temporal: &str, titulo: &str, produccion: bool) {
     // La contraseña temporal solo se imprime fuera de producción (SIR).
-    let entorno = std::env::var("APP_ENV").unwrap_or_else(|_| "development".into());
-    if entorno == "production" {
+    if produccion {
         tracing::warn!(
             email = %email,
             "credenciales generadas en producción SIN imprimir; entregarlas por canal seguro"
