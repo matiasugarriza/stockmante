@@ -1,4 +1,5 @@
 pub mod auth;
+pub mod usuarios;
 
 use axum::Json;
 use serde_json::json;

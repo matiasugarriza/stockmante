@@ -5,15 +5,10 @@
 use crate::auth::password::{hash_password, validar_politica_password, verify_password};
 use crate::auth::reloj::Reloj;
 use crate::error::AppError;
-use crate::models::usuario::{SesionVigente, Usuario, UsuarioConHash};
+use crate::models::usuario::{normalizar_email, SesionVigente, Usuario, UsuarioConHash};
 use chrono::Duration;
 use sqlx::PgPool;
 use uuid::Uuid;
-
-/// Normaliza email para lookup: minúsculas + sin espacios sobrantes.
-fn normalizar_email(email: &str) -> String {
-    email.trim().to_lowercase()
-}
 
 /// Login: valida credenciales y crea una sesión nueva revocando la anterior.
 /// Devuelve el id de sesión (cookie) y el usuario público.
@@ -160,16 +155,4 @@ pub async fn cambiar_password(
     .execute(pool)
     .await?;
     Ok(())
-}
-
-/// Helper para otros servicios: usuario por id (o 404).
-pub async fn usuario_por_id(pool: &PgPool, id: i32) -> Result<Usuario, AppError> {
-    sqlx::query_as::<_, Usuario>(
-        r#"SELECT id, nombre, email, rol, familia_rol, activo, password_temporal, creado_en
-           FROM usuarios WHERE id = $1"#,
-    )
-    .bind(id)
-    .fetch_optional(pool)
-    .await?
-    .ok_or_else(|| AppError::RecursoNoEncontrado("usuario no encontrado".into()))
 }

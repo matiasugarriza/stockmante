@@ -3,6 +3,11 @@
 use chrono::{DateTime, Utc};
 use serde::Serialize;
 
+/// Normaliza email para almacenamiento y lookup: minúsculas + sin espacios.
+pub fn normalizar_email(email: &str) -> String {
+    email.trim().to_lowercase()
+}
+
 /// Usuario tal como lo devuelven servicios y handlers.
 #[derive(Debug, Clone, Serialize, sqlx::FromRow)]
 pub struct Usuario {

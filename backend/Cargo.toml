@@ -50,8 +50,28 @@ name = "test_cambio_password"
 path = "tests/unit/test_cambio_password.rs"
 
 [[test]]
+name = "test_familia_rol"
+path = "tests/unit/test_familia_rol.rs"
+
+[[test]]
+name = "test_usuarios_email"
+path = "tests/unit/test_usuarios_email.rs"
+
+[[test]]
+name = "test_usuarios_alta"
+path = "tests/unit/test_usuarios_alta.rs"
+
+[[test]]
+name = "test_ultimo_admin"
+path = "tests/unit/test_ultimo_admin.rs"
+
+[[test]]
 name = "test_auth_http"
 path = "tests/integration/test_auth_http.rs"
+
+[[test]]
+name = "test_usuarios_http"
+path = "tests/integration/test_usuarios_http.rs"
 
 [dev-dependencies]
 tower = { version = "0.5", features = ["util"] }

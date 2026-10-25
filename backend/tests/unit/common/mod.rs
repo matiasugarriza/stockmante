@@ -1,5 +1,9 @@
 //! Helper compartido de tests que necesitan la BD de test (`stockmante_test`).
 //! Cada test usa emails únicos (uuid) para poder correr en paralelo.
+//!
+//! Cada binario de test incluye este módulo completo y usa solo parte de los
+//! helpers, por eso se silencia `dead_code` acá.
+#![allow(dead_code)]
 
 use sqlx::PgPool;
 use stockmante_backend::auth::password::hash_password;

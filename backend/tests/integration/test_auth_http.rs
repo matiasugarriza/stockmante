@@ -50,7 +50,7 @@ fn cookie_de_sesion(res: &axum::response::Response) -> String {
         .to_string()
 }
 
-fn login_request(app: &axum::Router, email: &str, password: &str) -> Request<Body> {
+fn login_request(_app: &axum::Router, email: &str, password: &str) -> Request<Body> {
     Request::builder()
         .method("POST")
         .uri("/api/auth/login")

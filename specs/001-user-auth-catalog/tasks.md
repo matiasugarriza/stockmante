@@ -99,15 +99,19 @@
 
 ### Tests FIRST (RED)
 
-- [ ] T026 [P] [US2] Unit test: alta con email duplicado → `EmailDuplicado` en `backend/tests/unit/test_usuarios_email.rs`. **Aceptación**: RED.
-- [ ] T027 [P] [US2] Unit test: desactivar último `familia_rol=GESTION` activo → `UltimoAdministrador` en `backend/tests/unit/test_ultimo_admin.rs`. **Aceptación**: RED.
-- [ ] T028 [P] [US2] Unit test: mapa rol→familia (ADMIN/GERENTE→GESTION; OPERARIO/CAJERO→OPERACION) en `backend/tests/unit/test_familia_rol.rs`. **Aceptación**: RED.
+> *(2026-10-25: RED observado. Los 4 targets unitarios nuevos no compilaban por
+> `services::usuarios` inexistente; el integration de T030 arrancó 6/6 en rojo
+> porque las rutas `/api/usuarios` todavía no existían.)*
+
+- [X] T026 [P] [US2] Unit test: alta con email duplicado → `EmailDuplicado` en `backend/tests/unit/test_usuarios_email.rs`. **Aceptación**: RED.
+- [X] T027 [P] [US2] Unit test: desactivar último `familia_rol=GESTION` activo → `UltimoAdministrador` en `backend/tests/unit/test_ultimo_admin.rs`. **Aceptación**: RED.
+- [X] T028 [P] [US2] Unit test: mapa rol→familia (ADMIN/GERENTE→GESTION; OPERARIO/CAJERO→OPERACION) en `backend/tests/unit/test_familia_rol.rs`. **Aceptación**: RED.
 
 ### Implementation para US2
 
-- [ ] T029 [US2] Implementar servicio `backend/src/services/usuarios.rs`: crear (genera temp + `EnvioCorreo`), listar, obtener, actualizar, desactivar (con guarda último admin y revocación de sesiones), reactivar, regenerar password temporal. **Aceptación**: T026–T028 verdes; sin DELETE físico de usuarios.
-- [ ] T030 [US2] Implementar handlers `backend/src/handlers/usuarios.rs` bajo extractor `RequiereGestion`: rutas de contracts/api.md (GET/POST/PUT usuarios, desactivar/reactivar/password-temporal). **Aceptación**: integration tests 201/409/422/403/404; sin `password_hash` en respuestas.
-- [ ] T031 [P] [US2] Frontend: schemas + cliente `frontend/src/lib/api/usuarios.ts`, modal/tabla `frontend/src/lib/components/usuarios/*`, ruta `frontend/src/routes/admin/usuarios/+page.svelte`. **Aceptación**: vitest schemas; UI lista/crea/desactiva con mensajes `ApiError`.
+- [X] T029 [US2] Implementar servicio `backend/src/services/usuarios.rs`: crear (genera temp + `EnvioCorreo`), listar, obtener, actualizar, desactivar (con guarda último admin y revocación de sesiones), reactivar, regenerar password temporal. **Aceptación**: T026–T028 verdes; sin DELETE físico de usuarios.
+- [X] T030 [US2] Implementar handlers `backend/src/handlers/usuarios.rs` bajo extractor `RequiereGestion`: rutas de contracts/api.md (GET/POST/PUT usuarios, desactivar/reactivar/password-temporal). **Aceptación**: integration tests 201/409/422/403/404; sin `password_hash` en respuestas.
+- [X] T031 [P] [US2] Frontend: schemas + cliente `frontend/src/lib/api/usuarios.ts`, modal/tabla `frontend/src/lib/components/usuarios/*`, ruta `frontend/src/routes/admin/usuarios/+page.svelte`. **Aceptación**: vitest schemas; UI lista/crea/desactiva con mensajes `ApiError`.
 
 **Checkpoint**: US1+US2 independientes; RBAC de gestión operativo en usuarios.
 

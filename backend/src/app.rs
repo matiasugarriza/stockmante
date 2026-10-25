@@ -35,6 +35,7 @@ pub fn construir_router(estado: AppEstado) -> Router {
     Router::new()
         .route("/api/salud", get(handlers::salud))
         .nest("/api/auth", handlers::auth::router())
+        .nest("/api/usuarios", handlers::usuarios::router())
         .layer(cors)
         .with_state(estado)
 }
