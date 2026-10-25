@@ -1,28 +1,30 @@
 # Progreso de implementación — Módulo 1 (espejo local de reanudación)
 
-> Engram quedó temporalmente no disponible al cerrar la sesión anterior
-> (`could not resolve an authoritative OpenCode runtime session`).
-> Este archivo es el espejo local para retomar; sincronizar con Engram al iniciar la próxima sesión.
+> Engram disponible de nuevo: la arquitectura US2 quedó en la observación 20 y el
+> resumen de sesión en la 21. Este archivo sigue siendo el espejo local para retomar.
 
 ## Último estado verificado (2026-10-25)
 
 - **tasks.md**: T001–T031 `[X]` (Phase 1 + Phase 2 + **Phase 3 US1** + **Phase 4 US2 completas**).
-- **Tests backend**: 40/40 (`cargo test`) — 13 integration HTTP + 27 unit.
+- **Tests backend**: 45/45 (`cargo test`) — 16 integration HTTP + 29 unit.
   - US1: `test_auth_login.rs`, `test_sesion_unica.rs`, `test_cambio_password.rs`,
-    `test_password.rs`, `test_apperror.rs`, `test_mail.rs`,
-    `test_auth_http.rs` (5 HTTP).
+    `test_password.rs`, `test_apperror.rs`, `test_mail.rs` (2), `test_config.rs` (1),
+    `test_auth_http.rs` (6 HTTP).
   - US2: `test_usuarios_email.rs` (3), `test_usuarios_alta.rs` (1),
     `test_ultimo_admin.rs` (1), `test_familia_rol.rs` (3),
-    `test_usuarios_http.rs` (8 HTTP).
-- **Tests frontend**: 37/37 (`npm test`) + `npm run check` 0 errores/0 warnings + `npm run build` OK.
+    `test_usuarios_http.rs` (10 HTTP).
+- **Tests frontend**: 46/46 (`npm test`) + `npm run check` 0 errores/0 warnings + `npm run build` OK.
   - US2: `schemas/usuarios.test.ts` (9), `api/usuarios.test.ts` (9).
+  - Paginación: `utils/paginacion.test.ts` (9).
 - **Gates**: `cargo sqlx prepare --check` OK (sin macros `query!`; queries en runtime API);
   grep sin `unwrap`/`panic!`/`expect` en `backend/src` ✅.
 - **BD**: migraciones 0001–0003 en `stockmante` y `stockmante_test` (PG18 local, es-AR).
   Bootstrap `cargo run --bin bootstrap` idempotente: crea depósito "Principal" +
   `admin@stockmante.local` con password temporal impresa solo en DEV (`APP_ENV`).
-- **Commits previos**: `e2f2705` (phase1), `4adbab7` (phase2), `59bb4b1` (frontend client),
-  `962ce0d` (US1), `f8358fa` (`default-run`).
+- **Commits**: `e2f2705` (phase1), `4adbab7` (phase2), `59bb4b1` (frontend client),
+  `962ce0d` (US1), `f8358fa` (`default-run`), `f1fc3e8` (US2),
+  `979315a` (`.gitignore`), `977bd90` (temporal + extractores),
+  `5a0b971` (mailer dev), `8fa8390` (paginador).
 
 ## Arquitectura US1 (implementado)
 
@@ -82,11 +84,43 @@
 - Advisories corregidos: deadlock de bajas concurrentes (orden de locks), error del
   modal invisible, huecos de test (401 sin sesión, 403 en POST/PUT de OPERACION,
   `activo=all`, límites de paginación y overflow del offset).
-- Advisories pendientes (fuera de alcance US2): la UI lista hasta 100 usuarios sin
-  paginador; `RequiereGestion` no bloquea usuarios con `password_temporal=true`
-  (gap preexistente de US1); `CorreoDev` no imprime la temporal en consola DEV;
-  rechazos de extractores Axum (JSON/Path/Query mal formados) no usan el sobre
-  `{error:{codigo,mensaje}}` (preexistente).
+- Advisories que quedaron fuera del alcance US2 (paginador, FR-008a, mailer dev,
+  extractores): cerrados en la sección siguiente.
+
+## Pendientes técnicos cerrados (2026-10-25)
+
+Los cuatro advisories que quedaron fuera del alcance US2 ya están resueltos y
+pinneados con tests:
+
+1. **Paginador admin** (`8fa8390`): `frontend/src/lib/utils/paginacion.ts`
+   (`totalPaginas`, `paginaValida`); `routes/admin/usuarios/+page.svelte` pagina
+   de 20 en 20, reinicia a la página 1 al cambiar de filtro y recorta a la última
+   página válida si una baja o un filtro vacía la actual.
+2. **FR-008a en backend** (`977bd90`): `AppError::DebeCambiarPassword` (403
+   `cambio_password_requerido`); `RequiereGestion` lo devuelve mientras
+   `password_temporal` siga vigente. `/auth/sesion` y `/auth/cambiar-password`
+   usan `AuthUsuario`, así que la sesión alcanza para completar el cambio.
+3. **Mailer dev** (`5a0b971`): `AppConfig` incorpora `APP_ENV` y
+   `es_produccion()` (trim + case-insensitive); `main` usa
+   `CorreoDev::para_desarrollo()` fuera de producción y el stub silencioso en
+   producción. `CorreoDev::aviso_credenciales()` es la superficie testeable; el
+   log de `tracing` nunca incluye la credencial. `bootstrap` ahora usa el mismo
+   predicado (`AppConfig::es_produccion`) en lugar de comparar `APP_ENV` por su
+   cuenta. Decisión: es una ayuda local equivalente a la del bootstrap, no una
+   excepción a la regla de producción.
+4. **Sobre de error de extractores** (`977bd90`): `backend/src/extractores.rs`
+   con `JsonValido<T>`, `PathValido<T>` y `QueryValida<T>`; los rechazos de Axum
+   (antes 400/415 con texto plano) ahora son 422 `validacion` con
+   `{error:{codigo,mensaje}}`. Aplicado en `handlers/auth.rs` y
+   `handlers/usuarios.rs`.
+
+Evidencia: 45/45 backend, 46/46 frontend, `cargo sqlx prepare --check`,
+`npm run check` 0/0 y `npm run build` OK. Tests nuevos que lo pinnean:
+`gestor_con_password_temporal_no_puede_gestionar_hasta_cambiarla`,
+`rechazos_de_extractores_usan_el_sobre_de_error`,
+`login_con_json_invalido_usa_el_sobre_de_error`,
+`correo_dev_solo_expone_la_temporal_en_modo_desarrollo`,
+`solo_production_se_considera_produccion` y `utils/paginacion.test.ts`.
 
 ## Gotchas de entorno (importante)
 
@@ -121,9 +155,8 @@ Luego: US4 → US5 → US6 → Polish (README T048, gates T049, V1–V8 T050).
 
 ## Pendientes administrativos
 
-- `.atl/` sigue untracked (lo genera el plugin `skill-registry`): decidir `.gitignore`
-  vs commitear el registro.
-- Los 2 commits locales de US1 (`962ce0d`, `f8358fa`) siguen sin push a `origin/main`.
+- `.atl/` ya está en `.gitignore` (`979315a`); el plugin lo regenera localmente.
+- Los 9 commits locales (`962ce0d` en adelante) siguen sin push a `origin/main`.
 
 ## Notas de entorno
 
