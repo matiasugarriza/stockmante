@@ -299,3 +299,36 @@ async fn cambiar_password_flujo_completo_y_422_por_politica() {
 
     borrar_usuario(&pool, &email).await;
 }
+
+/// Los rechazos del extractor JSON usan el sobre estándar en vez del texto
+/// plano que devuelve Axum por defecto.
+#[tokio::test]
+async fn login_con_json_invalido_usa_el_sobre_de_error() {
+    let (app, _pool) = app_de_test().await;
+
+    for cuerpo in ["{json roto", r#"{"email":"ana@test.local"}"#] {
+        let res = app
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/api/auth/login")
+                    .header(header::CONTENT_TYPE, "application/json")
+                    .body(Body::from(cuerpo.to_string()))
+                    .expect("request"),
+            )
+            .await
+            .expect("login inválido");
+        assert_eq!(
+            res.status(),
+            StatusCode::UNPROCESSABLE_ENTITY,
+            "cuerpo: {cuerpo}"
+        );
+        let body = cuerpo_json(res).await;
+        assert_eq!(body["error"]["codigo"], "validacion", "cuerpo: {cuerpo}");
+        assert!(
+            body["error"]["mensaje"].is_string(),
+            "cuerpo: {cuerpo} sin mensaje"
+        );
+    }
+}

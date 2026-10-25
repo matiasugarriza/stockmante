@@ -33,6 +33,8 @@ pub enum AppError {
     DepositoConDependencias,
     #[error("No se puede desactivar al último usuario de gestión activo")]
     UltimoAdministrador,
+    #[error("Debés cambiar tu contraseña temporal antes de continuar")]
+    DebeCambiarPassword,
     #[error("{0}")]
     Validacion(String),
     #[error("Error interno. Intentá nuevamente o contactá al administrador")]
@@ -45,7 +47,7 @@ impl AppError {
             AppError::CredencialesInvalidas
             | AppError::SesionExpirada
             | AppError::NoAutenticado => StatusCode::UNAUTHORIZED,
-            AppError::SinPermisos => StatusCode::FORBIDDEN,
+            AppError::SinPermisos | AppError::DebeCambiarPassword => StatusCode::FORBIDDEN,
             AppError::RecursoNoEncontrado(_) => StatusCode::NOT_FOUND,
             AppError::EmailDuplicado
             | AppError::SkuDuplicado
@@ -71,6 +73,7 @@ impl AppError {
             AppError::ProductoConReferencias => "producto_con_referencias",
             AppError::DepositoConDependencias => "deposito_con_dependencias",
             AppError::UltimoAdministrador => "ultimo_administrador",
+            AppError::DebeCambiarPassword => "cambio_password_requerido",
             AppError::Validacion(_) => "validacion",
             AppError::Interno(_) => "interno",
         }

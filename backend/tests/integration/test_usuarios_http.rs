@@ -701,6 +701,131 @@ async fn desactivar_revoca_sesiones_reactiva_y_regenera_temporal() {
     borrar_usuario(&pool, &admin_email).await;
 }
 
+/// FR-008a: con la temporal vigente la sesión sirve para el cambio obligatorio,
+/// pero no para operar la gestión (ni siquiera siendo ADMIN).
+#[tokio::test]
+async fn gestor_con_password_temporal_no_puede_gestionar_hasta_cambiarla() {
+    let (app, pool, _correo) = app_de_test().await;
+    let email = email_unico("http-temporal-gestion");
+    crear_usuario(
+        &pool,
+        "Gestor Temporal",
+        &email,
+        "Temporal1",
+        "ADMIN",
+        "GESTION",
+        true,
+        true,
+    )
+    .await;
+
+    let (status, cookie) = intentar_login(&app, &email, "Temporal1").await;
+    assert_eq!(
+        status,
+        StatusCode::NO_CONTENT,
+        "la temporal debe servir para entrar"
+    );
+    let cookie = cookie.expect("cookie del gestor temporal");
+
+    let res = app
+        .clone()
+        .oneshot(solicitud("GET", "/api/usuarios", &cookie, None))
+        .await
+        .expect("listado bloqueado por temporal");
+    assert_eq!(res.status(), StatusCode::FORBIDDEN);
+    let body = cuerpo_json(res).await;
+    assert_eq!(body["error"]["codigo"], "cambio_password_requerido");
+
+    // La sesión sigue viva para el cambio obligatorio.
+    let res = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("GET")
+                .uri("/api/auth/sesion")
+                .header(header::COOKIE, &cookie)
+                .body(Body::empty())
+                .expect("request"),
+        )
+        .await
+        .expect("sesión del gestor temporal");
+    assert_eq!(res.status(), StatusCode::OK);
+    let body = cuerpo_json(res).await;
+    assert_eq!(body["usuario"]["debe_cambiar_password"], true);
+
+    let res = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/auth/cambiar-password")
+                .header(header::CONTENT_TYPE, "application/json")
+                .header(header::COOKIE, &cookie)
+                .body(Body::from(
+                    json!({ "password_actual": "Temporal1", "password_nueva": "Nueva1234" })
+                        .to_string(),
+                ))
+                .expect("request"),
+        )
+        .await
+        .expect("cambio obligatorio");
+    assert_eq!(res.status(), StatusCode::NO_CONTENT);
+
+    let res = app
+        .clone()
+        .oneshot(solicitud("GET", "/api/usuarios", &cookie, None))
+        .await
+        .expect("listado tras el cambio");
+    assert_eq!(res.status(), StatusCode::OK, "ya puede gestionar");
+
+    borrar_usuario(&pool, &email).await;
+}
+
+/// Los rechazos de los extractores de Axum (JSON/Path/Query mal formados)
+/// respetan el sobre `{error:{codigo,mensaje}}` de `contracts/api.md`.
+#[tokio::test]
+async fn rechazos_de_extractores_usan_el_sobre_de_error() {
+    let (app, pool, _correo) = app_de_test().await;
+    let (admin_email, cookie) = crear_gestor_y_loguear(&app, &pool, "http-extractores-admin").await;
+
+    let casos: [(&str, &str, Option<&str>); 4] = [
+        ("POST", "/api/usuarios", Some("{json roto")),
+        ("POST", "/api/usuarios", Some(r#"{"nombre":"Sin email"}"#)),
+        ("GET", "/api/usuarios/abc", None),
+        ("GET", "/api/usuarios?por_pagina=abc", None),
+    ];
+    for (metodo, uri, cuerpo) in casos {
+        let peticion = match cuerpo {
+            Some(cuerpo) => Request::builder()
+                .method(metodo)
+                .uri(uri)
+                .header(header::COOKIE, &cookie)
+                .header(header::CONTENT_TYPE, "application/json")
+                .body(Body::from(cuerpo.to_string()))
+                .expect("request con cuerpo"),
+            None => solicitud(metodo, uri, &cookie, None),
+        };
+        let res = app
+            .clone()
+            .oneshot(peticion)
+            .await
+            .expect("request de extractor");
+        assert_eq!(
+            res.status(),
+            StatusCode::UNPROCESSABLE_ENTITY,
+            "{metodo} {uri}"
+        );
+        let body = cuerpo_json(res).await;
+        assert_eq!(body["error"]["codigo"], "validacion", "{metodo} {uri}");
+        assert!(
+            body["error"]["mensaje"].is_string(),
+            "{metodo} {uri} sin mensaje"
+        );
+    }
+
+    borrar_usuario(&pool, &admin_email).await;
+}
+
 /// Regresión del blocker de verificación: `split_once('@')` aceptaba emails con
 /// más de una arroba, puntos consecutivos o puntos en los bordes (FR-008).
 #[tokio::test]

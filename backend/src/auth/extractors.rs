@@ -34,6 +34,8 @@ impl FromRequestParts<AppEstado> for AuthUsuario {
 }
 
 /// Requiere sesión válida + familia `GESTION` (403 `sin_permisos` si es OPERACION).
+/// Con `password_temporal` vigente responde 403 `cambio_password_requerido`:
+/// la sesión solo alcanza para `/auth/sesion` y `/auth/cambiar-password` (FR-008a).
 pub struct RequiereGestion(pub Usuario);
 
 impl FromRequestParts<AppEstado> for RequiereGestion {
@@ -46,6 +48,9 @@ impl FromRequestParts<AppEstado> for RequiereGestion {
         let AuthUsuario(usuario) = AuthUsuario::from_request_parts(parts, state).await?;
         if usuario.familia_rol != "GESTION" {
             return Err(AppError::SinPermisos);
+        }
+        if usuario.password_temporal {
+            return Err(AppError::DebeCambiarPassword);
         }
         Ok(RequiereGestion(usuario))
     }

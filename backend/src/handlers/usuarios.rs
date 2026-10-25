@@ -4,10 +4,11 @@
 use crate::app::AppEstado;
 use crate::auth::extractors::RequiereGestion;
 use crate::error::AppError;
+use crate::extractores::{JsonValido, PathValido, QueryValida};
 use crate::models::usuario::Usuario;
 use crate::services::usuarios::{self, CambiosUsuario, ListaUsuarios};
 use axum::{
-    extract::{Json, Path, Query, State},
+    extract::{Json, State},
     http::StatusCode,
     routing::{get, post},
     Router,
@@ -46,7 +47,7 @@ fn parsear_activo(valor: Option<&str>) -> Result<Option<bool>, AppError> {
 async fn listar(
     State(estado): State<AppEstado>,
     _admin: RequiereGestion,
-    Query(query): Query<ListarQuery>,
+    QueryValida(query): QueryValida<ListarQuery>,
 ) -> Result<Json<ListaUsuarios>, AppError> {
     let activo = parsear_activo(query.activo.as_deref())?;
     let lista = usuarios::listar(&estado.pool, activo, query.pagina, query.por_pagina).await?;
@@ -64,7 +65,7 @@ pub struct CrearUsuarioDto {
 async fn crear(
     State(estado): State<AppEstado>,
     _admin: RequiereGestion,
-    Json(dto): Json<CrearUsuarioDto>,
+    JsonValido(dto): JsonValido<CrearUsuarioDto>,
 ) -> Result<(StatusCode, Json<Usuario>), AppError> {
     let usuario = usuarios::crear(
         &estado.pool,
@@ -81,7 +82,7 @@ async fn crear(
 async fn obtener(
     State(estado): State<AppEstado>,
     _admin: RequiereGestion,
-    Path(id): Path<i32>,
+    PathValido(id): PathValido<i32>,
 ) -> Result<Json<Usuario>, AppError> {
     Ok(Json(usuarios::obtener(&estado.pool, id).await?))
 }
@@ -97,8 +98,8 @@ pub struct ActualizarUsuarioDto {
 async fn actualizar(
     State(estado): State<AppEstado>,
     _admin: RequiereGestion,
-    Path(id): Path<i32>,
-    Json(dto): Json<ActualizarUsuarioDto>,
+    PathValido(id): PathValido<i32>,
+    JsonValido(dto): JsonValido<ActualizarUsuarioDto>,
 ) -> Result<Json<Usuario>, AppError> {
     let cambios = CambiosUsuario {
         nombre: dto.nombre,
@@ -112,7 +113,7 @@ async fn actualizar(
 async fn desactivar(
     State(estado): State<AppEstado>,
     _admin: RequiereGestion,
-    Path(id): Path<i32>,
+    PathValido(id): PathValido<i32>,
 ) -> Result<StatusCode, AppError> {
     usuarios::desactivar(&estado.pool, estado.reloj.as_ref(), id).await?;
     Ok(StatusCode::NO_CONTENT)
@@ -122,7 +123,7 @@ async fn desactivar(
 async fn reactivar(
     State(estado): State<AppEstado>,
     _admin: RequiereGestion,
-    Path(id): Path<i32>,
+    PathValido(id): PathValido<i32>,
 ) -> Result<StatusCode, AppError> {
     usuarios::reactivar(&estado.pool, estado.reloj.as_ref(), id).await?;
     Ok(StatusCode::NO_CONTENT)
@@ -132,7 +133,7 @@ async fn reactivar(
 async fn password_temporal(
     State(estado): State<AppEstado>,
     _admin: RequiereGestion,
-    Path(id): Path<i32>,
+    PathValido(id): PathValido<i32>,
 ) -> Result<StatusCode, AppError> {
     usuarios::regenerar_password_temporal(
         &estado.pool,

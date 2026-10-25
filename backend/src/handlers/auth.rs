@@ -3,6 +3,7 @@
 use crate::app::AppEstado;
 use crate::auth::extractors::AuthUsuario;
 use crate::error::AppError;
+use crate::extractores::JsonValido;
 use crate::services;
 use axum::{
     extract::{Json, State},
@@ -81,7 +82,7 @@ fn cookie_sesion_borrada(estado: &AppEstado) -> Cookie<'static> {
 async fn login(
     State(estado): State<AppEstado>,
     jar: CookieJar,
-    Json(dto): Json<LoginDto>,
+    JsonValido(dto): JsonValido<LoginDto>,
 ) -> Result<(CookieJar, StatusCode), AppError> {
     if dto.email.trim().is_empty() || dto.password.is_empty() {
         return Err(AppError::Validacion(
@@ -134,7 +135,7 @@ async fn cambiar_password(
     State(estado): State<AppEstado>,
     AuthUsuario(_usuario): AuthUsuario,
     jar: CookieJar,
-    Json(dto): Json<CambioPasswordDto>,
+    JsonValido(dto): JsonValido<CambioPasswordDto>,
 ) -> Result<StatusCode, AppError> {
     let Some(cookie) = jar.get(&estado.config.session_cookie_name) else {
         return Err(AppError::NoAutenticado);
