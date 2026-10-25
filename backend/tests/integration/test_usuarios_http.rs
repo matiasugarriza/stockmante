@@ -707,7 +707,7 @@ async fn desactivar_revoca_sesiones_reactiva_y_regenera_temporal() {
 async fn gestor_con_password_temporal_no_puede_gestionar_hasta_cambiarla() {
     let (app, pool, _correo) = app_de_test().await;
     let email = email_unico("http-temporal-gestion");
-    crear_usuario(
+    let id = crear_usuario(
         &pool,
         "Gestor Temporal",
         &email,
@@ -718,6 +718,21 @@ async fn gestor_con_password_temporal_no_puede_gestionar_hasta_cambiarla() {
         true,
     )
     .await;
+    // Objetivo de las acciones bloqueadas: debe quedar intacto.
+    let email_objetivo = email_unico("http-temporal-objetivo");
+    let objetivo_id = crear_usuario(
+        &pool,
+        "Objetivo",
+        &email_objetivo,
+        "Password1",
+        "OPERARIO",
+        "OPERACION",
+        true,
+        false,
+    )
+    .await;
+    // Alta que no debe persistirse mientras la temporal siga vigente.
+    let email_alta = email_unico("http-temporal-alta");
 
     let (status, cookie) = intentar_login(&app, &email, "Temporal1").await;
     assert_eq!(
@@ -727,14 +742,76 @@ async fn gestor_con_password_temporal_no_puede_gestionar_hasta_cambiarla() {
     );
     let cookie = cookie.expect("cookie del gestor temporal");
 
-    let res = app
-        .clone()
-        .oneshot(solicitud("GET", "/api/usuarios", &cookie, None))
+    let huella_objetivo: String = sqlx::query_scalar(
+        "SELECT md5(row_to_json(u)::text) FROM usuarios u WHERE u.id = $1",
+    )
+    .bind(objetivo_id)
+    .fetch_one(&pool)
+    .await
+    .expect("huella del objetivo");
+
+    let rutas: [(&str, String, Option<Value>); 7] = [
+        ("GET", "/api/usuarios".into(), None),
+        ("GET", format!("/api/usuarios/{objetivo_id}"), None),
+        (
+            "POST",
+            "/api/usuarios".into(),
+            Some(json!({ "nombre": "Intruso", "email": email_alta, "rol": "OPERARIO" })),
+        ),
+        (
+            "PUT",
+            format!("/api/usuarios/{objetivo_id}"),
+            Some(json!({ "nombre": "Intruso" })),
+        ),
+        (
+            "POST",
+            format!("/api/usuarios/{objetivo_id}/desactivar"),
+            None,
+        ),
+        (
+            "POST",
+            format!("/api/usuarios/{objetivo_id}/reactivar"),
+            None,
+        ),
+        (
+            "POST",
+            format!("/api/usuarios/{objetivo_id}/password-temporal"),
+            None,
+        ),
+    ];
+    for (metodo, uri, body) in rutas {
+        let res = app
+            .clone()
+            .oneshot(solicitud(metodo, &uri, &cookie, body))
+            .await
+            .expect("gestión bloqueada por temporal");
+        assert_eq!(res.status(), StatusCode::FORBIDDEN, "{metodo} {uri}");
+        let body = cuerpo_json(res).await;
+        assert_eq!(
+            body["error"]["codigo"], "cambio_password_requerido",
+            "{metodo} {uri}"
+        );
+        assert_eq!(
+            body["error"]["mensaje"], "Debés cambiar tu contraseña temporal antes de continuar",
+            "{metodo} {uri}"
+        );
+    }
+
+    // Ninguna acción bloqueada persistió cambios.
+    let creados: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM usuarios WHERE email = $1")
+        .bind(&email_alta)
+        .fetch_one(&pool)
         .await
-        .expect("listado bloqueado por temporal");
-    assert_eq!(res.status(), StatusCode::FORBIDDEN);
-    let body = cuerpo_json(res).await;
-    assert_eq!(body["error"]["codigo"], "cambio_password_requerido");
+        .expect("conteo del alta bloqueada");
+    assert_eq!(creados, 0, "el 403 no debe persistir el alta");
+    let huella_despues: String = sqlx::query_scalar(
+        "SELECT md5(row_to_json(u)::text) FROM usuarios u WHERE u.id = $1",
+    )
+    .bind(objetivo_id)
+    .fetch_one(&pool)
+    .await
+    .expect("huella tras los rechazos");
+    assert_eq!(huella_despues, huella_objetivo, "el objetivo quedó intacto");
 
     // La sesión sigue viva para el cambio obligatorio.
     let res = app
@@ -777,7 +854,10 @@ async fn gestor_con_password_temporal_no_puede_gestionar_hasta_cambiarla() {
         .await
         .expect("listado tras el cambio");
     assert_eq!(res.status(), StatusCode::OK, "ya puede gestionar");
+    let body = cuerpo_json(res).await;
+    assert!(body["items"].is_array());
 
+    borrar_usuario(&pool, &email_objetivo).await;
     borrar_usuario(&pool, &email).await;
 }
 
@@ -787,6 +867,11 @@ async fn gestor_con_password_temporal_no_puede_gestionar_hasta_cambiarla() {
 async fn rechazos_de_extractores_usan_el_sobre_de_error() {
     let (app, pool, _correo) = app_de_test().await;
     let (admin_email, cookie) = crear_gestor_y_loguear(&app, &pool, "http-extractores-admin").await;
+
+    let usuarios_antes: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM usuarios")
+        .fetch_one(&pool)
+        .await
+        .expect("conteo previo");
 
     let casos: [(&str, &str, Option<&str>); 4] = [
         ("POST", "/api/usuarios", Some("{json roto")),
@@ -822,6 +907,15 @@ async fn rechazos_de_extractores_usan_el_sobre_de_error() {
             "{metodo} {uri} sin mensaje"
         );
     }
+
+    let usuarios_despues: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM usuarios")
+        .fetch_one(&pool)
+        .await
+        .expect("conteo posterior");
+    assert_eq!(
+        usuarios_despues, usuarios_antes,
+        "ningún rechazo debe persistir altas"
+    );
 
     borrar_usuario(&pool, &admin_email).await;
 }

@@ -26,6 +26,14 @@ fn dominio_mapea_status_esperados() {
     );
     assert_eq!(status_y_codigo(AppError::SinPermisos).0, StatusCode::FORBIDDEN);
     assert_eq!(
+        AppError::DebeCambiarPassword.status(),
+        StatusCode::FORBIDDEN
+    );
+    assert_eq!(
+        AppError::DebeCambiarPassword.codigo(),
+        "cambio_password_requerido"
+    );
+    assert_eq!(
         status_y_codigo(AppError::RecursoNoEncontrado("x".into())).0,
         StatusCode::NOT_FOUND
     );
