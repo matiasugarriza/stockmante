@@ -18,11 +18,23 @@ pub trait EnvioCorreo: Send + Sync {
 #[derive(Default)]
 pub struct CorreoDev {
     enviados: Mutex<Vec<(String, String, String)>>,
+    /// Solo el modo desarrollo imprime la temporal en consola.
+    modo_desarrollo: bool,
 }
 
 impl CorreoDev {
+    /// Stub silencioso (tests y producción sin SMTP): nunca expone credenciales.
     pub fn new() -> Self {
         Self::default()
+    }
+
+    /// Stub de desarrollo local: imprime la temporal en consola para poder
+    /// iniciar sesión sin SMTP.
+    pub fn para_desarrollo() -> Self {
+        Self {
+            modo_desarrollo: true,
+            ..Self::default()
+        }
     }
 
     pub fn bandeja(&self) -> Vec<(String, String, String)> {
@@ -30,6 +42,21 @@ impl CorreoDev {
             .lock()
             .map(|v| v.clone())
             .unwrap_or_default()
+    }
+
+    /// Texto que se imprime en consola cuando el stub está en modo desarrollo.
+    /// `None` en el stub silencioso: las credenciales no se muestran ni en logs.
+    pub fn aviso_credenciales(
+        &self,
+        destino: &str,
+        nombre: &str,
+        password_temporal: &str,
+    ) -> Option<String> {
+        self.modo_desarrollo.then(|| {
+            format!(
+                "[correo dev] contraseña temporal de {nombre} <{destino}>: {password_temporal}"
+            )
+        })
     }
 }
 
@@ -41,6 +68,9 @@ impl EnvioCorreo for CorreoDev {
         nombre: &str,
         password_temporal: &str,
     ) -> Result<(), String> {
+        if let Some(aviso) = self.aviso_credenciales(destino, nombre, password_temporal) {
+            println!("{aviso}");
+        }
         tracing::info!(destino, nombre, "correo dev: contraseña temporal (no se envía red)");
         if let Ok(mut v) = self.enviados.lock() {
             v.push((

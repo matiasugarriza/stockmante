@@ -38,6 +38,10 @@ name = "test_mail"
 path = "tests/unit/test_mail.rs"
 
 [[test]]
+name = "test_config"
+path = "tests/unit/test_config.rs"
+
+[[test]]
 name = "test_auth_login"
 path = "tests/unit/test_auth_login.rs"
 

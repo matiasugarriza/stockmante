@@ -11,9 +11,20 @@ pub struct AppConfig {
     pub session_expiry_hours: i64,
     pub email_from: String,
     pub smtp_url: Option<String>,
+    pub app_env: String,
 }
 
 impl AppConfig {
+    /// `APP_ENV=production` (sin distinguir mayúsculas ni espacios) desactiva
+    /// las ayudas de desarrollo; cualquier otro valor se trata como dev.
+    pub fn es_produccion(&self) -> bool {
+        Self::es_entorno_produccion(&self.app_env)
+    }
+
+    pub fn es_entorno_produccion(app_env: &str) -> bool {
+        app_env.trim().eq_ignore_ascii_case("production")
+    }
+
     pub fn desde_entorno() -> Result<Self, AppError> {
         let database_url = std::env::var("DATABASE_URL").map_err(|_| {
             AppError::Interno("DATABASE_URL no definida".into())
@@ -35,6 +46,7 @@ impl AppConfig {
         let smtp_url = std::env::var("SMTP_URL")
             .ok()
             .filter(|s| !s.trim().is_empty());
+        let app_env = std::env::var("APP_ENV").unwrap_or_else(|_| "development".into());
         Ok(Self {
             database_url,
             app_url,
@@ -43,6 +55,7 @@ impl AppConfig {
             session_expiry_hours,
             email_from,
             smtp_url,
+            app_env,
         })
     }
 }

@@ -24,11 +24,18 @@ async fn arrancar() -> Result<(), AppError> {
     let config = AppConfig::desde_entorno()?;
     let pool = db::crear_pool(&config.database_url).await?;
 
+    // En dev el stub imprime la temporal en consola; en producción es silencioso.
+    let correo = if config.es_produccion() {
+        CorreoDev::new()
+    } else {
+        CorreoDev::para_desarrollo()
+    };
+
     let estado = AppEstado {
         pool,
         config: config.clone(),
         reloj: Arc::new(RelojSistema),
-        correo: Arc::new(CorreoDev::new()),
+        correo: Arc::new(correo),
     };
 
     let app = construir_router(estado);
