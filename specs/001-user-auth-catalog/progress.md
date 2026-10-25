@@ -13,9 +13,9 @@
   - US2: `test_usuarios_email.rs` (3), `test_usuarios_alta.rs` (1),
     `test_ultimo_admin.rs` (1), `test_familia_rol.rs` (3),
     `test_usuarios_http.rs` (10 HTTP).
-- **Tests frontend**: 46/46 (`npm test`) + `npm run check` 0 errores/0 warnings + `npm run build` OK.
+- **Tests frontend**: 49/49 (`npm test`) + `npm run check` 0 errores/0 warnings + `npm run build` OK.
   - US2: `schemas/usuarios.test.ts` (9), `api/usuarios.test.ts` (9).
-  - Paginación: `utils/paginacion.test.ts` (9).
+  - Paginación: `utils/paginacion.test.ts` (12).
 - **Gates**: `cargo sqlx prepare --check` OK (sin macros `query!`; queries en runtime API);
   grep sin `unwrap`/`panic!`/`expect` en `backend/src` ✅.
 - **BD**: migraciones 0001–0003 en `stockmante` y `stockmante_test` (PG18 local, es-AR).
@@ -99,7 +99,9 @@ pinneados con tests:
 2. **FR-008a en backend** (`977bd90`): `AppError::DebeCambiarPassword` (403
    `cambio_password_requerido`); `RequiereGestion` lo devuelve mientras
    `password_temporal` siga vigente. `/auth/sesion` y `/auth/cambiar-password`
-   usan `AuthUsuario`, así que la sesión alcanza para completar el cambio.
+   usan `AuthUsuario`, así que la sesión alcanza para completar el cambio. El
+   test cubre las **7 rutas** de gestión y verifica que ninguna acción rechazada
+   persista cambios (alta, fila objetivo intacta).
 3. **Mailer dev** (`5a0b971`): `AppConfig` incorpora `APP_ENV` y
    `es_produccion()` (trim + case-insensitive); `main` usa
    `CorreoDev::para_desarrollo()` fuera de producción y el stub silencioso en
@@ -107,7 +109,8 @@ pinneados con tests:
    log de `tracing` nunca incluye la credencial. `bootstrap` ahora usa el mismo
    predicado (`AppConfig::es_produccion`) en lugar de comparar `APP_ENV` por su
    cuenta. Decisión: es una ayuda local equivalente a la del bootstrap, no una
-   excepción a la regla de producción.
+   excepción a la regla de producción. `.env.example` documenta `APP_ENV` para
+   que cada entorno lo defina explícitamente (si falta se asume development).
 4. **Sobre de error de extractores** (`977bd90`): `backend/src/extractores.rs`
    con `JsonValido<T>`, `PathValido<T>` y `QueryValida<T>`; los rechazos de Axum
    (antes 400/415 con texto plano) ahora son 422 `validacion` con
@@ -121,6 +124,38 @@ Evidencia: 45/45 backend, 46/46 frontend, `cargo sqlx prepare --check`,
 `login_con_json_invalido_usa_el_sobre_de_error`,
 `correo_dev_solo_expone_la_temporal_en_modo_desarrollo`,
 `solo_production_se_considera_produccion` y `utils/paginacion.test.ts`.
+
+## Verificación independiente de pendientes (2026-10-25)
+
+- Veredicto: **aprobado con advisories, 0 blockers** sobre `f1fc3e8..HEAD`.
+- Probes: 45/45 backend, 46/46 frontend (al momento de verificar),
+  `cargo sqlx prepare --check`, `npm run check` 0/0, `npm run build` OK; bootstrap
+  real en producción sin `password:` y en dev con `password:`.
+- FR-008a: las 7 rutas de gestión dan 403 `cambio_password_requerido` con la
+  temporal; `/auth/sesion` y `/auth/cambiar-password` siguen accesibles; tras el
+  cambio la gestión responde 200/201/204. OPERACION+temporal conserva 403
+  `sin_permisos` (orden de checks preservado).
+- Contrato: 12 rechazos (JSON roto/faltante, sin content-type, path y query
+  inválidos, offset extremo) → 422 `validacion` con el sobre exacto; fila,
+  sesiones y conteo de usuarios intactos.
+- Credenciales: `CorreoDev::new()` silencioso; `para_desarrollo()` imprime;
+  `APP_ENV` decide; el log de `tracing` no contiene la temporal.
+- Advisories aceptados:
+  - **A1** (causado por el cambio): el gating es fail-open (`APP_ENV` ausente ⇒
+    development) y `.env.example` no lo documentaba. Mitigado documentando
+    `APP_ENV=development`; un despliegue debe definir `APP_ENV=production`.
+  - **A2** (preexistente): sin `RUST_LOG`, `tracing_subscriber` filtra a ERROR y
+    oculta el WARN de credenciales en producción.
+  - **A3** (preexistente): no hay SMTP real; en producción el stub es silencioso
+    y la temporal no se envía (limitación conocida del módulo).
+  - **A4** (preexistente): `bandeja()` retiene la temporal en memoria; no hay
+    ruta que la exponga.
+  - **A5** (preexistente): `cambiarFiltro` no está guardado por `cargando`
+    (race de clics rápidos, idéntico al baseline).
+  - **A6**: `.gitignore` agrega `.atl/` (benigno, ajeno a los pendientes).
+- Regresiones incorporadas del verificador: 7 rutas FR-008a con invariante de
+  fila intacta, conteo de usuarios tras rechazos, mapeo directo de
+  `DebeCambiarPassword`, bordes y no finitos de paginación.
 
 ## Gotchas de entorno (importante)
 
@@ -156,7 +191,7 @@ Luego: US4 → US5 → US6 → Polish (README T048, gates T049, V1–V8 T050).
 ## Pendientes administrativos
 
 - `.atl/` ya está en `.gitignore` (`979315a`); el plugin lo regenera localmente.
-- Los 9 commits locales (`962ce0d` en adelante) siguen sin push a `origin/main`.
+- Los 11 commits locales (`962ce0d` en adelante) siguen sin push a `origin/main`.
 
 ## Notas de entorno
 
