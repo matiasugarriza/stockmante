@@ -31,7 +31,7 @@ Como **Administrador**, quiero crear, editar, desactivar y reactivar usuarios co
 
 **Por qué esta prioridad**: El alta de personal es prerrequisito operativo; la baja lógica preserva trazabilidad de movimientos de stock realizados por ese usuario.
 
-**Prueba independiente**: Se prueba creando un usuario, asignándole rol Operario, desactivándolo y confirmando que no puede iniciar sesión pero sus movimientos pasados siguen siendo consultables.
+**Prueba independiente**: Se prueba creando un usuario, asignándole rol Operario, desactivándolo y confirmando que no puede iniciar sesión pero sus movimientos pasados siguen siendo consultables. *(La consulta del historial de movimientos se verifica en 004/005; 002 cubre el alta, la baja lógica y el bloqueo de login.)*
 
 **Escenarios de aceptación**:
 
@@ -45,7 +45,7 @@ Como **Administrador**, quiero crear, editar, desactivar y reactivar usuarios co
 ### Casos Borde
 
 - **Desactivación de usuario activo en sesión**: al desactivar, la sesión vigente queda inválida en el siguiente request (o de inmediato); no debe quedar una sesión "fantasma" que siga moviendo stock.
-- **Último Administrador activo**: el sistema no permite desactivar (ni eliminar lógicamente) al único Administrador activo, para no dejar el sistema sin administración.
+- **Último gestor activo (familia GESTION)**: el sistema no permite desactivar (ni eliminar lógicamente) ni degradar de rol al único gestor activo —Administrador o Gerente—, para no dejar el sistema sin administración.
 - **Correo inválido o ya registrado**: validación de formato y unicidad en el momento del guardado, con mensaje claro.
 
 > Los casos borde de credenciales en claro y sesión única pertenecen a 001.
@@ -56,7 +56,7 @@ Como **Administrador**, quiero crear, editar, desactivar y reactivar usuarios co
 
 - **FR-004**: El sistema DEBE garantizar unicidad del correo electrónico de usuario.
 - **FR-005**: El sistema DEBE soportar estado Activo/Inactivo mediante baja lógica; los usuarios inactivos no pueden iniciar sesión y sus sesiones activas se invalidan al desactivarse.
-- **FR-006**: El sistema DEBE impedir que se desactive al último Administrador activo.
+- **FR-006**: El sistema DEBE impedir que se desactive o se degrade de rol al último gestor activo de la familia GESTION (Administrador o Gerente). El código de error del contrato sigue siendo `ultimo_administrador` por compatibilidad.
 - **FR-007**: El CRUD de usuarios DEBE ser exclusivo del rol Administrador/Gerente.
 - **FR-008**: El sistema DEBE validar el formato del correo electrónico y rechazar guardados inválidos con mensaje claro.
 

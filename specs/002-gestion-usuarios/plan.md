@@ -14,10 +14,13 @@ bajo `f1fc3e8` y sus follow-ups, para que el caso de uso US2 tenga spec, plan y 
 
 **Language/Version**: Rust 1.99 (backend), TypeScript 6 / SvelteKit 3 (frontend).
 
-**Primary Dependencies**: Axum 0.7+, SQLx 0.8 (runtime API), tokio, serde, argon2, tower-http,
-Zod 4, Tailwind CSS.
+**Primary Dependencies**: Axum 0.7+, SQLx 0.8 (macros `query!`/`query_as!`/`query_scalar!`,
+compile-time checked), tokio, serde, argon2, tower-http, Zod 4, Tailwind CSS.
 
 **Storage**: PostgreSQL 18; tablas `usuarios` y `sesiones` (propiedad de 001).
+
+**Acceso a datos**: consultas SQLx con macros compile-time checked (Principio IV y «Stack fijo»
+de la constitución) y `backend/.sqlx` versionado para builds offline (`SQLX_OFFLINE=true`).
 
 **Testing**: `cargo test` (unit + integration con `stockmante_test`), vitest, `cargo sqlx
 prepare --check`, `npm run check`, `npm run build`.
@@ -87,7 +90,7 @@ frontend/src/
 | Capa | Enfoque |
 |---|---|
 | Dominio | Unicidad de email, último gestor, mapa rol→familia, alta con correo |
-| Handlers | 201/200/204, 409 de unicidad y último admin, 422, 403 de OPERACION, 401 sin sesión, 404 |
+| Handlers | 201/200/204, 409 de unicidad y último gestor, 422, 403 de OPERACION, 401 sin sesión, 404 |
 | Invariantes | 7 rutas de gestión rechazadas con temporal sin persistir cambios |
 | Frontend | Zod, cliente API, paginación |
 | SQLx | `cargo sqlx prepare --check` sin diferencias |
@@ -100,6 +103,7 @@ frontend/src/
 | `977bd90` | FR-008a (`DebeCambiarPassword`), sobre de error de extractores, validación de email endurecida |
 | `8fa8390` | Paginación del listado de usuarios |
 | `2878b4b` | Regresiones de alto riesgo de los pendientes |
+| `67032c7` | Migración de `services/usuarios.rs` a macros SQLx y regeneración de `backend/.sqlx` (2026-10-25) |
 
 ## Complexity Tracking
 

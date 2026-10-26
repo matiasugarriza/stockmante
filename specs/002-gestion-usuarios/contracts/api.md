@@ -18,6 +18,10 @@ los endpoints de US2.
 | POST | `/usuarios/{id}/reactivar` | — | 204 | 404 |
 | POST | `/usuarios/{id}/password-temporal` | — | 204; nueva temporal enviada; revoca sesiones | 404 |
 
+> Toda fila hereda además 401 (`no_autenticado`/`sesion_expirada`) y 403 (`sin_permisos` o
+> `cambio_password_requerido`) de la tabla de guards; la columna «Errores clave» solo lista los
+> específicos del endpoint.
+
 **Item usuario**: `{ id, nombre, email, rol, familia_rol, activo, password_temporal, creado_en }`
 — nunca incluye `password_hash` ni la contraseña temporal.
 

@@ -17,8 +17,10 @@ entorno y el bootstrap están en [001/quickstart.md](../001-autenticacion-sesion
    consola del backend).
 4. Cerrar sesión e iniciar sesión con ese usuario: se exige el cambio de contraseña temporal.
 5. Al completarlo, el Operario no ve el menú de gestión y `POST /api/usuarios` responde 403.
+6. **SC-001**: cronometrar el recorrido de los pasos 2 a 4 (alta → primer login); debe completarse
+   en menos de 2 minutos.
 
-## V5 — Último administrador
+## V5 — Último gestor activo
 
 1. Con un único usuario de familia GESTION activo, intentar desactivarlo o degradarlo a
    `OPERARIO`.

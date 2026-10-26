@@ -7,8 +7,8 @@
 
 ## Estado verificado
 
-- **tasks.md**: T001–T006 `[X]`.
-- **Tests backend**: `test_usuarios_email.rs` (3), `test_usuarios_alta.rs` (1),
+- **tasks.md**: T001–T007 `[X]` (T007 retro-asignada en el análisis del 2026-10-25).
+- **Tests backend**: `test_usuarios_email.rs` (3), `test_usuarios_alta.rs` (2),
   `test_ultimo_admin.rs` (1), `test_familia_rol.rs` (3), `test_usuarios_http.rs` (10 HTTP).
 - **Tests frontend**: `schemas/usuarios.test.ts` (9), `api/usuarios.test.ts` (9),
   `utils/paginacion.test.ts` (12).
