@@ -4,7 +4,12 @@ use crate::auth::reloj::Reloj;
 use crate::config::AppConfig;
 use crate::handlers;
 use crate::mail::envio::EnvioCorreo;
-use axum::{http::{header, Method}, routing::get, Router};
+use axum::{
+    http::{header, Method},
+    middleware,
+    routing::get,
+    Router,
+};
 use sqlx::PgPool;
 use std::sync::Arc;
 use tower_http::cors::CorsLayer;
@@ -32,10 +37,21 @@ pub fn construir_router(estado: AppEstado) -> Router {
         ),
     }
 
+    // Superficie autenticada: todo router que exija sesión vigente se suma acá
+    // y queda detrás del gate de contraseña temporal (FR-008a). Las excepciones
+    // son las rutas del router de auth (login, logout, sesión propia y cambio de
+    // password) y `/api/salud`, que es pública.
+    let autenticado = Router::new()
+        .nest("/api/usuarios", handlers::usuarios::router())
+        .layer(middleware::from_fn_with_state(
+            estado.clone(),
+            crate::auth::gate::exigir_password_cambiada,
+        ));
+
     Router::new()
         .route("/api/salud", get(handlers::salud))
         .nest("/api/auth", handlers::auth::router())
-        .nest("/api/usuarios", handlers::usuarios::router())
+        .merge(autenticado)
         .layer(cors)
         .with_state(estado)
 }

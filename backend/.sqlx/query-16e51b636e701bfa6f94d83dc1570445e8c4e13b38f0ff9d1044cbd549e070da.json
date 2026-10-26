@@ -1,0 +1,29 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO productos\n              (nombre, sku, codigo_barras, categoria_id, unidad_medida, costo, precio_venta, stock_minimo)\n           VALUES ($1, $2, $3, $4, $5, $6, $7, $8)\n           RETURNING id",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int4"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Varchar",
+        "Varchar",
+        "Varchar",
+        "Int4",
+        "Varchar",
+        "Numeric",
+        "Numeric",
+        "Int4"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "16e51b636e701bfa6f94d83dc1570445e8c4e13b38f0ff9d1044cbd549e070da"
+}

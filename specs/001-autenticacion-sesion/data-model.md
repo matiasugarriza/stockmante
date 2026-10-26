@@ -63,28 +63,31 @@ cualquier login --cambio password ok--> password_temporal=false
 | usuario_id | INT | FK → usuarios(id) ON DELETE CASCADE, NOT NULL |
 | creada_en | TIMESTAMPTZ | NOT NULL DEFAULT now() |
 | expira_en | TIMESTAMPTZ | NOT NULL |
-| ultima_actividad | TIMESTAMPTZ | NOT NULL DEFAULT now() (se actualiza para auditoría) |
+| ultima_actividad | TIMESTAMPTZ | NOT NULL DEFAULT now() (timestamp de creación; **no se actualiza**; no participa de la expiración) |
 | revocada_en | TIMESTAMPTZ NULL | NULL = vigente |
 
 **Reglas**
 
 - Máximo UNA fila vigente por usuario: al crear sesión nueva,
   `UPDATE sesiones SET revocada_en = now() WHERE usuario_id = $1 AND revocada_en IS NULL`.
+  La invariante se garantiza además con un **índice único parcial**
+  `UNIQUE (usuario_id) WHERE revocada_en IS NULL` (T027); el servicio debe manejar `23505`.
 - Logout / desactivar usuario: marcar `revocada_en`.
-- Expiración absoluta: `expira_en` = ahora + `SESSION_EXPIRY_HOURS` (default 8); sin sliding
-  session para cumplir 8 h hábiles simple.
-- Cookie: valor = `sesiones.id` (UUID), flags HttpOnly, SameSite=Lax, Secure en prod.
+- Expiración **absoluta**: `expira_en` = ahora + `SESSION_EXPIRY_HOURS` (default 8 horas de
+  reloj); sin sliding ni cálculo por inactividad. `ultima_actividad` no se usa para expirar.
+- Cookie: valor = `sesiones.id` (UUID), flags HttpOnly, SameSite=Lax, path=/, `Secure` cuando
+  `APP_ENV=production` (T030).
 
 ## Índices
 
 - `usuarios(email)` UNIQUE
-- `sesiones(usuario_id)` WHERE `revocada_en IS NULL` (vigentes)
+- `sesiones(usuario_id)` **UNIQUE** WHERE `revocada_en IS NULL` (una sola vigente; T027)
 
 ## Validaciones de integridad (app + BD)
 
 | Regla | Nivel |
 |-------|-------|
-| Email único y formato | BD UNIQUE + app validator (002) |
+| Email único y formato | BD UNIQUE + validación manual en DTOs (el crate `validator` no se usa; T031) |
 | Último admin no se desactiva | Servicio (`SELECT COUNT … FOR UPDATE`) (002) |
 | Familia rol coherente con rol | CHECK + servicio (001) |
-| Sesión única vigente por usuario | Servicio, dentro de la transacción de login (001) |
+| Sesión única vigente por usuario | Servicio + índice único parcial (001; T027) |

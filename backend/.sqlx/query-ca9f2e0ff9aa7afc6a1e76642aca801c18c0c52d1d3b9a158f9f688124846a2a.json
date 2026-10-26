@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE usuarios SET password_hash = $1, password_temporal = TRUE, actualizado_en = now() WHERE id = $2",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Varchar",
+        "Int4"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "ca9f2e0ff9aa7afc6a1e76642aca801c18c0c52d1d3b9a158f9f688124846a2a"
+}

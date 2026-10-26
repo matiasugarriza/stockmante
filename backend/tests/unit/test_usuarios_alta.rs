@@ -4,8 +4,24 @@ mod common;
 
 use common::{borrar_usuario, email_unico, pool_de_test};
 use stockmante_backend::auth::reloj::RelojSistema;
-use stockmante_backend::mail::envio::CorreoDev;
+use stockmante_backend::error::AppError;
+use stockmante_backend::mail::envio::{CorreoDev, EnvioCorreo};
 use stockmante_backend::services::{auth, usuarios};
+
+/// Transporte que siempre falla: simula un SMTP caído en el alta (T029).
+struct CorreoQueFalla;
+
+#[async_trait::async_trait]
+impl EnvioCorreo for CorreoQueFalla {
+    async fn enviar_password_temporal(
+        &self,
+        _destino: &str,
+        _nombre: &str,
+        _password_temporal: &str,
+    ) -> Result<(), String> {
+        Err("SMTP no disponible".into())
+    }
+}
 
 #[tokio::test]
 async fn alta_entrega_temporal_y_permite_el_primer_login() {
@@ -51,4 +67,27 @@ async fn alta_entrega_temporal_y_permite_el_primer_login() {
     );
 
     borrar_usuario(&pool, &email).await;
+}
+
+/// T029 — fail-closed: si el correo con la temporal no se puede entregar, el
+/// alta se revierte y no queda una cuenta con credenciales que nadie recibió.
+#[tokio::test]
+async fn si_el_correo_falla_no_queda_usuario() {
+    let pool = pool_de_test().await;
+    let email = email_unico("alta-sin-correo");
+
+    let error = usuarios::crear(&pool, &CorreoQueFalla, "Sin Correo", &email, "CAJERO")
+        .await
+        .expect_err("el alta debe fallar si no se entrega la temporal");
+    assert!(
+        matches!(error, AppError::Interno(_)),
+        "esperaba error interno genérico, vino {error:?}"
+    );
+
+    let existentes: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM usuarios WHERE email = $1")
+        .bind(&email)
+        .fetch_one(&pool)
+        .await
+        .expect("conteo de usuarios");
+    assert_eq!(existentes, 0, "la transacción del alta debe revertirse");
 }

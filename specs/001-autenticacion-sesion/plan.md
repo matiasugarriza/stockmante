@@ -18,21 +18,21 @@ Backend Rust/Axum/SQLx + frontend SvelteKit SPA/Tailwind, alineados a la constit
 
 ## Technical Context
 
-**Language/Version**: Backend — Rust 1.75+ (estable). Frontend — **SvelteKit (modo SPA) + Tailwind CSS** (TypeScript dentro de SvelteKit; no es una app Node.js — Node solo se usa como herramienta de build/dev del toolchain de SvelteKit si hace falta)
+**Language/Version**: Backend — Rust 1.99.0 estable (edición 2021; verificado con `rustc --version`). Frontend — **SvelteKit 3.0 + Svelte 5 + Tailwind CSS 4** (TypeScript 6 estricto dentro de SvelteKit; no es una app Node.js — Node 24 solo se usa como herramienta de build/dev del toolchain de SvelteKit).
 
-**Primary Dependencies**: Backend — Axum 0.7+, SQLx 0.8, tokio, serde, validator, argon2, tower-http (cookies/CORS), lettre (SMTP, opcional tras env). Frontend — **SvelteKit (SPA adapter), Tailwind CSS**, Zod, TypeScript estricto.
+**Primary Dependencies**: Backend - Axum 0.8, axum-extra 0.10 (cookies), SQLx 0.8 (**macros `query!`/`query_as!`/`query_scalar!` + `backend/.sqlx/` versionado**; C1 resuelto en T031), tokio, serde, argon2 0.5, tower-http 0.6 (CORS), `lettre` 0.11 (SMTP real async sobre rustls; incorporado en T029), `CorreoDev` sigue siendo el default de desarrollo. `validator` fue retirado en T031 (no se usaba). Frontend - **SvelteKit 3 (SPA adapter-static), Svelte 5, Tailwind CSS 4**, Zod 4.6, TypeScript 6 estricto, Vite 8, Vitest 4.
 
-**Storage**: PostgreSQL 15+; migraciones SQL versionadas en `/migrations` (raíz, según constitución).
+**Storage**: PostgreSQL 15+ (verificado en PostgreSQL 18 local); migraciones SQL versionadas en `/migrations` (raíz, según constitución).
 
-**Testing**: `cargo test` (unit + integration con BD de test), `cargo sqlx prepare --check`; frontend — `vitest` para `lib/api/*.ts` y stores; smoke E2E manual/Playwright fuera de alcance de v1 de este plan.
+**Testing**: `cargo test` (unit + integration; los targets con queries macro requieren `DATABASE_URL` al compilar), `cargo sqlx prepare --check` (gate real desde T031: 14 queries en `backend/.sqlx/`), build offline con `SQLX_OFFLINE=true`; frontend - `vitest` para `frontend/src/lib/api/*.ts` y stores; smoke E2E manual/Playwright fuera de alcance de v1 de este plan.
 
 **Target Platform**: Servidor Linux/Windows con contenedor o proceso directo; navegadores desktop para caja/almacén.
 
 **Project Type**: web-service (API REST JSON) + web-app (SPA)
 
-**Performance Goals**: login y CRUD ≤ 2 s p95 en LAN.
+**Performance Goals**: login y CRUD ≤ 2 s p95 en LAN (objetivo no bloqueante; se mide manualmente en V8 del quickstart).
 
-**Constraints**: Sin `unwrap`/`panic`/`expect` en rutas de producción; errores de dominio → `AppError` específica 409/422 (o 401/403/404); infraestructura → `AppError::Interno` 500 genérico; una sesión por usuario; cookie de sesión HttpOnly.
+**Constraints**: Sin `unwrap`/`panic`/`expect` en rutas de producción; errores de dominio → `AppError` específica 409/422 (o 401/403/404); infraestructura → `AppError::Interno` 500 genérico; una sesión por usuario (garantizada por índice único parcial; T027); cookie de sesión HttpOnly, SameSite=Lax y `Secure` cuando `APP_ENV=production` (T030); expiración absoluta de 8 h sin sliding (FR-001).
 
 **Scale/Scope**: ~10–50 usuarios concurrentes; base compartida para los 6 casos de uso del Módulo 1.
 
@@ -44,11 +44,34 @@ Backend Rust/Axum/SQLx + frontend SvelteKit SPA/Tailwind, alineados a la constit
 |---|---|---|
 | I — Simplicidad / YAGNI | ✅ PASS | Sin colas, sin Redis, sin OAuth/MFA, sin microservicios; sesiones en la misma BD; un monorepo de dos apps. |
 | II — Mantenibilidad | ✅ PASS | Handlers Axum delgados; lógica en `services/`; DTOs y `AppError` separados; frontend con `lib/api/*.ts` tipado central. |
-| III — Claridad en Mensajes | ✅ PASS | Mensajes de error accionables en español de negocio; JSON de API estable sin adornos; login genérico documentado como excepción (spec Supuestos). |
-| IV — Testabilidad Primero | ✅ PASS | Lógica de negocio sin I/O directa (traits para correo y reloj); TDD RED→GREEN en reglas de dominio; tests de `lib/api` y stores; `cargo sqlx prepare --check`. |
+| III — Claridad en Mensajes | ✅ PASS (C2 resuelto en T032) | Mensajes accionables en español; login genérico por anti-enumeración, excepción acotada de P-III registrada en la constitución 1.2.0. |
+| IV — Testabilidad Primero | ✅ PASS con waiver W-001 (C3) | Lógica sin I/O directa (traits de correo y reloj); TDD RED→GREEN en general, con W-001 registrado en la constitución para el RED no observado en T017–T019. |
 | V — Integridad de Datos / Errores | ✅ PASS | Módulo no mueve stock; `AppError` con variante por dominio 409/422 y 500 genérico; unicidad FK/índices; verificación de esquema ANTES de cada tarea SQL. |
+| Stack fijo — SQLx compile-time checked | ✅ PASS (C1 resuelto en T031) | Macros `query!`/`query_as!`/`query_scalar!` en el código de 001 (`services/auth.rs`, `bin/bootstrap.rs`) con `.sqlx/` versionado; `cargo sqlx prepare --check` verifica de verdad y el build offline (`SQLX_OFFLINE=true`) funciona. Las queries de 002/003 quedan para sus propias tareas. |
 
-**Resultado post-diseño (Phase 1)**: PASS — sin violaciones; no se llena Complexity Tracking.
+**Resultado post-diseño (Phase 1)**: PASS. C1 se resolvió en T031 con macros + `.sqlx` versionado;
+C2 y C3 quedaron regularizados en T032 con la constitución 1.2.0 (excepción acotada de P-III y
+waiver W-001). El diseño no viola I–V ni «Stack fijo». Complexity Tracking queda en «ninguna» (no
+hay deuda de diseño).
+
+### Desviaciones constitucionales registradas (2026-10-25)
+
+| Hallazgo | Conflicto | Resolución | Tarea |
+|---|---|---|---|
+| C1 | «Stack fijo» exige SQLx compile-time checked queries; la implementación usa runtime API y `prepare --check` no verifica SQL. | **Resuelto (T031):** opción A — migrar a macros `query!`/`query_as!` + `.sqlx` versionado, sin enmienda constitucional. | T031 ✅ |
+| C2 | P-III prohíbe mensajes genéricos; el login usa «Credenciales inválidas» por anti-enumeración. | **Resuelto (T032):** P-III enmendado en la constitución 1.2.0 con una excepción acotada a `POST /api/auth/login`, documentada en el contrato. | T032 ✅ |
+| C3 | P-IV exige RED observado; T017–T019 se escribieron junto al servicio y el RED no se observó. | **Resuelto (T032):** waiver W-001 registrado en la constitución 1.2.0, limitado a T017–T019 de 001; desde 003 el RED es obligatorio. | T032 ✅ |
+
+**Enmienda P-III aplicada (T032, constitución 1.2.0):** `POST /api/auth/login` PUEDE devolver un
+mensaje y código HTTP únicos para email inexistente, contraseña incorrecta y cuenta inactiva; la
+excepción se limita a ese endpoint, debe estar documentada en la spec y no habilita mensajes
+genéricos en ningún otro endpoint.
+
+**Decisión adoptada (2026-10-25, T031):** opción A — `query!`/`query_as!`/`query_scalar!` con
+`backend/.sqlx/` versionado. Sin enmienda para C1; la propuesta de runtime API con gate equivalente
+queda descartada. Las queries de 002 (`services/usuarios.rs`) y 003 (`services/productos.rs`,
+`services/categorias.rs`) se migraron el mismo día como cierre del follow-up: `.sqlx` regenerado,
+`cargo sqlx prepare --check` verde y build offline sin BD.
 
 ## Project Structure
 
@@ -98,7 +121,8 @@ README.md                # entregable del cierre transversal (C1)
 ```
 
 **Structure Decision**: monorepo web (`backend/` + `frontend/` + `/migrations` en raíz). La
-constitución manda `/migrations` en la raíz del repo.
+constitución manda `/migrations` en la raíz del repo. SvelteKit 3 usa el alias `#lib` (no
+`$lib`); el ejemplo de la constitución P-II quedó obsoleto (L4/T032).
 
 ## Fase foundational (propiedad de esta spec)
 
@@ -115,7 +139,8 @@ Ver el ledger completo en [specs/README.md](../README.md).
 ## Arquitectura (resumen)
 
 - **Auth**: `POST /api/auth/login`, `POST /api/auth/logout`, `POST /api/auth/cambiar-password`, `GET /api/auth/sesion`.
-- **Guards**: extractor `AuthUsuario` + `RequiereGestion`; la familia OPERACION recibe 403 y una contraseña temporal pendiente recibe 403 `cambio_password_requerido`.
+- **Salud**: `GET /api/salud` → 200 `{ "ok": true }`; endpoint operativo sin datos de negocio (contrato en `contracts/api.md`; T015).
+- **Guards**: `AuthUsuario` (sesión vigente), `RequiereGestion` (familia GESTION → 403 `sin_permisos`) y `RequierePasswordCambiada` (temporal pendiente → 403 `cambio_password_requerido`). El gate de temporal es global a todo endpoint autenticado salvo `GET /auth/sesion` y `POST /auth/cambiar-password`, independientemente de la familia (T028).
 - **Sesión**: tabla `sesiones`, cookie HttpOnly + SameSite=Lax; el login revoca la sesión anterior en la misma transacción.
 - **UI**: layout consulta `/auth/sesion` al arrancar, redirige a `/login` y exige el cambio de contraseña temporal.
 - **Otras specs**: usuarios (002), catálogo (003), búsqueda (004), depósitos (005), RBAC/auditoría (006).
@@ -124,11 +149,11 @@ Ver el ledger completo en [specs/README.md](../README.md).
 
 | Capa | Enfoque |
 |---|---|
-| Dominio (Rust) | Unit tests puros de login, sesión única y cambio de contraseña — RED→GREEN |
+| Dominio (Rust) | Unit tests puros de login, sesión única y cambio de contraseña — la política exige RED→GREEN; en T017–T019 el RED no se observó (waiver W-001 de la constitución 1.2.0) |
 | Handlers | Integration tests con BD de test; login/logout/sesión/cambio + 401/403/422 |
 | RBAC | Extractores y bloqueo por contraseña temporal |
 | Frontend | Vitest: Zod de auth, cliente y store de sesión |
-| SQLx | `cargo sqlx prepare --check` sin diferencias |
+| SQLx | `cargo sqlx prepare --check` sin diferencias (gate real desde T031; `.sqlx` en `backend/`) y build offline con `SQLX_OFFLINE=true` |
 | E2E manual | V1, V2 y V4 del [quickstart](./quickstart.md) |
 
 ## Complexity Tracking

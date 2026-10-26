@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE productos SET activo = FALSE, actualizado_en = now() WHERE id = $1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int4"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "777e0cfe73d5296b0f33cebeaa9e89bc9977bb2c103051aa5000fafb50c72f8a"
+}

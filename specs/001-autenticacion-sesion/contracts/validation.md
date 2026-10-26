@@ -10,14 +10,15 @@
 | Regla | Valor |
 |-------|--------|
 | Password | ≥8, ≥1 mayúscula, ≥1 dígito; no se compara con lista de peores |
-| Password temporal | 12 caracteres, generada con CSPRNG del sistema |
+| Password temporal | 14 caracteres (mínimo 12), generada con CSPRNG del sistema; ≥1 mayúscula y ≥1 dígito |
 
 ## Zod (referencia frontend)
 
 ```ts
 // frontend/src/lib/schemas/auth.ts
+// SvelteKit 3 / Zod 4: usar z.email() (z.string().email() quedó deprecado).
 export const LoginSchema = z.object({
-  email: z.string().email().max(255),
+  email: z.email().max(255),
   password: z.string().min(1),
 });
 export const CambioPasswordSchema = z.object({
@@ -33,10 +34,15 @@ export const CambioPasswordSchema = z.object({
 | T-AUTH-01 | servicio | login password incorrecta | Err CredencialesInvalidas, mismo mensaje que email inexistente |
 | T-AUTH-02 | servicio | login cuenta inactiva | mismo mensaje genérico 401 |
 | T-AUTH-03 | servicio | segundo login | sesión anterior revocada; request con cookie vieja → 401 |
+| T-AUTH-04 | servicio/integración | desactivar usuario con sesión | siguientes requests 401 (verificado en 001: `test_sesion_unica.rs::desactivar_usuario_deja_sesiones_invalidas`; la baja lógica es de 002) |
 | T-AUTH-05 | servicio | cambiar password temporal | password_temporal=false; vieja no sirve |
+| T-AUTH-06 | extractor | temporal pendiente en endpoint autenticado | 403 `cambio_password_requerido`, salvo `/auth/sesion` y `/auth/cambiar-password` (T028) |
+| T-AUTH-07 | logging | temporal en logs | el stub por defecto y los logs de producción nunca incluyen la credencial (T013) |
+| T-AUTH-08 | servicio | expiración absoluta | a las 8 h del login la sesión deja de valer aunque haya actividad; no se renueva (T026) |
+| T-AUTH-09 | integración | dos logins concurrentes | queda una sola sesión vigente; la cookie perdedora responde 401 (T027) |
 
-> T-AUTH-04 (desactivar usuario con sesión) pertenece a
-> [002](../../002-gestion-usuarios/contracts/validation.md).
+> T-AUTH-04 se mantiene también en la validación de 002 para la operación de baja;
+> la **verificación de invalidación** corresponde a 001 (SC-004).
 
 ## Reglas de testing (constitución)
 

@@ -1,0 +1,85 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT p.id, p.nombre, p.sku, p.codigo_barras, p.categoria_id,\n                  c.nombre AS categoria_nombre, p.unidad_medida, p.costo, p.precio_venta,\n                  p.stock_minimo, p.activo\n           FROM productos p\n           JOIN categorias c ON c.id = p.categoria_id\n           WHERE ($1::boolean IS NULL OR p.activo = $1)\n             AND ($2::int IS NULL OR p.categoria_id = $2)\n           ORDER BY p.id\n           LIMIT $3 OFFSET $4",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 1,
+        "name": "nombre",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 2,
+        "name": "sku",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 3,
+        "name": "codigo_barras",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 4,
+        "name": "categoria_id",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 5,
+        "name": "categoria_nombre",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 6,
+        "name": "unidad_medida",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 7,
+        "name": "costo",
+        "type_info": "Numeric"
+      },
+      {
+        "ordinal": 8,
+        "name": "precio_venta",
+        "type_info": "Numeric"
+      },
+      {
+        "ordinal": 9,
+        "name": "stock_minimo",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 10,
+        "name": "activo",
+        "type_info": "Bool"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Bool",
+        "Int4",
+        "Int8",
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      true,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "2fa01fcd7a0cf03aa2b9eae945edc3462758cb86ba3cc8438cf073b92a2db24e"
+}

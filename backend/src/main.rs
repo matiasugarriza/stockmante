@@ -4,7 +4,7 @@ use stockmante_backend::{
     config::AppConfig,
     db,
     error::AppError,
-    mail::envio::CorreoDev,
+    mail::{envio::{CorreoDev, EnvioCorreo}, smtp::CorreoSmtp},
 };
 use std::sync::Arc;
 
@@ -22,20 +22,31 @@ async fn main() {
 
 async fn arrancar() -> Result<(), AppError> {
     let config = AppConfig::desde_entorno()?;
+    config.validar()?;
     let pool = db::crear_pool(&config.database_url).await?;
 
-    // En dev el stub imprime la temporal en consola; en producción es silencioso.
-    let correo = if config.es_produccion() {
-        CorreoDev::new()
-    } else {
-        CorreoDev::para_desarrollo()
+    // Con SMTP_URL definida se envía por SMTP real. En desarrollo sin SMTP el
+    // stub imprime la temporal en consola; en producción `validar()` ya impide
+    // arrancar sin SMTP_URL (fail-closed, T029).
+    let correo: Arc<dyn EnvioCorreo> = match config.smtp_url.as_deref() {
+        Some(url) => {
+            let transporte = CorreoSmtp::desde_url(url, &config.email_from).map_err(|e| {
+                tracing::error!(error = %e, "configuración SMTP inválida");
+                AppError::Interno("configuración SMTP inválida".into())
+            })?;
+            Arc::new(transporte)
+        }
+        None if config.es_produccion() => {
+            return Err(AppError::Interno("SMTP_URL no definida en producción".into()));
+        }
+        None => Arc::new(CorreoDev::para_desarrollo()),
     };
 
     let estado = AppEstado {
         pool,
         config: config.clone(),
         reloj: Arc::new(RelojSistema),
-        correo: Arc::new(correo),
+        correo,
     };
 
     let app = construir_router(estado);

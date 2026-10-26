@@ -19,7 +19,7 @@ Shape de error estándar (sin adornos — Principio III):
 
 | Method | Path | Auth | Descripción |
 |--------|------|------|-------------|
-| POST | `/auth/login` | pública | Body: `{ "email": "…", "password": "…" }` → 204 + Set-Cookie sesión; revoca sesión anterior. 401 `{codigo:"credenciales_invalidas"}` genérico para email inexistente, password mal o inactivo. |
+| POST | `/auth/login` | pública | Body: `{ "email": "…", "password": "…" }` → 204 + Set-Cookie sesión (HttpOnly; SameSite=Lax; `Secure` en producción; `path=/`); revoca sesión anterior. 401 `{codigo:"credenciales_invalidas"}` genérico para email inexistente, password mal o inactivo. |
 | POST | `/auth/logout` | sesión | Revoca sesión; 204. |
 | GET | `/auth/sesion` | sesión | → `{ "usuario": { id, nombre, email, rol, familia_rol, debe_cambiar_password } }` o 401. |
 | POST | `/auth/cambiar-password` | sesión | Body: `{ "password_actual", "password_nueva" }` (la actual puede ser la temporal). Valida política. 204; `password_temporal=false`. 422 si no cumple política. |
@@ -29,8 +29,22 @@ Shape de error estándar (sin adornos — Principio III):
 | Extractor | Exige | Rechazo |
 |---|---|---|
 | `AuthUsuario` | Cookie de sesión vigente | 401 `no_autenticado` / `sesion_expirada` |
-| `RequiereGestion` | Sesión vigente + `familia_rol = GESTION` | 403 `sin_permisos` |
-| `RequiereGestion` con temporal pendiente | Cambio de contraseña completado | 403 `cambio_password_requerido` |
+| `RequierePasswordCambiada` | `password_temporal = false` (salvo `GET /auth/sesion` y `POST /auth/cambiar-password`) | 403 `cambio_password_requerido` |
+| `RequiereGestion` | Sesión vigente + `familia_rol = GESTION` + `password_temporal = false` | 403 `sin_permisos` / `cambio_password_requerido` |
+
+El gate de contraseña temporal se evalúa **antes** que la familia y aplica a todo endpoint autenticado, no solo a los de gestión (FR-008a; T028).
+
+## Sesión
+
+- Cookie `HttpOnly`, `SameSite=Lax`, `path=/`, `Secure` cuando `APP_ENV=production`.
+- Expiración **absoluta** de `SESSION_EXPIRY_HOURS` (default 8) desde el login; sin sliding.
+- Una sola sesión vigente por usuario; el login revoca la anterior (índice único parcial; T027).
+
+## Salud
+
+| Method | Path | Auth | Descripción |
+|--------|------|------|-------------|
+| GET | `/salud` | pública | Healthcheck operativo → 200 `{ "ok": true }`. Sin datos de negocio ni de BD. |
 
 ## RBAC — matriz (resumen, fuente de verdad)
 

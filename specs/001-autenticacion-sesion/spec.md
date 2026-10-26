@@ -2,7 +2,7 @@
 
 **Spec**: `001-autenticacion-sesion` | **Caso de uso**: US1 | **Prioridad**: P1 (MVP)
 
-**Creado**: 2026-10-12 | **Dividido de la spec original**: 2026-10-25 | **Estado**: Implementado
+**Creado**: 2026-10-12 | **Dividido de la spec original**: 2026-10-25 | **Estado**: Implementado con correcciones abiertas (T026–T032)
 
 **Rama**: `main` (el repositorio trabajó sin rama de feature)
 
@@ -42,16 +42,17 @@ Como **Operario/Cajero**, quiero iniciar sesión con mi correo y contraseña par
 
 - **Credenciales en claro**: nunca se muestran ni se guardan en logs; la contraseña temporal solo se transmite por correo al usuario destinatario; el restablecimiento es solo por el Administrador (sin auto-servicio).
 
-> Los casos borde de desactivación con sesión y último administrador pertenecen a `002`; los de SKU, código de barras y producto con referencias a `003`; los de búsqueda a `004`; los de ubicaciones huérfanas a `005`.
+> El caso borde de desactivación con sesión se verifica en 001 (SC-004); el del último administrador pertenece a `002`; los de SKU, código de barras y producto con referencias a `003`; los de búsqueda a `004`; los de ubicaciones huérfanas a `005`.
 
 ## Requisitos *(obligatorio)*
 
 ### Requisitos Funcionales
 
-- **FR-001**: El sistema DEBE permitir iniciar sesión con correo electrónico y contraseña; cada usuario DEBE tener como máximo una sesión vigente: un nuevo inicio de sesión invalida la sesión anterior. La sesión se mantiene hasta cierre explícito, inicio de sesión en otro puesto o expiración por inactividad (ver Supuestos: tiempo por defecto).
+- **FR-001**: El sistema DEBE permitir iniciar sesión con correo electrónico y contraseña; cada usuario DEBE tener como máximo una sesión vigente: un nuevo inicio de sesión invalida la sesión anterior. La sesión se mantiene hasta cierre explícito, inicio de sesión en otro puesto o **expiración absoluta por tiempo** (8 h desde el login por defecto; sin renovación por actividad — ver Supuestos).
 - **FR-002**: El sistema DEBE permitir cerrar sesión, invalidando la sesión del cliente.
+- **FR-002a**: La cookie de sesión DEBE emitirse con `HttpOnly`, `SameSite=Lax`, `path=/` y, cuando `APP_ENV=production`, `Secure`; nunca DEBE contener datos del usuario más allá del identificador opaco de sesión.
 - **FR-003**: El sistema DEBE aplicar control de acceso por rol (RBAC) con dos familias: gestión (Administrador/Gerente, mismos permisos en este módulo) y operación (Operario/Cajero: caja y consulta de catálogo, sin gestión de usuarios ni precios).
-- **FR-008a**: Al crear un usuario, el sistema DEBE generar una contraseña temporal, enviarla al correo del usuario e impedir el uso del sistema más allá del cambio obligatorio de contraseña hasta completarlo. El reinicio de contraseña olvidada DEBE poder solicitarlo el Administrador generando una nueva contraseña temporal (no hay auto-servicio de recuperación en este módulo).
+- **FR-008a**: Al crear un usuario, el sistema DEBE generar una contraseña temporal (14 caracteres, con al menos una mayúscula y un dígito), enviarla al correo del usuario mediante el transporte configurado (`SMTP_URL`; en desarrollo se usa `CorreoDev`) e impedir el uso del sistema más allá del cambio obligatorio de contraseña hasta completarlo. Mientras `password_temporal` sea verdadero, la sesión solo habilita `GET /auth/sesion` y `POST /auth/cambiar-password`; cualquier otro endpoint autenticado responde 403 `cambio_password_requerido`, con independencia de la familia de rol. El reinicio de contraseña olvidada DEBE poder solicitarlo el Administrador generando una nueva contraseña temporal (no hay auto-servicio de recuperación en este módulo). En producción, si el correo no se puede enviar, el alta DEBE fallar y no dejar la cuenta creada.
 
 > FR-003 es el modelo de permisos; cada caso de uso declara sus propias filas de la matriz y
 > `006` las verifica de forma transversal.
@@ -65,17 +66,26 @@ Como **Operario/Cajero**, quiero iniciar sesión con mi correo y contraseña par
 ## Criterios de Éxito
 
 - **SC-003**: El 100% de los intentos de inicio de sesión de usuarios inactivos, inexistentes o con credenciales inválidas son rechazados con el mismo mensaje genérico, sin diferenciar el motivo ni revelar si el correo existe.
-- **SC-004**: Cero sesiones activas de usuarios desactivados pueden ejecutar acciones posteriores a la desactivación (validado en pruebas de seguridad). *(La baja lógica la ejecuta 002; la invalidación se verifica aquí.)*
+- **SC-004**: Cero sesiones activas de usuarios desactivados pueden ejecutar acciones posteriores a la desactivación (validado en pruebas de seguridad). *(La baja lógica la ejecuta 002; la invalidación se verifica en 001 con `backend/tests/unit/test_sesion_unica.rs::desactivar_usuario_deja_sesiones_invalidas`.)*
 
 ## Supuestos
 
-- **Autenticación**: se usa autenticación por correo y contraseña con sesión del servidor; MFA/SSO/OAuth quedan fuera de este módulo a menos que se agreguen como requisito posterior. El mensaje genérico de fallo de login es una excepción deliberada de seguridad (anti-enumeración) al Principio III (Claridad en Mensajes), acotada al endpoint de autenticación.
-- **Contraseñas**: almacenamiento con hash irreversible; política básica (longitud mínima 8, al menos una mayúscula y un dígito) salvo política corporativa distinta. La contraseña inicial es temporal, generada por el sistema y enviada por correo; el usuario debe cambiarla en el primer ingreso. No hay flujo de "olvidé mi contraseña" de auto-servicio en este módulo: el Administrador genera una nueva temporal. La política de expiración periódica de contraseñas (cada N días) queda fuera de este módulo.
-- **Sesión**: expiración por inactividad por defecto de 8 horas hábiles (ajustable); una sola sesión vigente por usuario (nuevo login invalida la anterior); cierre de sesión del lado del cliente invalida el token/sesión en el servidor.
+- **Autenticación**: se usa autenticación por correo y contraseña con sesión del servidor; MFA/SSO/OAuth quedan fuera de este módulo a menos que se agreguen como requisito posterior. El mensaje genérico de fallo de login es una excepción deliberada de seguridad (anti-enumeración) al Principio III (Claridad en Mensajes), acotada al endpoint de autenticación. **Esta excepción requiere una enmienda constitucional explícita (propuesta en `tasks.md` T032); hasta que se apruebe se registra como desviación consciente, no como cumplimiento.**
+- **Contraseñas**: almacenamiento con hash irreversible; política básica (longitud mínima 8, al menos una mayúscula y un dígito) salvo política corporativa distinta. La contraseña inicial es temporal (14 caracteres, con al menos una mayúscula y un dígito), generada por el sistema y enviada por correo mediante el transporte configurado; en desarrollo se usa el stub de consola (`CorreoDev`) y en producción el envío es obligatorio (si falla, el alta se revierte). El usuario debe cambiarla en el primer ingreso. No hay flujo de "olvidé mi contraseña" de auto-servicio en este módulo: el Administrador genera una nueva temporal. La política de expiración periódica de contraseñas (cada N días) queda fuera de este módulo.
+- **Sesión**: expiración **absoluta** por defecto de 8 horas de reloj desde el inicio de sesión (ajustable con `SESSION_EXPIRY_HOURS`), sin renovación por actividad (sin sliding); una sola sesión vigente por usuario (ver FR-001; nuevo login invalida la anterior); el cierre de sesión invalida la sesión en el servidor.
 - **Roles**: se modelan dos familias (Administrador/Gerente y Operario/Cajero). Administrador y Gerente tienen los mismos permisos en este módulo (familia de gestión); diferenciar sus permisos queda fuera de alcance salvo enmienda posterior.
 - **Idioma de UI**: español (es-AR por defecto), alineado con el resto del proyecto.
 
 **Fuera de alcance global**: ver [specs/README.md](../README.md).
+
+## Correcciones post-análisis (2026-10-25)
+
+- Expiración de sesión: **absoluta** (8 h desde el login), sin sliding (FR-001).
+- Cookie de sesión: `HttpOnly`, `SameSite=Lax`, `path=/` y `Secure` en producción (FR-002a).
+- Contraseña temporal: 14 caracteres; entrega por correo con transporte real en producción (FR-008a).
+- Gate de contraseña temporal: global a todo endpoint autenticado salvo `/auth/sesion` y `/auth/cambiar-password`, sin depender de la familia (FR-008a).
+- SC-004: la invalidación se verifica en 001; la baja lógica sigue siendo de 002.
+- Correcciones de implementación abiertas: T026–T032 en [tasks.md](./tasks.md).
 
 ## Trazabilidad
 

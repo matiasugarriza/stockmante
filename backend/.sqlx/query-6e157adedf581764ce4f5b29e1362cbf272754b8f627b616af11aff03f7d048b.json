@@ -1,0 +1,82 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT p.id, p.nombre, p.sku, p.codigo_barras, p.categoria_id,\n                  c.nombre AS categoria_nombre, p.unidad_medida, p.costo, p.precio_venta,\n                  p.stock_minimo, p.activo\n           FROM productos p\n           JOIN categorias c ON c.id = p.categoria_id\n           WHERE p.id = $1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 1,
+        "name": "nombre",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 2,
+        "name": "sku",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 3,
+        "name": "codigo_barras",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 4,
+        "name": "categoria_id",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 5,
+        "name": "categoria_nombre",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 6,
+        "name": "unidad_medida",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 7,
+        "name": "costo",
+        "type_info": "Numeric"
+      },
+      {
+        "ordinal": 8,
+        "name": "precio_venta",
+        "type_info": "Numeric"
+      },
+      {
+        "ordinal": 9,
+        "name": "stock_minimo",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 10,
+        "name": "activo",
+        "type_info": "Bool"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int4"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      true,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "6e157adedf581764ce4f5b29e1362cbf272754b8f627b616af11aff03f7d048b"
+}

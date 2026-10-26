@@ -9,19 +9,19 @@ Todos los `NEEDS CLARIFICATION` del Technical Context quedaron resueltos. Sin pe
 
 ## R1 — Mecanismo de sesión con invalidación única
 
-- **Decision**: Sesión **respaldada en servidor** en tabla `sesiones`, entregada mediante cookie `HttpOnly` + `SameSite=Lax`. Un solo `session_id` vigente por usuario: el alta de sesión nueva revoca (borrado lógico) la anterior. El logout y la desactivación de usuario borran la fila. La expiración por inactividad se calcula en servidor (`expires_at`).
+- **Decision**: Sesión **respaldada en servidor** en tabla `sesiones`, entregada mediante cookie `HttpOnly` + `SameSite=Lax`. Un solo `session_id` vigente por usuario: el alta de sesión nueva revoca (borrado lógico) la anterior. El logout y la desactivación de usuario marcan `revocada_en`. La expiración es **absoluta** y se calcula en servidor (`expira_en` = ahora + `SESSION_EXPIRY_HOURS`), sin sliding por inactividad.
 - **Rationale**: la spec exige una sola sesión vigente por usuario y invalidación en el siguiente request tras desactivar (FR-001, SC-004); verificar contra BD en cada request lo garantiza de forma simple. Coincide con Supuestos de spec ("sesión del servidor").
 - **Alternatives considered**: JWT stateless (no permite revocación inmediata sin blacklist = peor); cookies con token solo firmado sin BD (mismo problema de single-session); Redis (dependencia nueva innecesaria — YAGNI, Principio I).
 
 ## R2 — Hash de contraseñas
 
-- **Decision**: **Argon2id** (crato/argon2 crate, la recomendación actual de OWASP para password hashing). Contraseña temporal generada criptográficamente (12+ caracteres) y enviada por correo; cambio obligatorio marcado en el usuario (`debe_cambiar_password`).
+- **Decision**: **Argon2id** (crate `argon2`, la recomendación actual de OWASP para password hashing). Contraseña temporal generada criptográficamente (14 caracteres; mínimo 12) y enviada por correo; cambio obligatorio marcado en el usuario (`debe_cambiar_password`).
 - **Rationale**: Principio V y seguridad; no se guarda contraseña en claro jamás; argon2id es resistente a GPU/ASIC.
 - **Alternatives considered**: bcrypt (viejo pero aceptable), PBKDF2 (más flojo), bcrypt-via-SQL (mezcla lógica de negocio con BD).
 
 ## R3 — Validación de entradas
 
-- **Decision**: **Backend**: `serde` + `validator` (o `garde`) en structs DTO; errores de validación → `AppError::Validacion` (422). **Frontend**: **Zod** en `$lib/api/*.ts` y forms (definiciones compartidas por feature). Un único esquema por entidad en cada capa; el backend es la autoridad final.
+- **Decision**: **Backend**: `serde` + validación manual en DTOs (la dependencia `validator` está declarada pero no se usa; T031); errores de validación → `AppError::Validacion` (422). **Frontend**: **Zod** en `#lib/api/*.ts` y forms (definiciones compartidas por feature). Un único esquema por entidad en cada capa; el backend es la autoridad final.
 - **Rationale**: SDD pide funciones tipadas centralizadas; Zod ya es el estándar de facto en SvelteKit/TS; en Rust el ecosistema maduro es validator/serde. Constitución: validación antes de tocar BD + verificación de esquema.
 - **Alternatives considered**: Joi (JS legacy, no se alinea con TS estricto), solo backend (UX pobre: errores tardíos), shared schema via JSON Schema (overhead de tooling sin necesidad actual).
 
@@ -33,7 +33,7 @@ Todos los `NEEDS CLARIFICATION` del Technical Context quedaron resueltos. Sin pe
 
 ## R5 — RBAC: guards en Axum
 
-- **Decision**: Extractor `AuthUsuario` (lee cookie → carga sesión + usuario) y extractor/limitador `RequiereGestion` (rol familia gestión). Middleware global de sesión expirada. Endpoints de caja solo requieren `AuthUsuario`; endpoints de gestión requieren `RequiereGestion`.
+- **Decision**: Extractor `AuthUsuario` (lee cookie → carga sesión + usuario), extractor `RequierePasswordCambiada` (temporal pendiente) y extractor/limitador `RequiereGestion` (rol familia gestión). El gate de temporal es global a todo endpoint autenticado salvo `/auth/sesion` y `/auth/cambiar-password`, y se evalúa antes que la familia (T028). Endpoints de caja solo requieren `AuthUsuario` + gate de temporal; endpoints de gestión requieren `RequiereGestion`.
 - **Rationale**: axum extractors son el mecanismo idiomático; mantiene handlers delgados (Principio II) y centraliza la autorización (Principio V: permisos OPERARIO/ADMIN en API, no en chatbot).
 - **Alternatives considered**: crates de RBAC completos (complejidad innecesaria — YAGNI), guards solo en frontend (inseguro; frontend es UX, el backend es la frontera).
 
@@ -51,6 +51,6 @@ Todos los `NEEDS CLARIFICATION` del Technical Context quedaron resueltos. Sin pe
 
 ## R8 — Correo (envío de contraseña temporal)
 
-- **Decision**: interfaz `TraitEnvioCorreo` con implementación de desarrollo (log/consola) y envío SMTP real tras `EMAIL_*` env; config por variables de entorno. Sin proveedor cloud hardcodeado.
+- **Decision**: interfaz `TraitEnvioCorreo` con implementación de desarrollo (log/consola) y envío SMTP real tras `SMTP_URL`; en producción el envío es obligatorio y **fail-closed** (si falla, el alta se revierte); `CorreoDev` es el default de desarrollo (T029). Config por variables de entorno, sin proveedor cloud hardcodeado.
 - **Rationale**: YAGNI + testabilidad (Principio IV: inyección de I/O); sin credenciales externas en este módulo.
 - **Alternatives considered**: proveedor cloud específico (dependencia externa prematura), sin correo (spec exige envío).

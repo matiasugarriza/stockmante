@@ -25,6 +25,25 @@ impl AppConfig {
         app_env.trim().eq_ignore_ascii_case("production")
     }
 
+    /// Fail-closed de producción (T029): sin `SMTP_URL` no hay forma de entregar
+    /// la contraseña temporal, así que el arranque falla en vez de crear cuentas
+    /// sin credenciales. En desarrollo el stub de consola alcanza.
+    pub fn validar(&self) -> Result<(), AppError> {
+        if !self.es_produccion() {
+            return Ok(());
+        }
+        let smtp_configurado = self
+            .smtp_url
+            .as_deref()
+            .map(str::trim)
+            .is_some_and(|url| !url.is_empty());
+        if !smtp_configurado {
+            tracing::error!("APP_ENV=production requiere SMTP_URL para enviar la contraseña temporal");
+            return Err(AppError::Interno("SMTP_URL no definida en producción".into()));
+        }
+        Ok(())
+    }
+
     pub fn desde_entorno() -> Result<Self, AppError> {
         let database_url = std::env::var("DATABASE_URL").map_err(|_| {
             AppError::Interno("DATABASE_URL no definida".into())

@@ -1,0 +1,70 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT id, nombre, email, password_hash, rol, familia_rol, activo, password_temporal, creado_en\n           FROM usuarios WHERE email = $1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 1,
+        "name": "nombre",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 2,
+        "name": "email",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 3,
+        "name": "password_hash",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 4,
+        "name": "rol",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 5,
+        "name": "familia_rol",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 6,
+        "name": "activo",
+        "type_info": "Bool"
+      },
+      {
+        "ordinal": 7,
+        "name": "password_temporal",
+        "type_info": "Bool"
+      },
+      {
+        "ordinal": 8,
+        "name": "creado_en",
+        "type_info": "Timestamptz"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "f3a71da0d9e48da01cbc8e29ecb0b5eb6f318137f74b4563ca7096ff390da92a"
+}

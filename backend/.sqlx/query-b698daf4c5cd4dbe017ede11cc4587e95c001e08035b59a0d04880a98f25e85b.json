@@ -1,0 +1,64 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT nombre, sku, codigo_barras, categoria_id, unidad_medida,\n                  costo, precio_venta, stock_minimo\n           FROM productos WHERE id = $1 FOR UPDATE",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "nombre",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 1,
+        "name": "sku",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 2,
+        "name": "codigo_barras",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 3,
+        "name": "categoria_id",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 4,
+        "name": "unidad_medida",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 5,
+        "name": "costo",
+        "type_info": "Numeric"
+      },
+      {
+        "ordinal": 6,
+        "name": "precio_venta",
+        "type_info": "Numeric"
+      },
+      {
+        "ordinal": 7,
+        "name": "stock_minimo",
+        "type_info": "Int4"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int4"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      true,
+      false,
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "b698daf4c5cd4dbe017ede11cc4587e95c001e08035b59a0d04880a98f25e85b"
+}

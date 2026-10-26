@@ -1,0 +1,23 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT COUNT(*) AS \"total!\" FROM productos\n           WHERE ($1::boolean IS NULL OR activo = $1)\n             AND ($2::int IS NULL OR categoria_id = $2)",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "total!",
+        "type_info": "Int8"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Bool",
+        "Int4"
+      ]
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "6408686150834f23a9c843b8a69cbe5ecf47a55d41fb61c1b281d91668e05d39"
+}

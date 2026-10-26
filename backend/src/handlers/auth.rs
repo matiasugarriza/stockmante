@@ -62,6 +62,8 @@ fn cookie_sesion(estado: &AppEstado, sesion_id: Uuid) -> Cookie<'static> {
     .http_only(true)
     .same_site(SameSite::Lax)
     .path("/")
+    // FR-002a: sólo viaja por HTTPS en producción; en dev/local no.
+    .secure(estado.config.es_produccion())
     .max_age(Duracion::hours(horas as i64))
     .build()
 }
@@ -74,6 +76,7 @@ fn cookie_sesion_borrada(estado: &AppEstado) -> Cookie<'static> {
     .http_only(true)
     .same_site(SameSite::Lax)
     .path("/")
+    .secure(estado.config.es_produccion())
     .expires(OffsetDateTime::now_utc() - Duracion::days(1))
     .build()
 }

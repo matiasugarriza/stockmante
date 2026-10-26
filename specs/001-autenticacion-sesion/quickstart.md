@@ -20,7 +20,7 @@ APP_URL=http://localhost:5173
 PORT=3000
 APP_ENV=development          # development imprime la temporal; production la silencia
 SESSION_COOKIE_NAME=stockmante_sesion
-SESSION_EXPIRY_HOURS=8
+SESSION_EXPIRY_HOURS=8                   # expiración absoluta desde el login; sin sliding
 EMAIL_FROM=soporte@stockmante.local
 SMTP_URL=                    # vacío = stub de consola (CorreoDev)
 PUBLIC_API_URL=http://localhost:3000
@@ -37,7 +37,7 @@ cd backend
 cargo run --bin bootstrap
 
 # 3. Backend
-cargo sqlx prepare     # solo si cambió SQL; para CI: cargo sqlx prepare --check
+cargo sqlx prepare     # no-op mientras no haya macros query! (C1/T031); para CI: cargo sqlx prepare --check
 cargo run              # imprime en consola de DEV la URL y contraseña temporal del admin bootstrap
 
 # 4. Frontend SvelteKit + Tailwind (otra terminal)
@@ -65,6 +65,18 @@ npm run dev            # http://localhost:5173 (SPA SvelteKit)
 1. Login con password mala, email inexistente y usuario desactivado.
 2. Esperado: mismo mensaje "Credenciales inválidas" en los tres casos.
 
+### V9 — Gate de contraseña temporal (US1 / FR-008a)
+
+1. Login con un usuario recién creado (temporal pendiente).
+2. Esperado: `/auth/sesion` responde 200 con `debe_cambiar_password=true`; cualquier otro
+   endpoint autenticado responde 403 `cambio_password_requerido`; `/auth/cambiar-password`
+   funciona y luego el gate desaparece.
+
+### V10 — Sesión única concurrente (FR-001 / T027)
+
+1. Disparar dos logins simultáneos con el mismo usuario.
+2. Esperado: una sola sesión vigente; la cookie perdedora responde 401.
+
 ### V8 — Regresión de calidad
 
 ```bash
@@ -73,6 +85,9 @@ cd frontend && npm test && npm run check && npm run build
 ```
 
 Todos en verde; sin `unwrap`/`panic`/`expect` en rutas de producción (`grep` o clippy).
+Medir además el login en LAN: objetivo ≤ 2 s p95 (goal del plan, no gate bloqueante).
+
+> `cargo sqlx prepare --check` es no-op mientras no se usen macros `query!` (C1/T031).
 
 ## Escenarios de otras specs
 

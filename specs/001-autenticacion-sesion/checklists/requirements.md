@@ -5,10 +5,9 @@
 **Re-scoped**: 2026-10-25 (split por caso de uso)
 **Feature**: [spec.md](../spec.md)
 
-> Este checklist validó originalmente la spec combinada del Módulo 1
-> la spec original combinada del Módulo 1. Tras el split, la revisión se conserva porque los criterios de
-> calidad aplican a la spec base y a US1; los casos de uso 2–6 tienen su propia spec y su
-> checklist se ejecutará al arrancar cada una.
+> Este checklist validó originalmente la spec combinada del Módulo 1. Tras el split, la
+> revisión se conserva porque los criterios de calidad aplican a la spec base y a US1; los
+> casos de uso 2–6 tienen su propia spec y su checklist se ejecutará al arrancar cada una.
 
 ## Content Quality
 
@@ -47,3 +46,6 @@
   implementación.
 - La partición de requisitos y criterios entre 001–006 se verificó contra
   [specs/README.md](../../README.md).
+- Revalidado el 2026-10-25 tras el análisis: se corrigieron la ambigüedad de expiración
+  (absoluta, sin sliding), la longitud de la temporal (14), el gate global de temporal y la
+  asignación de SC-004. Las correcciones de implementación quedan en T026–T032.
