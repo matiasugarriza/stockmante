@@ -1,47 +1,20 @@
 <!-- Sync Impact Report
-- Version change: 1.0.0 → 1.1.0 (MINOR, luego corregido en 1.1.1) → 1.1.1 (PATCH)
-  - Razonamiento MAJOR vs MINOR del Principio III en 1.1.0: se consideró el
-    mismo principio con alcance ampliado, no una redefinición incompatible. El
-    núcleo normativo original ("mensajes claros para el operador/desarrollador,
-    errores específicos, no genéricos") se conservó íntegro; lo eliminado
-    (stdout/stderr de CLI, salidas machine-readable binarias) era una asunción
-    de herramienta que violaba el Principio I (YAGNI) porque el stack no expone
-    CLI. Por eso MINOR y no MAJOR. De todos modos, el cambio de título
-    (Terminal → Mensajes) y la eliminación de la definición CLI son materiales
-    y quedan documentados aquí como ampliación de alcance.
-  - 1.1.1 (PATCH): correcciones posteriores a la revisión de 1.1.0 — mapeo
-    HTTP de errores de dominio vs persistencia en el Principio V; referencia
-    al quality gate en el Principio IV; eliminación de la última mención a
-    una herramienta (Engram) en el flujo SDD; este párrafo de razonamiento.
+- Version change: 1.1.1 → 1.2.0 (MINOR)
+  - MINOR y no MAJOR: no se elimina ni se redefine ningún principio. Se acota el alcance del
+    Principio III con una excepción de seguridad explícita y se agrega una figura de gobierno
+    (waivers). El núcleo normativo de I–V se conserva íntegro.
+  - MINOR y no PATCH: la excepción cambia una regla operativa («nunca genéricos») y el waiver
+    incorpora una sección nueva de gobierno; no es una corrección de redacción.
 - Modified principles:
-  - I. Simplicidad y Anti-Sobreingeniería — bullet roto unificado; etiqueta de
-    título estandarizada a NO NEGOCIABLE.
-  - II. Mantenibilidad — solo estandarización de etiqueta y "Justificación:".
-  - III. Claridad en Terminal (UX) → III. Claridad en Mensajes — eliminada la
-    asunción de CLI (stdout/stderr/salidas machine-readable); conserva y amplía
-    mensajes del backend, chatbot y frontend.
-  - IV. Testabilidad Primero — agregado criterio de tests de frontend
-    ($lib/api/*.ts y stores); verificación de esquema referenciada, no
-    duplicada; 1.1.1 agrega referencia al quality gate cargo sqlx prepare --check.
-  - V. Integridad de Datos y Manejo de Errores — eliminadas referencias a
-    herramientas/habilidades (MCP, SKILLS.md); 1.1.1 separa mapeo HTTP:
-    errores de dominio → AppError específica con 409/422; infraestructura o
-    persistencia → AppError genérica con 500 sin exponer detalles internos.
-- Added sections: none
-- Removed sections: none (Verificación de esquema queda como única fuente
-  canónica dentro de Restricciones Técnicas; Principio IV, V y el paso 2 del
-  SDD la referencian)
+  - III. Claridad en Mensajes — se agrega la excepción de seguridad anti-enumeración para
+    `POST /api/auth/login` y se la referencia desde la regla de mensajes específicos. Sin cambios
+    en frontend, chatbot ni en el requisito de JSON estable.
+- Added sections:
+  - Governance → «Waivers registrados», con W-001 (P-IV: RED no observado en T017–T019 de 001).
+- Removed sections: none
 - Other changes:
-  - Flujo SDD: ruta de specs alineada con Spec Kit (specs/<NNN-feature>/spec.md
-    vía /speckit.specify, plan/tasks cuando corresponda); sin numeración de
-    herramientas en los pasos; 1.1.1 elimina la última mención a Engram
-    (quedó solo "la memoria persistente del proyecto"; Engram vive en AGENTS.md).
-  - Quality gates: cargo sqlx prepare → cargo sqlx prepare --check; suite
-    frontend vinculada al Principio III/IV.
-  - Idioma: "Rationale:" → "Justificación:"; "(NON-NEGOTIABLE)" →
-    "(NO NEGOCIABLE)" en los cinco títulos; eliminada la frase introductoria
-    "Reglas no negociables:" de cada lista (convención única: etiqueta en el
-    título).
+  - La propuesta de enmienda «Stack fijo» queda descartada: C1 se resolvió con macros SQLx y
+    `.sqlx` versionado (T031 de 001), por lo que el texto de Restricciones Técnicas no cambia.
 - Follow-up TODOs: none
 -->
 
@@ -71,11 +44,12 @@ Justificación: legibilidad y límites claros reducen el costo de cada cambio fu
 ### III. Claridad en Mensajes (NO NEGOCIABLE)
 
 - Todo mensaje mostrado al usuario —backend (API), chatbot o frontend— DEBE responder: qué pasó, por qué falló (si falló) y qué hacer a continuación.
-- Los mensajes de error del backend, del chatbot y de la interfaz DEBEN ser específicos ("Stock insuficiente en Depósito Central: 3 disponibles, 5 solicitados"), nunca genéricos ("Error interno").
+- Los mensajes de error del backend, del chatbot y de la interfaz DEBEN ser específicos ("Stock insuficiente en Depósito Central: 3 disponibles, 5 solicitados"), nunca genéricos ("Error interno"), salvo la excepción de seguridad del bullet siguiente.
+- **Excepción de seguridad — anti-enumeración en autenticación**: `POST /api/auth/login` PUEDE devolver un mensaje y un código HTTP únicos e idénticos para email inexistente, contraseña incorrecta y cuenta inactiva, para no revelar la existencia de cuentas. La excepción se limita a ese endpoint, DEBE estar documentada en la spec del módulo y NO habilita mensajes genéricos en ningún otro endpoint ni oculta el motivo de un fallo de dominio.
 - Cualquier confirmación de acción sobre inventario DEBE mostrar el resultado concreto (stock resultante, depósito, producto) después de ejecutarse.
 - Las salidas destinadas a lectura programática (respuestas JSON de la API) DEBEN ser estables y sin adornos (sin emojis ni texto decorativo en el flujo de datos).
 
-Justificación: el operador y el desarrollador trabajan desde la interfaz web y el chatbot; un mensaje ambiguo provoca errores operativos de inventario y debugging lento.
+Justificación: el operador y el desarrollador trabajan desde la interfaz web y el chatbot; un mensaje ambiguo provoca errores operativos de inventario y debugging lento. La excepción de login es una decisión de seguridad acotada, no una licencia para mensajes pobres.
 
 ### IV. Testabilidad Primero (NO NEGOCIABLE)
 
@@ -135,6 +109,12 @@ Quality gates antes de considerar terminada una tarea:
 - Esta constitución prevalece sobre otras prácticas, guías o instrucciones en caso de conflicto; `AGENTS.md` y `SKILLS.md` son guía operativa y DEBEN alinearse con estos principios, no contradecirlos.
 - **Enmiendas**: se realizan editando `.specify/memory/constitution.md`, con un informe de impacto (Sync Impact Report) justificando el cambio y un incremento de versión según semántica descrita abajo; el commit del cambio usa mensaje `docs: amend constitution to vX.Y.Z (...)`.
 - **Versionado**: MAJOR = remoción o redefinición incompatible de un principio; MINOR = nuevo principio o sección, o expansión material de una guía; PATCH = clarificaciones, correcciones de redacción, cambios no semánticos.
-- **Cumplimiento**: cada PR y cada revisión DEBE verificar el cumplimiento de estos principios; cualquier complejidad añadida DEBE justificarse; las violaciones se corrigen en el mismo PR o se elevan como enmienda formal (nunca se ignoran por costumbre).
+- **Cumplimiento**: cada PR y cada revisión DEBE verificar el cumplimiento de estos principios; cualquier complejidad añadida DEBE justificarse; las violaciones se corrigen en el mismo PR, se elevan como enmienda formal o se registran como waiver acotado en la sección siguiente (nunca se ignoran por costumbre).
 
-**Version**: 1.1.1 | **Ratified**: 2026-10-11 | **Last Amended**: 2026-10-12
+### Waivers registrados
+
+Un waiver es una excepción histórica y acotada, aprobada y registrada. NO modifica el principio, NO se hereda a trabajo futuro y NO se invoca como precedente.
+
+- **W-001 — P-IV: RED no observado en T017–T019 (aprobado 2026-10-25)**: los tests de US1 (`test_auth_login`, `test_sesion_unica`, `test_cambio_password`) se escribieron junto con el servicio y no registraron el fallo previo. Alcance: solo esas tres tareas de `specs/001-autenticacion-sesion/tasks.md` (T032). Condición de cierre: suite de backend en verde y `cargo sqlx prepare --check` sin diferencias, verificado el 2026-10-25. Desde `003-catalogo-productos` en adelante el RED es obligatorio y no existe waiver preventivo.
+
+**Version**: 1.2.0 | **Ratified**: 2026-10-11 | **Last Amended**: 2026-10-25
