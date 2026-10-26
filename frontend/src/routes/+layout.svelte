@@ -36,6 +36,8 @@
 			<div class="flex items-center gap-3 text-sm">
 				{#if $sesion.usuario.familia_rol === 'GESTION'}
 					<a class="rounded px-2 py-1 hover:bg-slate-100" href="/admin/usuarios">Usuarios</a>
+					<a class="rounded px-2 py-1 hover:bg-slate-100" href="/admin/categorias">Categorías</a>
+					<a class="rounded px-2 py-1 hover:bg-slate-100" href="/admin/productos">Productos</a>
 				{/if}
 				<span class="text-slate-600">
 					{$sesion.usuario.nombre}
