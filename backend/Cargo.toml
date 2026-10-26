@@ -92,6 +92,10 @@ path = "tests/unit/test_sku.rs"
 name = "test_producto_validacion"
 path = "tests/unit/test_producto_validacion.rs"
 
+[[test]]
+name = "test_categorias_http"
+path = "tests/integration/test_categorias_http.rs"
+
 [dev-dependencies]
 tower = { version = "0.5", features = ["util"] }
 http-body-util = "0.1"

@@ -31,25 +31,13 @@ pub struct ListarQuery {
     pub por_pagina: Option<i64>,
 }
 
-/// `?activo=true|false|all` (ausente = todas).
-fn parsear_activo(valor: Option<&str>) -> Result<Option<bool>, AppError> {
-    match valor.map(|v| v.trim().to_lowercase()).as_deref() {
-        None | Some("") | Some("all") => Ok(None),
-        Some("true") => Ok(Some(true)),
-        Some("false") => Ok(Some(false)),
-        Some(_) => Err(AppError::Validacion(
-            "El filtro activo debe ser true, false o all".into(),
-        )),
-    }
-}
-
 /// GET /api/usuarios?activo=&pagina=&por_pagina= → 200 lista paginada.
 async fn listar(
     State(estado): State<AppEstado>,
     _admin: RequiereGestion,
     QueryValida(query): QueryValida<ListarQuery>,
 ) -> Result<Json<ListaUsuarios>, AppError> {
-    let activo = parsear_activo(query.activo.as_deref())?;
+    let activo = super::parsear_activo(query.activo.as_deref(), None)?;
     let lista = usuarios::listar(&estado.pool, activo, query.pagina, query.por_pagina).await?;
     Ok(Json(lista))
 }

@@ -43,6 +43,7 @@ pub fn construir_router(estado: AppEstado) -> Router {
     // password) y `/api/salud`, que es pública.
     let autenticado = Router::new()
         .nest("/api/usuarios", handlers::usuarios::router())
+        .nest("/api/categorias", handlers::categorias::router())
         .layer(middleware::from_fn_with_state(
             estado.clone(),
             crate::auth::gate::exigir_password_cambiada,
