@@ -2,7 +2,7 @@
 
 mod common;
 
-use common::{borrar_usuario, email_unico, pool_de_test};
+use common::{actor_de_test, borrar_usuario, email_unico, pool_de_test};
 use stockmante_backend::auth::reloj::RelojSistema;
 use stockmante_backend::error::AppError;
 use stockmante_backend::mail::envio::{CorreoDev, EnvioCorreo};
@@ -28,8 +28,9 @@ async fn alta_entrega_temporal_y_permite_el_primer_login() {
     let pool = pool_de_test().await;
     let correo = CorreoDev::new();
     let email = email_unico("alta-temporal");
+    let actor = actor_de_test(&pool).await;
 
-    let creado = usuarios::crear(&pool, &correo, "Nueva Persona", &email, "CAJERO")
+    let creado = usuarios::crear(&pool, &correo, actor, "Nueva Persona", &email, "CAJERO")
         .await
         .expect("alta");
     assert!(creado.password_temporal);
@@ -75,8 +76,9 @@ async fn alta_entrega_temporal_y_permite_el_primer_login() {
 async fn si_el_correo_falla_no_queda_usuario() {
     let pool = pool_de_test().await;
     let email = email_unico("alta-sin-correo");
+    let actor = actor_de_test(&pool).await;
 
-    let error = usuarios::crear(&pool, &CorreoQueFalla, "Sin Correo", &email, "CAJERO")
+    let error = usuarios::crear(&pool, &CorreoQueFalla, actor, "Sin Correo", &email, "CAJERO")
         .await
         .expect_err("el alta debe fallar si no se entrega la temporal");
     assert!(

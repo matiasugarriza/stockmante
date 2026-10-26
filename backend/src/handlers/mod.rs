@@ -1,6 +1,8 @@
 pub mod auth;
 pub mod categorias;
+pub mod depositos;
 pub mod productos;
+pub mod ubicaciones;
 pub mod usuarios;
 
 use crate::error::AppError;
@@ -8,6 +10,15 @@ use axum::Json;
 use serde::{Deserialize, Deserializer};
 use serde_json::json;
 
+/// GET /api/salud → 200 `{ "ok": true }` (pública, sin sesión).
+#[utoipa::path(
+    get,
+    path = "/api/salud",
+    tag = "salud",
+    summary = "Sonda de salud",
+    responses((status = 200, description = "Servicio arriba")),
+    security(())
+)]
 pub async fn salud() -> Json<serde_json::Value> {
     Json(json!({ "ok": true }))
 }

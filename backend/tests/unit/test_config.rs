@@ -10,7 +10,28 @@ fn config_base() -> AppConfig {
         email_from: "soporte@stockmante.local".into(),
         smtp_url: None,
         app_env: "development".into(),
+        docs_enabled: true,
     }
+}
+
+/// 000 — la documentación se enciende sola fuera de producción y se apaga en
+/// producción; `DOCS_ENABLED` explícito siempre gana.
+#[test]
+fn docs_enabled_tiene_default_por_entorno() {
+    assert!(AppConfig::docs_por_defecto("development"));
+    assert!(AppConfig::docs_por_defecto("staging"));
+    assert!(!AppConfig::docs_por_defecto("production"));
+    assert!(!AppConfig::docs_por_defecto(" Production "));
+}
+
+#[test]
+fn docs_enabled_acepta_booleanos_textuales() {
+    assert!(AppConfig::parsear_interruptor("DOCS_ENABLED", "true").expect("true"));
+    assert!(AppConfig::parsear_interruptor("DOCS_ENABLED", " TRUE ").expect("TRUE"));
+    assert!(AppConfig::parsear_interruptor("DOCS_ENABLED", "1").expect("1"));
+    assert!(!AppConfig::parsear_interruptor("DOCS_ENABLED", "false").expect("false"));
+    assert!(!AppConfig::parsear_interruptor("DOCS_ENABLED", "0").expect("0"));
+    assert!(AppConfig::parsear_interruptor("DOCS_ENABLED", "quizas").is_err());
 }
 
 /// `APP_ENV=production` es el único valor que desactiva ayudas de desarrollo

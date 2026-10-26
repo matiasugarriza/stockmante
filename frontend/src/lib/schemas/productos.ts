@@ -32,6 +32,12 @@ export const ListaProductosSchema = z.object({
 });
 export type ListaProductos = z.infer<typeof ListaProductosSchema>;
 
+/** Búsqueda de caja (004): lista acotada, sin paginación. */
+export const ListaBusquedaSchema = z.object({
+	items: z.array(ProductoSchema)
+});
+export type ListaBusqueda = z.infer<typeof ListaBusquedaSchema>;
+
 const MontoSchema = z
 	.number()
 	.nonnegative('El monto no puede ser negativo')

@@ -765,7 +765,7 @@ async fn desactivar_revoca_sesiones_reactiva_y_regenera_temporal() {
 async fn gestor_con_password_temporal_no_puede_gestionar_hasta_cambiarla() {
     let (app, pool, _correo) = app_de_test().await;
     let email = email_unico("http-temporal-gestion");
-    let id = crear_usuario(
+    crear_usuario(
         &pool,
         "Gestor Temporal",
         &email,

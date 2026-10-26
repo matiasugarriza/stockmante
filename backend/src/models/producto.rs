@@ -7,6 +7,7 @@
 use crate::error::AppError;
 use rust_decimal::Decimal;
 use serde::Serialize;
+use utoipa::ToSchema;
 
 /// Unidades de medida admitidas (lista cerrada, contracts/validation.md).
 pub const UNIDADES: [&str; 4] = ["UNIDAD", "KG", "METRO", "CAJA"];
@@ -15,7 +16,7 @@ pub const UNIDADES: [&str; 4] = ["UNIDAD", "KG", "METRO", "CAJA"];
 pub const MONTO_MAXIMO: i64 = 10_000_000_000;
 
 /// Categoría tal como la devuelve la API.
-#[derive(Debug, Clone, Serialize, sqlx::FromRow)]
+#[derive(Debug, Clone, Serialize, sqlx::FromRow, ToSchema)]
 pub struct Categoria {
     pub id: i32,
     pub nombre: String,
@@ -24,14 +25,14 @@ pub struct Categoria {
 }
 
 /// Referencia mínima a la categoría dentro de un producto.
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, ToSchema)]
 pub struct CategoriaBreve {
     pub id: i32,
     pub nombre: String,
 }
 
 /// Producto tal como lo devuelve la API.
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, ToSchema)]
 pub struct Producto {
     pub id: i32,
     pub nombre: String,
@@ -39,7 +40,9 @@ pub struct Producto {
     pub codigo_barras: Option<String>,
     pub categoria: CategoriaBreve,
     pub unidad_medida: String,
+    #[schema(value_type = f64, example = 1200.5)]
     pub costo: Decimal,
+    #[schema(value_type = f64, example = 1800.0)]
     pub precio_venta: Decimal,
     pub stock_minimo: i32,
     pub activo: bool,
@@ -82,12 +85,18 @@ impl From<ProductoFila> for Producto {
 }
 
 /// Página del listado de gestión de productos.
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, ToSchema)]
 pub struct ListaProductos {
     pub items: Vec<Producto>,
     pub total: i64,
     pub pagina: i64,
     pub por_pagina: i64,
+}
+
+/// Resultado acotado de la búsqueda de caja (004): sin paginación.
+#[derive(Debug, Clone, Serialize, ToSchema)]
+pub struct ListaBusqueda {
+    pub items: Vec<Producto>,
 }
 
 /// `trim` + mayúsculas: la unicidad se evalúa ya normalizada.

@@ -11,15 +11,23 @@
 
 use crate::error::AppError;
 use crate::models::producto::{
-    validar_codigo_barras, validar_monto, validar_nombre_producto, validar_sku, validar_stock_minimo,
-    validar_unidad, ListaProductos, Producto, ProductoFila,
+    normalizar_sku, validar_codigo_barras, validar_monto, validar_nombre_producto, validar_sku,
+    validar_stock_minimo, validar_unidad, ListaBusqueda, ListaProductos, Producto, ProductoFila,
 };
 use rust_decimal::Decimal;
 use sqlx::{PgConnection, PgPool};
+use super::auditoria;
 
 const POR_PAGINA_DEFAULT: i64 = 20;
 const POR_PAGINA_MAX: i64 = 100;
 const Q_MAX: usize = 160;
+
+/// Límite por defecto de la búsqueda de caja (004).
+pub const LIMITE_BUSQUEDA_DEFAULT: i64 = 20;
+/// Tope de resultados de la búsqueda de caja.
+pub const LIMITE_BUSQUEDA_MAX: i64 = 50;
+/// Nombre y categoría exigen al menos dos caracteres (spec 004, casos borde).
+const Q_MIN_NOMBRE: usize = 2;
 
 /// Filtros del listado de gestión (contracts/api.md §Productos).
 #[derive(Debug, Default)]
@@ -234,7 +242,11 @@ pub async fn obtener(pool: &PgPool, id: i32) -> Result<Producto, AppError> {
     Ok(fila_por_id(pool, id).await?.into())
 }
 
-pub async fn crear(pool: &PgPool, datos: NuevoProducto) -> Result<Producto, AppError> {
+pub async fn crear(
+    pool: &PgPool,
+    datos: NuevoProducto,
+    actor_id: i32,
+) -> Result<Producto, AppError> {
     let nombre = validar_nombre_producto(&datos.nombre)?;
     let sku = validar_sku(&datos.sku)?;
     let codigo_barras = validar_codigo_barras(datos.codigo_barras.as_deref())?;
@@ -264,15 +276,24 @@ pub async fn crear(pool: &PgPool, datos: NuevoProducto) -> Result<Producto, AppE
     .fetch_one(&mut *tx)
     .await
     .map_err(|e| mapear_unicidad(e, Some(&sku_error)))?;
-    let fila = fila_por_id(&mut *tx, id).await?;
+    let producto: Producto = fila_por_id(&mut *tx, id).await?.into();
+    auditoria::registrar(
+        &mut tx,
+        auditoria::TABLA_PRODUCTOS,
+        producto.id,
+        auditoria::ACCION_CREAR,
+        actor_id,
+    )
+    .await?;
     tx.commit().await?;
-    Ok(fila.into())
+    Ok(producto)
 }
 
 pub async fn actualizar(
     pool: &PgPool,
     id: i32,
     cambios: CambiosProducto,
+    actor_id: i32,
 ) -> Result<Producto, AppError> {
     let nombre = match cambios.nombre {
         Some(valor) => Some(validar_nombre_producto(&valor)?),
@@ -365,29 +386,289 @@ pub async fn actualizar(
     if filas == 0 {
         return Err(no_encontrado());
     }
-    let fila = fila_por_id(&mut *tx, id).await?;
+    let producto: Producto = fila_por_id(&mut *tx, id).await?.into();
+    auditoria::registrar(
+        &mut tx,
+        auditoria::TABLA_PRODUCTOS,
+        producto.id,
+        auditoria::ACCION_ACTUALIZAR,
+        actor_id,
+    )
+    .await?;
     tx.commit().await?;
-    Ok(fila.into())
+    Ok(producto)
 }
 
-pub async fn desactivar(pool: &PgPool, id: i32) -> Result<(), AppError> {
-    cambiar_estado(pool, id, false).await
+pub async fn desactivar(pool: &PgPool, id: i32, actor_id: i32) -> Result<(), AppError> {
+    cambiar_estado(pool, id, false, actor_id).await
 }
 
-pub async fn reactivar(pool: &PgPool, id: i32) -> Result<(), AppError> {
-    cambiar_estado(pool, id, true).await
+pub async fn reactivar(pool: &PgPool, id: i32, actor_id: i32) -> Result<(), AppError> {
+    cambiar_estado(pool, id, true, actor_id).await
 }
 
-async fn cambiar_estado(pool: &PgPool, id: i32, activo: bool) -> Result<(), AppError> {
+async fn cambiar_estado(pool: &PgPool, id: i32, activo: bool, actor_id: i32) -> Result<(), AppError> {
+    let mut tx = pool.begin().await?;
     let filas = sqlx::query("UPDATE productos SET activo = $2, actualizado_en = now() WHERE id = $1")
         .bind(id)
         .bind(activo)
-        .execute(pool)
+        .execute(&mut *tx)
         .await?
         .rows_affected();
     if filas == 0 {
-        Err(no_encontrado())
-    } else {
-        Ok(())
+        return Err(no_encontrado());
     }
+    let accion = if activo {
+        auditoria::ACCION_REACTIVAR
+    } else {
+        auditoria::ACCION_DESACTIVAR
+    };
+    auditoria::registrar(
+        &mut tx,
+        auditoria::TABLA_PRODUCTOS,
+        id,
+        accion,
+        actor_id,
+    )
+    .await?;
+    tx.commit().await?;
+    Ok(())
+}
+
+/// Campo de la búsqueda de caja (004). Ausente equivale a `Todos`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum CampoBusqueda {
+    Sku,
+    Codigo,
+    Nombre,
+    Categoria,
+    Todos,
+}
+
+impl CampoBusqueda {
+    /// Parsea el query param `campo`; cualquier otro valor es 422.
+    pub fn parsear(valor: Option<&str>) -> Result<Self, AppError> {
+        match valor.map(str::trim) {
+            None | Some("") => Ok(Self::Todos),
+            Some(valor) => match valor.to_ascii_lowercase().as_str() {
+                "todos" => Ok(Self::Todos),
+                "sku" => Ok(Self::Sku),
+                "codigo" => Ok(Self::Codigo),
+                "nombre" => Ok(Self::Nombre),
+                "categoria" => Ok(Self::Categoria),
+                _ => Err(AppError::Validacion(
+                    "El campo de búsqueda debe ser sku, codigo, nombre, categoria o todos.".into(),
+                )),
+            },
+        }
+    }
+}
+
+/// Parámetros ya extraídos del query string de `GET /api/productos/buscar`.
+#[derive(Debug)]
+pub struct BusquedaProductos {
+    pub q: String,
+    pub campo: CampoBusqueda,
+    pub incluir_inactivos: bool,
+    pub categoria_id: Option<i32>,
+    pub limite: Option<i64>,
+}
+
+/// Búsqueda de caja (FR-011/FR-013): exacta para SKU/código y por trigramas
+/// para nombre/categoría. Los inactivos se excluyen salvo pedido explícito.
+pub async fn buscar(
+    pool: &PgPool,
+    busqueda: BusquedaProductos,
+) -> Result<ListaBusqueda, AppError> {
+    let termino = busqueda.q.trim();
+    if termino.chars().count() > Q_MAX {
+        return Err(AppError::Validacion(format!(
+            "El término de búsqueda no puede superar los {Q_MAX} caracteres."
+        )));
+    }
+    let categoria_id = match busqueda.categoria_id {
+        Some(id) if id <= 0 => {
+            return Err(AppError::Validacion(
+                "El filtro categoria_id debe ser un entero mayor a 0.".into(),
+            ));
+        }
+        otro => otro,
+    };
+    let limite = busqueda.limite.unwrap_or(LIMITE_BUSQUEDA_DEFAULT);
+    if !(1..=LIMITE_BUSQUEDA_MAX).contains(&limite) {
+        return Err(AppError::Validacion(format!(
+            "El límite debe estar entre 1 y {LIMITE_BUSQUEDA_MAX}."
+        )));
+    }
+
+    // Filtrar solo por categoría es válido: es el escenario 4 sin texto.
+    if termino.is_empty() {
+        let Some(categoria_id) = categoria_id else {
+            return Err(AppError::Validacion(
+                "Ingresá un término de búsqueda o elegí una categoría.".into(),
+            ));
+        };
+        let filas = sqlx::query_as::<_, ProductoFila>(
+            r#"SELECT p.id, p.nombre, p.sku, p.codigo_barras,
+                      p.categoria_id, c.nombre AS categoria_nombre, p.unidad_medida,
+                      p.costo, p.precio_venta, p.stock_minimo, p.activo
+                 FROM productos p
+                 JOIN categorias c ON c.id = p.categoria_id
+                WHERE p.categoria_id = $1
+                  AND ($2::bool OR p.activo)
+                ORDER BY p.nombre ASC, p.id ASC
+                LIMIT $3"#,
+        )
+        .bind(categoria_id)
+        .bind(busqueda.incluir_inactivos)
+        .bind(limite)
+        .fetch_all(pool)
+        .await?;
+        return Ok(ListaBusqueda {
+            items: filas.into_iter().map(Producto::from).collect(),
+        });
+    }
+
+    let termino = termino.to_string();
+    let largo = termino.chars().count();
+    if matches!(
+        busqueda.campo,
+        CampoBusqueda::Nombre | CampoBusqueda::Categoria
+    ) && largo < Q_MIN_NOMBRE
+    {
+        return Err(AppError::Validacion(
+            "La búsqueda por nombre o categoría requiere al menos 2 caracteres.".into(),
+        ));
+    }
+
+    let patron = format!("%{}%", escapar_like(&termino));
+    let incluir = busqueda.incluir_inactivos;
+
+    let filas = match busqueda.campo {
+        CampoBusqueda::Sku => {
+            let sku = normalizar_sku(&termino);
+            sqlx::query_as::<_, ProductoFila>(
+                r#"SELECT p.id, p.nombre, p.sku, p.codigo_barras,
+                          p.categoria_id, c.nombre AS categoria_nombre, p.unidad_medida,
+                          p.costo, p.precio_venta, p.stock_minimo, p.activo
+                     FROM productos p
+                     JOIN categorias c ON c.id = p.categoria_id
+                    WHERE p.sku = $1
+                      AND ($2::int IS NULL OR p.categoria_id = $2)
+                      AND ($3::bool OR p.activo)
+                    ORDER BY p.nombre ASC, p.id ASC
+                    LIMIT $4"#,
+            )
+            .bind(&sku)
+            .bind(categoria_id)
+            .bind(incluir)
+            .bind(limite)
+            .fetch_all(pool)
+            .await?
+        }
+        CampoBusqueda::Codigo => {
+            sqlx::query_as::<_, ProductoFila>(
+                r#"SELECT p.id, p.nombre, p.sku, p.codigo_barras,
+                          p.categoria_id, c.nombre AS categoria_nombre, p.unidad_medida,
+                          p.costo, p.precio_venta, p.stock_minimo, p.activo
+                     FROM productos p
+                     JOIN categorias c ON c.id = p.categoria_id
+                    WHERE p.codigo_barras = $1
+                      AND ($2::int IS NULL OR p.categoria_id = $2)
+                      AND ($3::bool OR p.activo)
+                    ORDER BY p.nombre ASC, p.id ASC
+                    LIMIT $4"#,
+            )
+            .bind(&termino)
+            .bind(categoria_id)
+            .bind(incluir)
+            .bind(limite)
+            .fetch_all(pool)
+            .await?
+        }
+        CampoBusqueda::Nombre => {
+            sqlx::query_as::<_, ProductoFila>(
+                r#"SELECT p.id, p.nombre, p.sku, p.codigo_barras,
+                          p.categoria_id, c.nombre AS categoria_nombre, p.unidad_medida,
+                          p.costo, p.precio_venta, p.stock_minimo, p.activo
+                     FROM productos p
+                     JOIN categorias c ON c.id = p.categoria_id
+                    WHERE (p.nombre % $1 OR p.nombre ILIKE $2 ESCAPE '\')
+                      AND ($3::int IS NULL OR p.categoria_id = $3)
+                      AND ($4::bool OR p.activo)
+                    ORDER BY similarity(p.nombre, $1) DESC, p.nombre ASC, p.id ASC
+                    LIMIT $5"#,
+            )
+            .bind(&termino)
+            .bind(&patron)
+            .bind(categoria_id)
+            .bind(incluir)
+            .bind(limite)
+            .fetch_all(pool)
+            .await?
+        }
+        CampoBusqueda::Categoria => {
+            sqlx::query_as::<_, ProductoFila>(
+                r#"SELECT p.id, p.nombre, p.sku, p.codigo_barras,
+                          p.categoria_id, c.nombre AS categoria_nombre, p.unidad_medida,
+                          p.costo, p.precio_venta, p.stock_minimo, p.activo
+                     FROM productos p
+                     JOIN categorias c ON c.id = p.categoria_id
+                    WHERE (c.nombre % $1 OR c.nombre ILIKE $2 ESCAPE '\')
+                      AND ($3::int IS NULL OR p.categoria_id = $3)
+                      AND ($4::bool OR p.activo)
+                    ORDER BY similarity(c.nombre, $1) DESC, p.nombre ASC, p.id ASC
+                    LIMIT $5"#,
+            )
+            .bind(&termino)
+            .bind(&patron)
+            .bind(categoria_id)
+            .bind(incluir)
+            .bind(limite)
+            .fetch_all(pool)
+            .await?
+        }
+        CampoBusqueda::Todos => {
+            // Con un solo carácter solo tienen sentido las igualdades exactas.
+            let por_nombre = largo >= Q_MIN_NOMBRE;
+            let sku = normalizar_sku(&termino);
+            sqlx::query_as::<_, ProductoFila>(
+                r#"SELECT p.id, p.nombre, p.sku, p.codigo_barras,
+                          p.categoria_id, c.nombre AS categoria_nombre, p.unidad_medida,
+                          p.costo, p.precio_venta, p.stock_minimo, p.activo
+                     FROM productos p
+                     JOIN categorias c ON c.id = p.categoria_id
+                    WHERE (
+                            p.sku = $1
+                         OR p.codigo_barras = $2
+                         OR ($3::bool AND (p.nombre % $4 OR p.nombre ILIKE $5 ESCAPE '\'))
+                          )
+                      AND ($6::int IS NULL OR p.categoria_id = $6)
+                      AND ($7::bool OR p.activo)
+                    ORDER BY CASE
+                               WHEN p.sku = $1 THEN 0
+                               WHEN p.codigo_barras = $2 THEN 1
+                               ELSE 2
+                             END,
+                             similarity(p.nombre, $4) DESC,
+                             p.nombre ASC,
+                             p.id ASC
+                    LIMIT $8"#,
+            )
+            .bind(&sku)
+            .bind(&termino)
+            .bind(por_nombre)
+            .bind(&termino)
+            .bind(&patron)
+            .bind(categoria_id)
+            .bind(incluir)
+            .bind(limite)
+            .fetch_all(pool)
+            .await?
+        }
+    };
+
+    Ok(ListaBusqueda {
+        items: filas.into_iter().map(Producto::from).collect(),
+    })
 }

@@ -3,7 +3,7 @@
 mod common;
 
 use axum::http::StatusCode;
-use common::{borrar_usuario, email_unico, pool_de_test};
+use common::{actor_de_test, borrar_usuario, email_unico, pool_de_test};
 use stockmante_backend::error::AppError;
 use stockmante_backend::mail::envio::CorreoDev;
 use stockmante_backend::services::usuarios;
@@ -13,8 +13,9 @@ async fn alta_con_email_duplicado_devuelve_email_duplicado() {
     let pool = pool_de_test().await;
     let correo = CorreoDev::new();
     let email = email_unico("duplicado");
+    let actor = actor_de_test(&pool).await;
 
-    let creado = usuarios::crear(&pool, &correo, "Primera Persona", &email, "OPERARIO")
+    let creado = usuarios::crear(&pool, &correo, actor, "Primera Persona", &email, "OPERARIO")
         .await
         .expect("el primer alta debe funcionar");
     assert_eq!(creado.email, email);
@@ -24,7 +25,7 @@ async fn alta_con_email_duplicado_devuelve_email_duplicado() {
 
     // La unicidad no distingue mayúsculas ni espacios sobrantes.
     let repetido = format!("  {}  ", email.to_uppercase());
-    let err = usuarios::crear(&pool, &correo, "Segunda Persona", &repetido, "GERENTE")
+    let err = usuarios::crear(&pool, &correo, actor, "Segunda Persona", &repetido, "GERENTE")
         .await
         .expect_err("el email ya está registrado");
     assert!(
@@ -41,9 +42,10 @@ async fn alta_con_email_duplicado_devuelve_email_duplicado() {
 async fn alta_con_email_invalido_es_validacion() {
     let pool = pool_de_test().await;
     let correo = CorreoDev::new();
+    let actor = actor_de_test(&pool).await;
 
     for invalido in ["sin-arroba", "sin-dominio@", "@sin-usuario.com", "a@b"] {
-        let err = usuarios::crear(&pool, &correo, "Persona", invalido, "OPERARIO")
+        let err = usuarios::crear(&pool, &correo, actor, "Persona", invalido, "OPERARIO")
             .await
             .expect_err("el email debe rechazarse");
         assert!(
@@ -58,10 +60,12 @@ async fn alta_con_email_invalido_es_validacion() {
 async fn alta_valida_nombre_y_rol() {
     let pool = pool_de_test().await;
     let correo = CorreoDev::new();
+    let actor = actor_de_test(&pool).await;
 
     let err = usuarios::crear(
         &pool,
         &correo,
+        actor,
         "   ",
         &email_unico("sin-nombre"),
         "OPERARIO",
@@ -73,6 +77,7 @@ async fn alta_valida_nombre_y_rol() {
     let err = usuarios::crear(
         &pool,
         &correo,
+        actor,
         "Persona",
         &email_unico("rol-malo"),
         "SUPERVISOR",

@@ -16,9 +16,9 @@ conservan **verbatim**; solo se distribuyeron por caso de uso.
 | [001-autenticacion-sesion](./001-autenticacion-sesion/spec.md) | Login, sesión única y cambio obligatorio de contraseña | FR-001, FR-002, FR-003, FR-008a | SC-003, SC-004 | Implementado y cerrado | — |
 | [002-gestion-usuarios](./002-gestion-usuarios/spec.md) | Alta, edición, baja lógica y reactivación de usuarios | FR-004, FR-005, FR-006, FR-007, FR-008 | SC-001 | Implementado (retro-documentado) | 001 |
 | [003-catalogo-productos](./003-catalogo-productos/spec.md) | CRUD de productos y categorías, baja lógica | FR-009, FR-010, FR-012, FR-014 | SC-006 | Implementado, probado y commiteado en `feat/003-catalogo-productos` (pendiente de push) | 001 |
-| [004-busqueda-caja](./004-busqueda-caja/spec.md) | Búsqueda rápida por SKU, código, nombre y categoría | FR-011, FR-013 | SC-002 | Especificado (sin plan aún) | 001, 003 |
-| [005-depositos-ubicaciones](./005-depositos-ubicaciones/spec.md) | Depósitos, ubicaciones jerárquicas y asignación a producto | FR-015, FR-016, FR-017, FR-018 | SC-005 | Especificado (sin plan aún) | 001 (003 para asignación) |
-| [006-rbac-auditoria](./006-rbac-auditoria/spec.md) | Verificación transversal de RBAC y auditoría básica | FR-003 (verificación), FR-019 (derivado) | SC-007, SC-008 | Especificado (sin plan aún) | 001–005 |
+| [004-busqueda-caja](./004-busqueda-caja/spec.md) | Búsqueda rápida por SKU, código, nombre y categoría | FR-011, FR-013 | SC-002 | Implementado y verificado (2026-10-26) | 001, 003 |
+| [005-depositos-ubicaciones](./005-depositos-ubicaciones/spec.md) | Depósitos, ubicaciones jerárquicas y asignación a producto | FR-015, FR-016, FR-017, FR-018 | SC-005 | Implementado y verificado (2026-10-26) | 001 (003 para asignación) |
+| [006-rbac-auditoria](./006-rbac-auditoria/spec.md) | Verificación transversal de RBAC y auditoría básica | FR-003 (verificación), FR-019 (derivado) | SC-007, SC-008 | Implementado y verificado (2026-10-26) | 001–005 |
 
 ## Partición de requisitos funcionales
 
@@ -70,8 +70,8 @@ Cada FR tiene **un solo dueño**. Los demás specs lo referencian, no lo repiten
 | 0004 | — (no existe) | Reservado por el WIP de 003; nunca se publicó y **no se reutiliza** | — | — |
 | 0005 | `0005_sesion_unica.sql` | Índice único parcial de sesión vigente | 001 | 001 / T027 (T-AUTH-09) |
 | 0006 | `0006_catalogo_descripcion_codigo_barras.sql` | `categorias.descripcion`, unicidad normalizada, `codigo_barras` `NULLS DISTINCT` e índice de `categoria_id` | 003 | 003 / T005 |
-| 0007 | pendiente | Extensión `pg_trgm` + índice de búsqueda | 004 | 004 |
-| 0008 | pendiente | Tabla de auditoría | 006 | 006 |
+| 0007 | `0007_busqueda_trgm.sql` | Extensión `pg_trgm` + índice GIN de `productos.nombre` | 004 | 004 / T001 |
+| 0008 | `0008_auditoria.sql` | Tabla de auditoría básica de usuarios y productos | 006 | 006 / T001 |
 
 > La numeración es global y **no se reutiliza**. La fase foundational de 001 creó las tablas
 > de 003 y 005 para no bloquear las user stories; la propiedad del esquema queda en el spec
@@ -95,11 +95,27 @@ Cada FR tiene **un solo dueño**. Los demás specs lo referencian, no lo repiten
 
 Estas tareas no pertenecen a un caso de uso; se ejecutan cuando 001–006 estén cerradas.
 
-- [ ] **C1** Actualizar `README.md` de la raíz (setup local, env, comandos, mapa de specs).
-- [ ] **C2** Correr los gates completos del monorepo y el grep de `unwrap`/`panic!`/`expect`.
-- [ ] **C3** Ejecutar los escenarios V1–V8 de los quickstarts de 001–005 y registrar resultados.
-- [ ] **C4** Revisar mensajes de error accionables en español (Principio III).
-- [ ] **C5** Commit final de cierre del Módulo 1 y actualización de estado de las specs.
+- [X] **C1** Actualizar `README.md` de la raíz (setup local, env, comandos, mapa de specs).
+  Completado con la spec 000 (2026-10-26).
+- [X] **C2** Correr los gates completos del monorepo y el grep de `unwrap`/`panic!`/`expect`.
+  Ejecutado el 2026-10-26: `cargo test` **115/115**, `cargo sqlx prepare --check` exit 0 (aviso
+  preexistente de `.sqlx`), `npm test` **136/136**, `npm run check` **0/0**, `npm run build` OK.
+  El grep en `backend/src` solo encuentra las palabras en comentarios; no hay pánicos en
+  producción.
+- [X] **C3** Ejecutar los escenarios V1–V8 de los quickstarts de 001–005 y registrar resultados.
+  Ejecutado en su forma automatizada equivalente contra el router y la base reales:
+  V1/V2/V4/V9/V10 → `test_auth_http`, `test_sesion_unica`, `test_cambio_password`;
+  V3/V5 → `test_usuarios_http`, `test_ultimo_admin`, `test_usuarios_email`;
+  V6a/V6b → `test_categorias_http`, `test_productos_http`, `test_catalogo_baja_logica`;
+  búsqueda de caja → `test_busqueda_http`; V7 → `test_depositos_http`; RBAC/auditoría →
+  `test_rbac_matriz`. Smoke del servidor real: `/api/salud` 200, `/docs` 200 y 29 rutas en
+  `/api-docs/openapi.json`. Los pasos exclusivamente visuales de navegador se cubren con
+  `npm run check` y `npm run build`; no se repitió el recorrido manual con capturas.
+- [X] **C4** Revisar mensajes de error accionables en español (Principio III). Revisados
+  `backend/src/error.rs`, los servicios y los mensajes de UI: no quedan textos en inglés ni
+  códigos sin mensaje accionable. Los códigos nuevos de 005 están documentados en
+  `docs/api.md`.
+- [X] **C5** Commit final de cierre del Módulo 1 y actualización de estado de las specs.
 
 ## Fuera de alcance del Módulo 1
 

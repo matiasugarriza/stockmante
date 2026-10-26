@@ -27,6 +27,9 @@ async-trait = "0.1"
 time = "0.3"
 # Correo real de la contraseña temporal (T029): async sobre rustls, sin OpenSSL.
 lettre = { version = "0.11", default-features = false, features = ["builder", "smtp-transport", "tokio1", "tokio1-rustls-tls"] }
+# Documentación viva de la API (000): OpenAPI 3.1 + Swagger UI servido por el backend.
+utoipa = { version = "6", features = ["chrono"] }
+utoipa-swagger-ui = { version = "10", features = ["axum", "vendored"] }
 
 [[test]]
 name = "test_password"
@@ -43,6 +46,10 @@ path = "tests/unit/test_mail.rs"
 [[test]]
 name = "test_config"
 path = "tests/unit/test_config.rs"
+
+[[test]]
+name = "test_openapi"
+path = "tests/unit/test_openapi.rs"
 
 [[test]]
 name = "test_auth_login"
@@ -103,6 +110,26 @@ path = "tests/integration/test_productos_http.rs"
 [[test]]
 name = "test_catalogo_baja_logica"
 path = "tests/integration/test_catalogo_baja_logica.rs"
+
+[[test]]
+name = "test_busqueda"
+path = "tests/unit/test_busqueda.rs"
+
+[[test]]
+name = "test_busqueda_http"
+path = "tests/integration/test_busqueda_http.rs"
+
+[[test]]
+name = "test_deposito_validacion"
+path = "tests/unit/test_deposito_validacion.rs"
+
+[[test]]
+name = "test_depositos_http"
+path = "tests/integration/test_depositos_http.rs"
+
+[[test]]
+name = "test_rbac_matriz"
+path = "tests/integration/test_rbac_matriz.rs"
 
 [dev-dependencies]
 tower = { version = "0.5", features = ["util"] }

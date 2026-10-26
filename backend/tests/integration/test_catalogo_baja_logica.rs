@@ -8,7 +8,7 @@ mod common;
 
 use axum::http::{header, StatusCode};
 use common::{
-    app_de_test, cuerpo_json, nombre_categoria_unico, sesion_gestion, sku_unico, solicitud,
+    app_de_test, cuerpo_json, sesion_gestion, sku_unico, solicitud,
 };
 use serde_json::json;
 use tower::ServiceExt;

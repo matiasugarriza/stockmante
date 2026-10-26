@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
 	ActualizarProductoSchema,
 	CrearProductoSchema,
+	ListaBusquedaSchema,
 	ListaProductosSchema,
 	ProductoSchema
 } from './productos';
@@ -57,6 +58,25 @@ describe('ListaProductosSchema', () => {
 			por_pagina: 20
 		});
 		expect(r.success).toBe(true);
+	});
+});
+
+describe('ListaBusquedaSchema', () => {
+	it('parsea el resultado de búsqueda sin paginación', () => {
+		const r = ListaBusquedaSchema.safeParse({ items: [producto] });
+		expect(r.success).toBe(true);
+	});
+
+	it('acepta una lista vacía', () => {
+		expect(ListaBusquedaSchema.safeParse({ items: [] }).success).toBe(true);
+	});
+
+	it('rechaza items con unidad fuera del catálogo', () => {
+		expect(
+			ListaBusquedaSchema.safeParse({
+				items: [{ ...producto, unidad_medida: 'LITRO' }]
+			}).success
+		).toBe(false);
 	});
 });
 

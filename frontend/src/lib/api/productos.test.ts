@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { ApiError } from './client';
 import {
 	actualizarProducto,
+	buscarProductos,
 	crearProducto,
 	desactivarProducto,
 	listarProductos,
@@ -136,6 +137,64 @@ describe('cliente de productos', () => {
 		expect(url).toContain('/api/productos/9');
 		expect(init.method).toBe('PUT');
 		expect(actualizado.precio_venta).toBe(2000.75);
+	});
+
+	it('buscarProductos arma el query de caja y parsea los items', async () => {
+		const fetchMock = vi.fn(async () => jsonResponse({ items: [producto] }));
+		vi.stubGlobal('fetch', fetchMock);
+
+		const resultado = await buscarProductos({
+			q: '  yerb  ',
+			campo: 'nombre',
+			incluirInactivos: true,
+			categoriaId: 3,
+			limite: 20
+		});
+
+		const [url] = fetchMock.mock.calls[0] as unknown as [string, RequestInit];
+		expect(url).toContain('/api/productos/buscar?');
+		expect(url).toContain('q=yerb');
+		expect(url).toContain('campo=nombre');
+		expect(url).toContain('incluir_inactivos=true');
+		expect(url).toContain('categoria_id=3');
+		expect(url).toContain('limite=20');
+		expect(resultado.items).toHaveLength(1);
+	});
+
+	it('buscarProductos omite q vacío, campo=todos e inactivos falsos', async () => {
+		const fetchMock = vi.fn(async () => jsonResponse({ items: [] }));
+		vi.stubGlobal('fetch', fetchMock);
+
+		await buscarProductos({ q: '   ', campo: 'todos', incluirInactivos: false });
+
+		const [url] = fetchMock.mock.calls[0] as unknown as [string, RequestInit];
+		expect(url).toContain('/api/productos/buscar');
+		expect(url).not.toContain('q=');
+		expect(url).not.toContain('campo=');
+		expect(url).not.toContain('incluir_inactivos=');
+	});
+
+	it('buscarProductos propaga el 403 de inactivos', async () => {
+		vi.stubGlobal(
+			'fetch',
+			vi.fn(async () =>
+				jsonResponse(
+					{
+						error: {
+							codigo: 'sin_permisos',
+							mensaje: 'No tenés permiso para realizar esta acción'
+						}
+					},
+					403
+				)
+			)
+		);
+
+		await expect(buscarProductos({ q: 'yerba', incluirInactivos: true })).rejects.toMatchObject({
+			name: 'ApiError',
+			status: 403,
+			codigo: 'sin_permisos'
+		} satisfies Partial<ApiError>);
 	});
 
 	it.each([

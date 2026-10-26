@@ -4,10 +4,12 @@
  */
 import { api } from './client';
 import {
+	ListaBusquedaSchema,
 	ListaProductosSchema,
 	ProductoSchema,
 	type ActualizarProductoInput,
 	type CrearProductoInput,
+	type ListaBusqueda,
 	type ListaProductos,
 	type Producto
 } from '../schemas/productos';
@@ -71,4 +73,34 @@ export async function desactivarProducto(id: number): Promise<void> {
 
 export async function reactivarProducto(id: number): Promise<void> {
 	await api(`/api/productos/${id}/reactivar`, { method: 'POST' });
+}
+
+/** Campos de la búsqueda de caja (004). `todos` es el default del backend. */
+export type CampoBusqueda = 'sku' | 'codigo' | 'nombre' | 'categoria' | 'todos';
+
+export interface BuscarProductosParams {
+	q?: string;
+	campo?: CampoBusqueda;
+	incluirInactivos?: boolean;
+	categoriaId?: number;
+	limite?: number;
+}
+
+/**
+ * GET /api/productos/buscar. `q` se recorta; `campo=todos` y los valores
+ * opcionales ausentes no se envían para usar los defaults del backend.
+ */
+export async function buscarProductos(params: BuscarProductosParams = {}): Promise<ListaBusqueda> {
+	const query = new URLSearchParams();
+	const q = params.q?.trim();
+	if (q) query.set('q', q);
+	if (params.campo && params.campo !== 'todos') query.set('campo', params.campo);
+	if (params.incluirInactivos) query.set('incluir_inactivos', 'true');
+	if (params.categoriaId !== undefined) query.set('categoria_id', String(params.categoriaId));
+	if (params.limite !== undefined) query.set('limite', String(params.limite));
+	const serializado = query.toString();
+	const body = await api<unknown>(
+		`/api/productos/buscar${serializado ? `?${serializado}` : ''}`
+	);
+	return ListaBusquedaSchema.parse(body);
 }

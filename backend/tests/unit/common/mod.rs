@@ -192,6 +192,23 @@ pub async fn sesion_operacion(pool: &PgPool) -> String {
     sesion_con_familia(pool, "CAJERO", "OPERACION").await.1
 }
 
+/// Id de un usuario OPERACION único, para usar como actor de auditoría en
+/// tests que llaman servicios directamente (sin request HTTP).
+pub async fn actor_de_test(pool: &PgPool) -> i32 {
+    let email = email_unico("actor");
+    crear_usuario(
+        pool,
+        "Actor Test",
+        &email,
+        "Password1",
+        "CAJERO",
+        "OPERACION",
+        true,
+        false,
+    )
+    .await
+}
+
 /// SKU válido y único (3–30, `^[A-Z0-9][A-Z0-9-]{2,29}$`).
 pub fn sku_unico(etiqueta: &str) -> String {
     let hex = uuid::Uuid::new_v4().simple().to_string().to_uppercase();

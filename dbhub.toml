@@ -1,0 +1,13 @@
+# MCP PostgreSQL de Stockmante (DBHub).
+# El DSN sale de DATABASE_URL (.env o entorno): nunca se versionan credenciales.
+# La restriccion de escritura se configura por herramienta, no por fuente.
+[[sources]]
+id = "stockmante"
+db_type = "postgres"
+dsn = "${DATABASE_URL}"
+
+[[tools]]
+name = "execute_sql"
+source = "stockmante"
+readonly = true
+max_rows = 200

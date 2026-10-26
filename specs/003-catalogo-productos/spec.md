@@ -2,7 +2,7 @@
 
 **Spec**: `003-catalogo-productos` | **Caso de uso**: US3 | **Prioridad**: P2
 
-**Creado**: 2026-10-12 (dividida de `001-user-auth-catalog`) | **Replanteada**: 2026-10-25 | **Implementada**: 2026-10-26 en el árbol de trabajo — pendiente de prueba manual y commit
+**Creado**: 2026-10-12 (dividida de `001-user-auth-catalog`) | **Replanteada**: 2026-10-25 | **Implementada**: 2026-10-26; verificada por la suite automatizada e incluida en el commit único de cierre del Módulo 1
 
 **Versión 2 — supersede la v1.** Esta versión reemplaza por completo la anterior (estado
 "Replanteo pendiente — WIP de backend deshecho") porque: (a) el requerimiento vigente amplía las

@@ -45,15 +45,23 @@ pub fn construir_router(estado: AppEstado) -> Router {
         .nest("/api/usuarios", handlers::usuarios::router())
         .nest("/api/categorias", handlers::categorias::router())
         .nest("/api/productos", handlers::productos::router())
+        .nest("/api/depositos", handlers::depositos::router())
+        .nest("/api/ubicaciones", handlers::ubicaciones::router())
         .layer(middleware::from_fn_with_state(
             estado.clone(),
             crate::auth::gate::exigir_password_cambiada,
         ));
 
-    Router::new()
+    let mut router = Router::new()
         .route("/api/salud", get(handlers::salud))
         .nest("/api/auth", handlers::auth::router())
-        .merge(autenticado)
-        .layer(cors)
-        .with_state(estado)
+        .merge(autenticado);
+
+    // 000: Swagger UI + OpenAPI. Públicas y fuera del gate de sesión; se
+    // apagan por configuración (`DOCS_ENABLED=false`, default en producción).
+    if estado.config.docs_enabled {
+        router = router.merge(crate::docs::router());
+    }
+
+    router.layer(cors).with_state(estado)
 }

@@ -2,6 +2,7 @@
 
 use crate::app::AppEstado;
 use crate::auth::extractors::AuthUsuario;
+use crate::docs::ErrorRespuesta;
 use crate::error::AppError;
 use crate::extractores::JsonValido;
 use crate::services;
@@ -15,6 +16,7 @@ use axum::{
 use axum_extra::extract::cookie::{Cookie, CookieJar, SameSite};
 use serde::{Deserialize, Serialize};
 use time::{Duration as Duracion, OffsetDateTime};
+use utoipa::ToSchema;
 use uuid::Uuid;
 
 pub fn router() -> Router<AppEstado> {
@@ -25,20 +27,22 @@ pub fn router() -> Router<AppEstado> {
         .route("/cambiar-password", post(cambiar_password))
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, ToSchema)]
 pub struct LoginDto {
+    #[schema(example = "admin@stockmante.local")]
     pub email: String,
+    #[schema(example = "Prueba1234")]
     pub password: String,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, ToSchema)]
 pub struct CambioPasswordDto {
     pub password_actual: String,
     pub password_nueva: String,
 }
 
 /// Usuario tal como lo ve el frontend (sin hash; `debe_cambiar_password` = flag temporal).
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, ToSchema)]
 pub struct UsuarioSesionDto {
     pub id: i32,
     pub nombre: String,
@@ -48,7 +52,7 @@ pub struct UsuarioSesionDto {
     pub debe_cambiar_password: bool,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, ToSchema)]
 pub struct SesionDto {
     pub usuario: UsuarioSesionDto,
 }
@@ -82,7 +86,21 @@ fn cookie_sesion_borrada(estado: &AppEstado) -> Cookie<'static> {
 }
 
 /// POST /api/auth/login → 204 + Set-Cookie (o 401 genérico).
-async fn login(
+#[utoipa::path(
+    post,
+    path = "/api/auth/login",
+    tag = "auth",
+    summary = "Inicia sesión",
+    description = "Valida credenciales y crea la sesión única; responde con la cookie HttpOnly.",
+    request_body = LoginDto,
+    responses(
+        (status = 204, description = "Sesión creada; Set-Cookie con la cookie de sesión"),
+        (status = 401, description = "Credenciales inválidas", body = ErrorRespuesta),
+        (status = 422, description = "Entrada inválida", body = ErrorRespuesta)
+    ),
+    security(())
+)]
+pub async fn login(
     State(estado): State<AppEstado>,
     jar: CookieJar,
     JsonValido(dto): JsonValido<LoginDto>,
@@ -104,7 +122,16 @@ async fn login(
 }
 
 /// POST /api/auth/logout → 204 (idempotente) + borra la cookie.
-async fn logout(
+#[utoipa::path(
+    post,
+    path = "/api/auth/logout",
+    tag = "auth",
+    summary = "Cierra la sesión",
+    description = "Revoca la sesión vigente y borra la cookie. Es idempotente.",
+    responses((status = 204, description = "Sesión cerrada o ya inexistente")),
+    security(())
+)]
+pub async fn logout(
     State(estado): State<AppEstado>,
     jar: CookieJar,
 ) -> Result<(CookieJar, StatusCode), AppError> {
@@ -120,7 +147,17 @@ async fn logout(
 }
 
 /// GET /api/auth/sesion → usuario actual o 401.
-async fn sesion(AuthUsuario(usuario): AuthUsuario) -> impl IntoResponse {
+#[utoipa::path(
+    get,
+    path = "/api/auth/sesion",
+    tag = "auth",
+    summary = "Usuario de la sesión actual",
+    responses(
+        (status = 200, description = "Sesión vigente", body = SesionDto),
+        (status = 401, description = "Sin sesión o sesión expirada", body = ErrorRespuesta)
+    )
+)]
+pub async fn sesion(AuthUsuario(usuario): AuthUsuario) -> impl IntoResponse {
     Json(SesionDto {
         usuario: UsuarioSesionDto {
             id: usuario.id,
@@ -134,7 +171,21 @@ async fn sesion(AuthUsuario(usuario): AuthUsuario) -> impl IntoResponse {
 }
 
 /// POST /api/auth/cambiar-password → 204; 422 si no cumple política.
-async fn cambiar_password(
+#[utoipa::path(
+    post,
+    path = "/api/auth/cambiar-password",
+    tag = "auth",
+    summary = "Cambia la contraseña propia",
+    description = "Exige la contraseña actual. Si era temporal, limpia el flag de cambio obligatorio.",
+    request_body = CambioPasswordDto,
+    responses(
+        (status = 204, description = "Contraseña actualizada"),
+        (status = 401, description = "Sin sesión", body = ErrorRespuesta),
+        (status = 403, description = "Cambio de contraseña requerido", body = ErrorRespuesta),
+        (status = 422, description = "La contraseña no cumple la política o la actual no coincide", body = ErrorRespuesta)
+    )
+)]
+pub async fn cambiar_password(
     State(estado): State<AppEstado>,
     AuthUsuario(_usuario): AuthUsuario,
     jar: CookieJar,

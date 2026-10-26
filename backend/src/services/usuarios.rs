@@ -16,6 +16,8 @@ use crate::mail::envio::EnvioCorreo;
 use crate::models::usuario::{normalizar_email, Usuario};
 use serde::Serialize;
 use sqlx::{PgPool, Postgres, Transaction};
+use super::auditoria;
+use utoipa::ToSchema;
 
 const POR_PAGINA_DEFAULT: i64 = 20;
 const POR_PAGINA_MAX: i64 = 100;
@@ -44,7 +46,7 @@ pub struct CambiosUsuario {
 }
 
 /// Página devuelta por `GET /usuarios`.
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, ToSchema)]
 pub struct ListaUsuarios {
     pub items: Vec<Usuario>,
     pub total: i64,
@@ -191,6 +193,7 @@ pub async fn obtener(pool: &PgPool, id: i32) -> Result<Usuario, AppError> {
 pub async fn crear(
     pool: &PgPool,
     correo: &dyn EnvioCorreo,
+    actor_id: i32,
     nombre: &str,
     email: &str,
     rol: &str,
@@ -226,6 +229,15 @@ pub async fn crear(
         .await
         .map_err(error_envio)?;
 
+    auditoria::registrar(
+        &mut tx,
+        auditoria::TABLA_USUARIOS,
+        creado.id,
+        auditoria::ACCION_CREAR,
+        actor_id,
+    )
+    .await?;
+
     tx.commit().await?;
     Ok(creado)
 }
@@ -235,6 +247,7 @@ pub async fn actualizar(
     pool: &PgPool,
     id: i32,
     cambios: CambiosUsuario,
+    actor_id: i32,
 ) -> Result<Usuario, AppError> {
     let mut tx = pool.begin().await?;
 
@@ -294,12 +307,26 @@ pub async fn actualizar(
         Err(e) => return Err(e.into()),
     };
 
+    auditoria::registrar(
+        &mut tx,
+        auditoria::TABLA_USUARIOS,
+        actualizado.id,
+        auditoria::ACCION_ACTUALIZAR,
+        actor_id,
+    )
+    .await?;
+
     tx.commit().await?;
     Ok(actualizado)
 }
 
 /// Baja lógica + revocación de sesiones. Idempotente si ya estaba inactivo.
-pub async fn desactivar(pool: &PgPool, reloj: &dyn Reloj, id: i32) -> Result<(), AppError> {
+pub async fn desactivar(
+    pool: &PgPool,
+    reloj: &dyn Reloj,
+    id: i32,
+    actor_id: i32,
+) -> Result<(), AppError> {
     let mut tx = pool.begin().await?;
 
     // Mismo orden que `actualizar`: conjunto de gestores antes que la fila objetivo.
@@ -336,18 +363,33 @@ pub async fn desactivar(pool: &PgPool, reloj: &dyn Reloj, id: i32) -> Result<(),
     .execute(&mut *tx)
     .await?;
 
+    auditoria::registrar(
+        &mut tx,
+        auditoria::TABLA_USUARIOS,
+        id,
+        auditoria::ACCION_DESACTIVAR,
+        actor_id,
+    )
+    .await?;
+
     tx.commit().await?;
     Ok(())
 }
 
 /// Reactiva la cuenta. No toca la contraseña: si la olvidó, se regenera aparte.
-pub async fn reactivar(pool: &PgPool, reloj: &dyn Reloj, id: i32) -> Result<(), AppError> {
+pub async fn reactivar(
+    pool: &PgPool,
+    reloj: &dyn Reloj,
+    id: i32,
+    actor_id: i32,
+) -> Result<(), AppError> {
+    let mut tx = pool.begin().await?;
     let filas = sqlx::query!(
         r#"UPDATE usuarios SET activo = TRUE, actualizado_en = $1 WHERE id = $2"#,
         reloj.ahora(),
         id
     )
-    .execute(pool)
+    .execute(&mut *tx)
     .await?
     .rows_affected();
     if filas == 0 {
@@ -355,6 +397,15 @@ pub async fn reactivar(pool: &PgPool, reloj: &dyn Reloj, id: i32) -> Result<(), 
             "usuario no encontrado".into(),
         ));
     }
+    auditoria::registrar(
+        &mut tx,
+        auditoria::TABLA_USUARIOS,
+        id,
+        auditoria::ACCION_REACTIVAR,
+        actor_id,
+    )
+    .await?;
+    tx.commit().await?;
     Ok(())
 }
 
@@ -365,6 +416,7 @@ pub async fn regenerar_password_temporal(
     reloj: &dyn Reloj,
     correo: &dyn EnvioCorreo,
     id: i32,
+    actor_id: i32,
 ) -> Result<(), AppError> {
     let mut tx = pool.begin().await?;
 
@@ -405,6 +457,15 @@ pub async fn regenerar_password_temporal(
         .enviar_password_temporal(&usuario.email, &usuario.nombre, &temporal)
         .await
         .map_err(error_envio)?;
+
+    auditoria::registrar(
+        &mut tx,
+        auditoria::TABLA_USUARIOS,
+        id,
+        auditoria::ACCION_PASSWORD_TEMPORAL,
+        actor_id,
+    )
+    .await?;
 
     tx.commit().await?;
     Ok(())

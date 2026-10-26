@@ -2,7 +2,7 @@
 
 **Spec**: `006-rbac-auditoria` | **Caso de uso**: US6 | **Prioridad**: P2
 
-**Creado**: 2026-10-25 | **Estado**: Especificado (sin `plan.md` ni `tasks.md`; se generan al arrancar)
+**Creado**: 2026-10-25 | **Estado**: Implementado y verificado (2026-10-26)
 
 **Origen**: dividida de la spec original del Módulo 1 (`001-user-auth-catalog`, 2026-10-12).
 Los textos de escenarios y criterios se conservan **verbatim**. La auditoría se formaliza como
@@ -62,14 +62,15 @@ Como **Gerente/Administrador**, quiero que las acciones sensibles (CRUD de usuar
   usuarios y productos; un log de auditoría rico es un candidato a módulo posterior.
 - **Alcance de la verificación**: todos los endpoints de escritura de 001–005 y los listados
   restringidos (`GET /usuarios`, `GET /productos`).
-- **Migración**: `0006` reservada para la tabla de auditoría en el ledger.
+- **Migración**: `0008` (la `0006` quedó ocupada por el catálogo de 003 y la `0007` por la
+  búsqueda de 004; la numeración global no se reutiliza).
 
 ## Contrato preliminar
 
 Esta spec no agrega endpoints públicos de negocio. Agrega:
 
 - Servicio interno `backend/src/services/auditoria.rs`.
-- Migración `migrations/0006_auditoria.sql` con una tabla simple
+- Migración `migrations/0008_auditoria.sql` con una tabla simple
   (`tabla_ref`, `registro_id`, `accion`, `usuario_id`, `cuando`).
 - Invocaciones en usuarios (desactivar/reactivar/update) y productos (update de precio,
   desactivar).

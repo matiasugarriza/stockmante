@@ -31,6 +31,16 @@ pub enum AppError {
     CategoriaDuplicada,
     #[error("El depósito tiene ubicaciones o movimientos; desactívalo en lugar de borrarlo")]
     DepositoConDependencias,
+    #[error("Ya existe un depósito con ese nombre")]
+    DepositoNombreDuplicado,
+    #[error("Ya existe un depósito con ese identificador")]
+    DepositoIdentificadorDuplicado,
+    #[error("La ubicación tiene hijos o productos asignados; desactívala en lugar de borrarla")]
+    UbicacionConDependencias,
+    #[error("Ya existe una ubicación con ese nombre en el mismo nivel")]
+    UbicacionDuplicada,
+    #[error("La ubicación padre debe existir en el mismo depósito y estar activa")]
+    UbicacionHuerfana,
     #[error("No se puede desactivar al último usuario de gestión activo")]
     UltimoAdministrador,
     #[error("Debés cambiar tu contraseña temporal antes de continuar")]
@@ -54,8 +64,14 @@ impl AppError {
             | AppError::CodigoBarrasDuplicado
             | AppError::CategoriaDuplicada
             | AppError::DepositoConDependencias
+            | AppError::DepositoNombreDuplicado
+            | AppError::DepositoIdentificadorDuplicado
+            | AppError::UbicacionConDependencias
+            | AppError::UbicacionDuplicada
             | AppError::UltimoAdministrador => StatusCode::CONFLICT,
-            AppError::Validacion(_) => StatusCode::UNPROCESSABLE_ENTITY,
+            AppError::UbicacionHuerfana | AppError::Validacion(_) => {
+                StatusCode::UNPROCESSABLE_ENTITY
+            }
             AppError::Interno(_) => StatusCode::INTERNAL_SERVER_ERROR,
         }
     }
@@ -72,6 +88,11 @@ impl AppError {
             AppError::CodigoBarrasDuplicado => "codigo_barras_duplicado",
             AppError::CategoriaDuplicada => "categoria_duplicada",
             AppError::DepositoConDependencias => "deposito_con_dependencias",
+            AppError::DepositoNombreDuplicado => "deposito_nombre_duplicado",
+            AppError::DepositoIdentificadorDuplicado => "deposito_identificador_duplicado",
+            AppError::UbicacionConDependencias => "ubicacion_con_dependencias",
+            AppError::UbicacionDuplicada => "ubicacion_duplicada",
+            AppError::UbicacionHuerfana => "ubicacion_huerfana",
             AppError::UltimoAdministrador => "ultimo_administrador",
             AppError::DebeCambiarPassword => "cambio_password_requerido",
             AppError::Validacion(_) => "validacion",

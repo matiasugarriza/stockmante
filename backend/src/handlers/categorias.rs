@@ -5,6 +5,7 @@
 
 use crate::app::AppEstado;
 use crate::auth::extractors::{AuthUsuario, RequiereGestion};
+use crate::docs::ErrorRespuesta;
 use crate::error::AppError;
 use crate::extractores::{JsonValido, PathValido, QueryValida};
 use crate::models::producto::Categoria;
@@ -16,6 +17,7 @@ use axum::{
     Json, Router,
 };
 use serde::Deserialize;
+use utoipa::{IntoParams, ToSchema};
 
 pub fn router() -> Router<AppEstado> {
     Router::new()
@@ -25,13 +27,26 @@ pub fn router() -> Router<AppEstado> {
         .route("/{id}/reactivar", post(reactivar))
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, IntoParams)]
 pub struct ListarQuery {
+    /// `true`, `false` o `all` (ausente = solo activas).
     pub activo: Option<String>,
 }
 
 /// GET /api/categorias?activo=true|false|all (default: solo activas).
-async fn listar(
+#[utoipa::path(
+    get,
+    path = "/api/categorias",
+    tag = "categorias",
+    summary = "Lista categorías",
+    params(ListarQuery),
+    responses(
+        (status = 200, description = "Categorías ordenadas por nombre", body = Vec<Categoria>),
+        (status = 401, description = "Sin sesión", body = ErrorRespuesta),
+        (status = 422, description = "Filtro inválido", body = ErrorRespuesta)
+    )
+)]
+pub async fn listar(
     State(estado): State<AppEstado>,
     _sesion: AuthUsuario,
     QueryValida(query): QueryValida<ListarQuery>,
@@ -40,15 +55,29 @@ async fn listar(
     Ok(Json(categorias::listar(&estado.pool, activo).await?))
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, ToSchema)]
 pub struct CrearCategoriaDto {
+    #[schema(example = "Almacén")]
     pub nombre: String,
-    #[serde(default)]
     pub descripcion: Option<String>,
 }
 
 /// POST /api/categorias → 201 categoría.
-async fn crear(
+#[utoipa::path(
+    post,
+    path = "/api/categorias",
+    tag = "categorias",
+    summary = "Alta de categoría (GESTION)",
+    request_body = CrearCategoriaDto,
+    responses(
+        (status = 201, description = "Categoría creada", body = Categoria),
+        (status = 401, description = "Sin sesión", body = ErrorRespuesta),
+        (status = 403, description = "Requiere familia GESTION", body = ErrorRespuesta),
+        (status = 409, description = "Nombre duplicado", body = ErrorRespuesta),
+        (status = 422, description = "Nombre inválido", body = ErrorRespuesta)
+    )
+)]
+pub async fn crear(
     State(estado): State<AppEstado>,
     _gestion: RequiereGestion,
     JsonValido(dto): JsonValido<CrearCategoriaDto>,
@@ -59,7 +88,19 @@ async fn crear(
 }
 
 /// GET /api/categorias/{id} → 200 o 404 (también para inactivas).
-async fn obtener(
+#[utoipa::path(
+    get,
+    path = "/api/categorias/{id}",
+    tag = "categorias",
+    summary = "Detalle de categoría",
+    params(("id" = i32, Path, description = "Id de la categoría")),
+    responses(
+        (status = 200, description = "Categoría (también inactiva)", body = Categoria),
+        (status = 401, description = "Sin sesión", body = ErrorRespuesta),
+        (status = 404, description = "Categoría inexistente", body = ErrorRespuesta)
+    )
+)]
+pub async fn obtener(
     State(estado): State<AppEstado>,
     _sesion: AuthUsuario,
     PathValido(id): PathValido<i32>,
@@ -67,19 +108,38 @@ async fn obtener(
     Ok(Json(categorias::obtener(&estado.pool, id).await?))
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, ToSchema)]
 pub struct ActualizarCategoriaDto {
     #[serde(default)]
     pub nombre: Option<String>,
     #[serde(default, deserialize_with = "super::deserializar_presente")]
+    #[schema(value_type = Option<String>)]
     pub descripcion: Option<Option<String>>,
     /// `activo` no viaja por `PUT`: su sola presencia es 422.
     #[serde(default)]
+    #[schema(value_type = Object)]
     pub activo: Option<serde_json::Value>,
 }
 
 /// PUT /api/categorias/{id} → 200 categoría actualizada.
-async fn actualizar(
+#[utoipa::path(
+    put,
+    path = "/api/categorias/{id}",
+    tag = "categorias",
+    summary = "Edición parcial de categoría (GESTION)",
+    description = "Omitir un campo lo conserva; `descripcion: \"\"` la limpia. `activo` en el cuerpo es 422.",
+    params(("id" = i32, Path, description = "Id de la categoría")),
+    request_body = ActualizarCategoriaDto,
+    responses(
+        (status = 200, description = "Categoría actualizada", body = Categoria),
+        (status = 401, description = "Sin sesión", body = ErrorRespuesta),
+        (status = 403, description = "Requiere familia GESTION", body = ErrorRespuesta),
+        (status = 404, description = "Categoría inexistente", body = ErrorRespuesta),
+        (status = 409, description = "Nombre duplicado", body = ErrorRespuesta),
+        (status = 422, description = "Datos inválidos", body = ErrorRespuesta)
+    )
+)]
+pub async fn actualizar(
     State(estado): State<AppEstado>,
     _gestion: RequiereGestion,
     PathValido(id): PathValido<i32>,
@@ -98,7 +158,20 @@ async fn actualizar(
 }
 
 /// POST /api/categorias/{id}/desactivar → 204 (idempotente).
-async fn desactivar(
+#[utoipa::path(
+    post,
+    path = "/api/categorias/{id}/desactivar",
+    tag = "categorias",
+    summary = "Baja lógica de categoría (GESTION)",
+    params(("id" = i32, Path, description = "Id de la categoría")),
+    responses(
+        (status = 204, description = "Categoría desactivada (idempotente)"),
+        (status = 401, description = "Sin sesión", body = ErrorRespuesta),
+        (status = 403, description = "Requiere familia GESTION", body = ErrorRespuesta),
+        (status = 404, description = "Categoría inexistente", body = ErrorRespuesta)
+    )
+)]
+pub async fn desactivar(
     State(estado): State<AppEstado>,
     _gestion: RequiereGestion,
     PathValido(id): PathValido<i32>,
@@ -108,7 +181,20 @@ async fn desactivar(
 }
 
 /// POST /api/categorias/{id}/reactivar → 204 (idempotente).
-async fn reactivar(
+#[utoipa::path(
+    post,
+    path = "/api/categorias/{id}/reactivar",
+    tag = "categorias",
+    summary = "Reactiva una categoría (GESTION)",
+    params(("id" = i32, Path, description = "Id de la categoría")),
+    responses(
+        (status = 204, description = "Categoría reactivada (idempotente)"),
+        (status = 401, description = "Sin sesión", body = ErrorRespuesta),
+        (status = 403, description = "Requiere familia GESTION", body = ErrorRespuesta),
+        (status = 404, description = "Categoría inexistente", body = ErrorRespuesta)
+    )
+)]
+pub async fn reactivar(
     State(estado): State<AppEstado>,
     _gestion: RequiereGestion,
     PathValido(id): PathValido<i32>,
