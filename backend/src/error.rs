@@ -23,12 +23,12 @@ pub enum AppError {
     RecursoNoEncontrado(String),
     #[error("Ya existe un usuario con ese email")]
     EmailDuplicado,
-    #[error("Ya existe un producto con ese SKU")]
-    SkuDuplicado,
+    #[error("Ya existe un producto con el SKU {0}. Elegí otro.")]
+    SkuDuplicado(String),
     #[error("Ya existe un producto con ese código de barras")]
     CodigoBarrasDuplicado,
-    #[error("El producto tiene movimientos o asignaciones; desactívalo en lugar de borrarlo")]
-    ProductoConReferencias,
+    #[error("Ya existe una categoría con ese nombre.")]
+    CategoriaDuplicada,
     #[error("El depósito tiene ubicaciones o movimientos; desactívalo en lugar de borrarlo")]
     DepositoConDependencias,
     #[error("No se puede desactivar al último usuario de gestión activo")]
@@ -50,9 +50,9 @@ impl AppError {
             AppError::SinPermisos | AppError::DebeCambiarPassword => StatusCode::FORBIDDEN,
             AppError::RecursoNoEncontrado(_) => StatusCode::NOT_FOUND,
             AppError::EmailDuplicado
-            | AppError::SkuDuplicado
+            | AppError::SkuDuplicado(_)
             | AppError::CodigoBarrasDuplicado
-            | AppError::ProductoConReferencias
+            | AppError::CategoriaDuplicada
             | AppError::DepositoConDependencias
             | AppError::UltimoAdministrador => StatusCode::CONFLICT,
             AppError::Validacion(_) => StatusCode::UNPROCESSABLE_ENTITY,
@@ -68,9 +68,9 @@ impl AppError {
             AppError::SinPermisos => "sin_permisos",
             AppError::RecursoNoEncontrado(_) => "recurso_no_encontrado",
             AppError::EmailDuplicado => "email_duplicado",
-            AppError::SkuDuplicado => "sku_duplicado",
+            AppError::SkuDuplicado(_) => "sku_duplicado",
             AppError::CodigoBarrasDuplicado => "codigo_barras_duplicado",
-            AppError::ProductoConReferencias => "producto_con_referencias",
+            AppError::CategoriaDuplicada => "categoria_duplicada",
             AppError::DepositoConDependencias => "deposito_con_dependencias",
             AppError::UltimoAdministrador => "ultimo_administrador",
             AppError::DebeCambiarPassword => "cambio_password_requerido",

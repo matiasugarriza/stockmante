@@ -42,7 +42,7 @@ fn dominio_mapea_status_esperados() {
         StatusCode::CONFLICT
     );
     assert_eq!(
-        status_y_codigo(AppError::SkuDuplicado).0,
+        status_y_codigo(AppError::SkuDuplicado("SKU-1".into())).0,
         StatusCode::CONFLICT
     );
     assert_eq!(
@@ -50,9 +50,10 @@ fn dominio_mapea_status_esperados() {
         StatusCode::CONFLICT
     );
     assert_eq!(
-        status_y_codigo(AppError::ProductoConReferencias).0,
+        status_y_codigo(AppError::CategoriaDuplicada).0,
         StatusCode::CONFLICT
     );
+    assert_eq!(AppError::CategoriaDuplicada.codigo(), "categoria_duplicada");
     assert_eq!(
         status_y_codigo(AppError::DepositoConDependencias).0,
         StatusCode::CONFLICT
