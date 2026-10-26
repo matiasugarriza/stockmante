@@ -1,24 +1,24 @@
 # Progreso de implementación — Catálogo de productos y categorías (003)
 
-**Spec**: [spec.md](./spec.md) | **Actualizado**: 2026-10-25 | **Estado**: En curso (backend de servicios; handlers y frontend pendientes)
+**Spec**: [spec.md](./spec.md) | **Actualizado**: 2026-10-25 | **Estado**: Replanteo pendiente — WIP de backend deshecho
 
 > Espejo local de reanudación del caso de uso US3.
+>
+> **El código, los tests y la migración descritos abajo ya no están en `main`**: se quitaron del
+> árbol el 2026-10-25 y se conservan en la rama `wip/003-catalogo` (commit `941b0cf`). Este
+> archivo queda como referencia del diseño anterior hasta el replanteo.
 
 ## Último estado verificado (2026-10-25)
 
-- **tasks.md**: T001–T003 `[X]`; T004 `[ ]` (tests RED escritos); T005 `[ ]`.
-- **Tests backend**:
-  - `test_sku` 3/3 en verde (normalización y regex).
-  - `test_producto_unicidad` 4/4 en verde (SKU duplicado, código duplicado, múltiples `NULL`,
-    código vacío normalizado).
-  - `test_productos_http` escrito en rojo: no compila hasta que existan los handlers y el target
-    en `Cargo.toml`.
-- **BD**: migración `0004_productos_codigo_barras_null_distinct.sql` aplicada en `stockmante` y
-  `stockmante_test`. Constraint verificada como `UNIQUE (codigo_barras)` (`NULLS DISTINCT`).
-- **Working tree**: cambios de 003 sin commitear (migración, servicios, modelos, tests) + el
-  split de specs.
+- **`main`**: sin código de 003. `cargo check --all-targets` con `SQLX_OFFLINE=true` en verde.
+- **Rama de respaldo**: `wip/003-catalogo` en `941b0cf` (modelo, servicios, tests, migración y
+  lockfile con `rust_decimal`).
+- **tasks.md**: T001–T003 vueltas a `[ ]`; T004–T005 sin empezar.
+- **BD local**: la constraint de `productos.codigo_barras` quedó como `UNIQUE (codigo_barras)`
+  (`NULLS DISTINCT`) en `stockmante` y `stockmante_test`, aplicada a mano y **sin registro en
+  `_sqlx_migrations`**. El replanteo decide si se formaliza o se revierte al baseline de 0002.
 
-## Arquitectura implementada
+## Arquitectura del WIP deshecho (referencia)
 
 ### Servicios
 
@@ -57,17 +57,13 @@ producto sin código. La `0004` lo reemplaza por `UNIQUE (codigo_barras)`.
 - `bad` no es SKU inválido (`BAD` cumple el regex); el test usa `bad!`.
 - Filename de la ruta frontend: `admin/categorias` (sin tilde).
 
-## Siguiente paso — T004
+## Siguiente paso — replantear 003
 
-1. Crear `backend/src/handlers/categorias.rs`: `GET` con `AuthUsuario`; `POST`/`PUT`/`DELETE` con
-   `RequiereGestion`; body validado y errores de dominio.
-2. Crear `backend/src/handlers/productos.rs`: `GET /productos` (gestión, `parsear_activo` +
-   `categoria_id`), `GET /productos/{id}` (sesión), `POST`/`PUT`/`DELETE`/`desactivar` (gestión).
-3. Mover `parsear_activo` a `handlers/mod.rs` (`pub(crate)`) y reutilizarlo en usuarios.
-4. Registrar `nest("/api/productos", …)` y `nest("/api/categorias", …)` en `app.rs`.
-5. Agregar `[[test]] name = "test_productos_http"` en `Cargo.toml` y hacer pasar la integración.
-
-Luego T005 (frontend) y los gates de cierre.
+1. Revisar `spec.md` y `plan.md` con el alcance definitivo.
+2. Regenerar `tasks.md` y decidir el destino de la migración de `codigo_barras` (formalizarla,
+   renumerarla o revertirla al baseline de 0002).
+3. Recién entonces volver a implementar; el código anterior queda en `wip/003-catalogo` por si
+   sirve de base.
 
 ## Gotchas
 
