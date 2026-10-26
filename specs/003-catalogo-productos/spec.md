@@ -2,7 +2,7 @@
 
 **Spec**: `003-catalogo-productos` | **Caso de uso**: US3 | **Prioridad**: P2
 
-**Creado**: 2026-10-25 | **Estado**: En curso (backend de servicios completo; handlers y frontend pendientes)
+**Creado**: 2026-10-25 | **Estado**: Replanteo pendiente — WIP de backend deshecho (ver [progress.md](./progress.md))
 
 **Origen**: dividida de la spec original del Módulo 1 (`001-user-auth-catalog`, 2026-10-12).
 Los textos de escenarios, requisitos y criterios se conservan **verbatim**; solo se separaron
@@ -87,6 +87,7 @@ stock, búsqueda para caja y asignación de ubicaciones pertenecen a 004/005.
 ## Trazabilidad
 
 - Tareas originales: T032–T036 → `T001–T005` en [tasks.md](./tasks.md).
-- Migración propia: `0004_productos_codigo_barras_null_distinct.sql` (T003).
+- Migración propia: `0004_productos_codigo_barras_null_distinct.sql` (T003; archivo eliminado al
+  deshacer el WIP, el replanteo define su forma final).
 - Tablas: `categorias`, `productos` (creadas en la fase foundational de 001, migración `0002`;
   el esquema es propiedad de esta spec).

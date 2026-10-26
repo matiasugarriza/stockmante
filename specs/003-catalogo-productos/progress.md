@@ -16,7 +16,8 @@
 - **tasks.md**: T001–T003 vueltas a `[ ]`; T004–T005 sin empezar.
 - **BD local**: la constraint de `productos.codigo_barras` quedó como `UNIQUE (codigo_barras)`
   (`NULLS DISTINCT`) en `stockmante` y `stockmante_test`, aplicada a mano y **sin registro en
-  `_sqlx_migrations`**. El replanteo decide si se formaliza o se revierte al baseline de 0002.
+  `_sqlx_migrations`**. **Decisión 2026-10-25: se deja aplicada** (no se revierte); el replanteo
+  decide cómo formalizarla en una migración.
 
 ## Arquitectura del WIP deshecho (referencia)
 

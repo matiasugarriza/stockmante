@@ -51,7 +51,8 @@
   producto podía quedar sin código. En `PUT`, una cadena vacía limpia el código
   (`NULL`), mientras que omitir el campo lo conserva.
 - **Alternatives considered**: índice único parcial `WHERE codigo_barras IS NOT NULL`
-  (equivalente, pero la migración `0004` ya está aplicada y verificada); usar cadena vacía en
+  (equivalente, pero la migración `0004` ya está aplicada y verificada en las bases locales,
+  aunque su archivo se eliminó al deshacer el WIP); usar cadena vacía en
   lugar de `NULL` (rompe la semántica de "sin código" y el único).
 
 ## R13 — `parsear_activo` compartido

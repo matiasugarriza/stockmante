@@ -6,7 +6,8 @@ de entorno están en [001/quickstart.md](../001-autenticacion-sesion/quickstart.
 ## Prerrequisitos
 
 - Base y US1 funcionando (001).
-- Migraciones aplicadas, incluida `0004_productos_codigo_barras_null_distinct.sql`.
+- Migraciones aplicadas (0001–0003 y 0005). El cambio de `codigo_barras` de la 0004 quedó
+  aplicado a mano en las bases locales; el replanteo lo formaliza.
 - Sesión con un usuario de familia GESTION.
 
 ## V6a — Categorías
