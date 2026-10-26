@@ -15,7 +15,7 @@ conservan **verbatim**; solo se distribuyeron por caso de uso.
 |---|---|---|---|---|---|
 | [001-autenticacion-sesion](./001-autenticacion-sesion/spec.md) | Login, sesión única y cambio obligatorio de contraseña | FR-001, FR-002, FR-003, FR-008a | SC-003, SC-004 | Implementado y cerrado | — |
 | [002-gestion-usuarios](./002-gestion-usuarios/spec.md) | Alta, edición, baja lógica y reactivación de usuarios | FR-004, FR-005, FR-006, FR-007, FR-008 | SC-001 | Implementado (retro-documentado) | 001 |
-| [003-catalogo-productos](./003-catalogo-productos/spec.md) | CRUD de productos y categorías, baja lógica | FR-009, FR-010, FR-012, FR-014 | SC-006 | **A replantear** (WIP de backend deshecho; respaldo en `wip/003-catalogo`) | 001 |
+| [003-catalogo-productos](./003-catalogo-productos/spec.md) | CRUD de productos y categorías, baja lógica | FR-009, FR-010, FR-012, FR-014 | SC-006 | Implementado, probado y commiteado en `feat/003-catalogo-productos` (pendiente de push) | 001 |
 | [004-busqueda-caja](./004-busqueda-caja/spec.md) | Búsqueda rápida por SKU, código, nombre y categoría | FR-011, FR-013 | SC-002 | Especificado (sin plan aún) | 001, 003 |
 | [005-depositos-ubicaciones](./005-depositos-ubicaciones/spec.md) | Depósitos, ubicaciones jerárquicas y asignación a producto | FR-015, FR-016, FR-017, FR-018 | SC-005 | Especificado (sin plan aún) | 001 (003 para asignación) |
 | [006-rbac-auditoria](./006-rbac-auditoria/spec.md) | Verificación transversal de RBAC y auditoría básica | FR-003 (verificación), FR-019 (derivado) | SC-007, SC-008 | Especificado (sin plan aún) | 001–005 |
@@ -67,16 +67,20 @@ Cada FR tiene **un solo dueño**. Los demás specs lo referencian, no lo repiten
 | 0001 | `0001_usuarios_sesiones.sql` | `usuarios`, `sesiones` | 001 | 001 / T007 |
 | 0002 | `0002_categorias_productos.sql` | `categorias`, `productos` | 003 | 001 / T008 (fase foundational) |
 | 0003 | `0003_depositos_ubicaciones.sql` | `depositos`, `ubicaciones`, `producto_ubicacion_permitida` | 005 | 001 / T009 (fase foundational) |
-| 0004 | `0004_productos_codigo_barras_null_distinct.sql` (eliminada) | Corrige `UNIQUE NULLS NOT DISTINCT` → varios productos sin código | 003 | WIP 003 deshecho; el cambio sigue aplicado a mano en las BD locales |
-| 0005 | pendiente | Extensión `pg_trgm` + índice de búsqueda | 004 | 004 |
-| 0006 | pendiente | Tabla de auditoría | 006 | 006 |
+| 0004 | — (no existe) | Reservado por el WIP de 003; nunca se publicó y **no se reutiliza** | — | — |
+| 0005 | `0005_sesion_unica.sql` | Índice único parcial de sesión vigente | 001 | 001 / T027 (T-AUTH-09) |
+| 0006 | `0006_catalogo_descripcion_codigo_barras.sql` | `categorias.descripcion`, unicidad normalizada, `codigo_barras` `NULLS DISTINCT` e índice de `categoria_id` | 003 | 003 / T005 |
+| 0007 | pendiente | Extensión `pg_trgm` + índice de búsqueda | 004 | 004 |
+| 0008 | pendiente | Tabla de auditoría | 006 | 006 |
 
 > La numeración es global y **no se reutiliza**. La fase foundational de 001 creó las tablas
 > de 003 y 005 para no bloquear las user stories; la propiedad del esquema queda en el spec
 > que lo usa.
 >
-> La 0004 se retiró junto con el WIP de 003 (nunca se publicó); el replanteo define si vuelve con
-> ese número o con uno nuevo.
+> La `0004` perteneció al WIP de 003 y se retiró con él (nunca se publicó); el replanteo absorbió su
+> contenido en la `0006` en lugar de reciclar el número. Las reservas anteriores (`0005` para 004 y
+> `0006` para 006) quedaron desactualizadas cuando 001 creó `0005_sesion_unica.sql`; 004 y 006
+> tomarán los siguientes números libres.
 
 ## Convenciones de tareas
 
