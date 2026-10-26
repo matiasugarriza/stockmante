@@ -96,6 +96,14 @@ path = "tests/unit/test_producto_validacion.rs"
 name = "test_categorias_http"
 path = "tests/integration/test_categorias_http.rs"
 
+[[test]]
+name = "test_productos_http"
+path = "tests/integration/test_productos_http.rs"
+
+[[test]]
+name = "test_catalogo_baja_logica"
+path = "tests/integration/test_catalogo_baja_logica.rs"
+
 [dev-dependencies]
 tower = { version = "0.5", features = ["util"] }
 http-body-util = "0.1"

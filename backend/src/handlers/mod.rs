@@ -1,5 +1,6 @@
 pub mod auth;
 pub mod categorias;
+pub mod productos;
 pub mod usuarios;
 
 use crate::error::AppError;
