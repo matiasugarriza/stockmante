@@ -1,4 +1,4 @@
-//! T030 — Integración HTTP de /api/usuarios contra el router real (contracts/api.md).
+//! 002/T005 — Integración HTTP de /api/usuarios contra el router real (contracts/api.md).
 
 #[path = "../unit/common/mod.rs"]
 mod common;

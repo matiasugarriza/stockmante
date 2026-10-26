@@ -14,6 +14,10 @@
   `utils/paginacion.test.ts` (12).
 - **Gates**: `cargo sqlx prepare --check` OK; `npm run check` 0/0; `npm run build` OK;
   sin `unwrap`/`panic!`/`expect` en rutas de producción.
+- **Cierre de gobernanza (2026-10-25)**: `services/usuarios.rs` migrado a macros
+  (`query!`/`query_as!`/`query_scalar!`), `backend/.sqlx` regenerado con `cargo sqlx prepare`
+  y verificado con `cargo sqlx prepare --check` + `SQLX_OFFLINE=true cargo check --all-targets`.
+  La enmienda constitucional y el waiver viven en 001 (T032, constitución 1.2.0).
 - **Push**: `6e1d722..d87a04f main -> main`.
 
 ## Arquitectura
