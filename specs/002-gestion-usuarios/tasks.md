@@ -57,7 +57,7 @@ guarda del último gestor activo, paginación.
 
 ## Verificación y gates
 
-- [X] `cargo test` en verde (45/45 al cierre de US2; 62/62 al 2026-10-25 tras cerrar 001 y migrar a macros).
+- [X] `cargo test` en verde (45/45 al cierre de US2; 55/55 al 2026-10-25 tras cerrar 001, migrar a macros y deshacer el WIP de 003).
 - [X] `cargo sqlx prepare --check` sin diferencias; `SQLX_OFFLINE=true cargo check --all-targets` OK
   tras migrar `services/usuarios.rs` a macros (2026-10-25, `67032c7`).
 - [X] `npm test`, `npm run check` (0/0) y `npm run build` OK.

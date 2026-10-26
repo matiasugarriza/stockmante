@@ -73,5 +73,5 @@ producto sin código. La `0004` lo reemplaza por `UNIQUE (codigo_barras)`.
 - PowerShell con `cargo test 2>&1 | …` puede devolver exit 1 espurio; la fuente de verdad son las
   líneas `test result:`.
 - SvelteKit 3 usa `#lib`, no `$lib`.
-- La suite backend previa al trabajo de 003 era 45/45; los targets nuevos suman 7 tests
-  unitarios verdes.
+- La suite backend al deshacer el WIP es 55/55; los 7 tests unitarios de 003 (3 de SKU y 4 de
+  unicidad) quedan en la rama de respaldo.
