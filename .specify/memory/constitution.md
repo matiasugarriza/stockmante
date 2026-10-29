@@ -1,21 +1,21 @@
 <!-- Sync Impact Report
-- Version change: 1.1.1 → 1.2.0 (MINOR)
-  - MINOR y no MAJOR: no se elimina ni se redefine ningún principio. Se acota el alcance del
-    Principio III con una excepción de seguridad explícita y se agrega una figura de gobierno
-    (waivers). El núcleo normativo de I–V se conserva íntegro.
-  - MINOR y no PATCH: la excepción cambia una regla operativa («nunca genéricos») y el waiver
-    incorpora una sección nueva de gobierno; no es una corrección de redacción.
+- Version change: 1.2.0 → 1.3.0 (MINOR)
+  - MINOR y no MAJOR: no se elimina ni se redefine ningún principio. Se amplía el alcance de la
+    excepción anti-enumeración del Principio III para incluir `POST /api/auth/registro` (correo ya
+    registrado responde el mismo mensaje genérico que un registro exitoso), además de
+    `POST /api/auth/login`. El núcleo normativo de I–V se conserva íntegro.
+  - MINOR y no PATCH: la ampliación cambia una regla operativa (qué endpoints pueden devolver
+    mensajes genéricos por seguridad); no es una corrección de redacción.
 - Modified principles:
-  - III. Claridad en Mensajes — se agrega la excepción de seguridad anti-enumeración para
-    `POST /api/auth/login` y se la referencia desde la regla de mensajes específicos. Sin cambios
-    en frontend, chatbot ni en el requisito de JSON estable.
-- Added sections:
-  - Governance → «Waivers registrados», con W-001 (P-IV: RED no observado en T017–T019 de 001).
+  - III. Claridad en Mensajes — se amplía la excepción de seguridad anti-enumeración para incluir
+    `POST /api/auth/registro` (además de `POST /api/auth/login`), documentada en la spec 001
+    enmendada (registro + SSO Google/Microsoft).
+- Added sections: none
 - Removed sections: none
 - Other changes:
-  - La propuesta de enmienda «Stack fijo» queda descartada: C1 se resolvió con macros SQLx y
-    `.sqlx` versionado (T031 de 001), por lo que el texto de Restricciones Técnicas no cambia.
-- Follow-up TODOs: none
+  - La spec 001 se enmendó para agregar registro por correo y SSO (Google/Microsoft); la excepción
+    anti-enumeración se extiende al endpoint de registro.
+- Follow-up TODOs: regenerar plan/tasks de 001 e implementar registro/SSO.
 -->
 
 # Stockmante Constitution
@@ -45,7 +45,7 @@ Justificación: legibilidad y límites claros reducen el costo de cada cambio fu
 
 - Todo mensaje mostrado al usuario —backend (API), chatbot o frontend— DEBE responder: qué pasó, por qué falló (si falló) y qué hacer a continuación.
 - Los mensajes de error del backend, del chatbot y de la interfaz DEBEN ser específicos ("Stock insuficiente en Depósito Central: 3 disponibles, 5 solicitados"), nunca genéricos ("Error interno"), salvo la excepción de seguridad del bullet siguiente.
-- **Excepción de seguridad — anti-enumeración en autenticación**: `POST /api/auth/login` PUEDE devolver un mensaje y un código HTTP únicos e idénticos para email inexistente, contraseña incorrecta y cuenta inactiva, para no revelar la existencia de cuentas. La excepción se limita a ese endpoint, DEBE estar documentada en la spec del módulo y NO habilita mensajes genéricos en ningún otro endpoint ni oculta el motivo de un fallo de dominio.
+- **Excepción de seguridad — anti-enumeración en autenticación y registro**: `POST /api/auth/login` PUEDE devolver un mensaje y un código HTTP únicos e idénticos para email inexistente, contraseña incorrecta y cuenta inactiva, para no revelar la existencia de cuentas. `POST /api/auth/registro` PUEDE devolver el mismo mensaje y código HTTP para un correo ya registrado que para un registro exitoso, para no revelar la existencia de cuentas. La excepción se limita a esos endpoints, DEBE estar documentada en la spec del módulo y NO habilita mensajes genéricos en ningún otro endpoint ni oculta el motivo de un fallo de dominio.
 - Cualquier confirmación de acción sobre inventario DEBE mostrar el resultado concreto (stock resultante, depósito, producto) después de ejecutarse.
 - Las salidas destinadas a lectura programática (respuestas JSON de la API) DEBEN ser estables y sin adornos (sin emojis ni texto decorativo en el flujo de datos).
 
@@ -117,4 +117,4 @@ Un waiver es una excepción histórica y acotada, aprobada y registrada. NO modi
 
 - **W-001 — P-IV: RED no observado en T017–T019 (aprobado 2026-10-25)**: los tests de US1 (`test_auth_login`, `test_sesion_unica`, `test_cambio_password`) se escribieron junto con el servicio y no registraron el fallo previo. Alcance: solo esas tres tareas de `specs/001-autenticacion-sesion/tasks.md` (T032). Condición de cierre: suite de backend en verde y `cargo sqlx prepare --check` sin diferencias, verificado el 2026-10-25. Desde `003-catalogo-productos` en adelante el RED es obligatorio y no existe waiver preventivo.
 
-**Version**: 1.2.0 | **Ratified**: 2026-10-11 | **Last Amended**: 2026-10-25
+**Version**: 1.3.0 | **Ratified**: 2026-10-11 | **Last Amended**: 2026-10-28
