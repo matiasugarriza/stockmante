@@ -297,9 +297,11 @@ pub async fn sso_iniciar(
     PathValido(proveedor): PathValido<String>,
 ) -> Result<(CookieJar, axum::response::Redirect), AppError> {
     let state = Uuid::new_v4().to_string();
+    let backend_base = std::env::var("SSO_REDIRECT_BASE")
+        .unwrap_or_else(|_| "http://localhost:3000".to_string());
     let redirect_uri = format!(
         "{}/api/auth/sso/{}/callback",
-        estado.config.app_url.trim_end_matches('/'),
+        backend_base.trim_end_matches('/'),
         proveedor
     );
     let url = services::sso::url_autorizacion(&proveedor, &state, &redirect_uri)?;
