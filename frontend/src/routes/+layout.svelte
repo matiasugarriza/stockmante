@@ -3,15 +3,28 @@
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
 	import { cerrarSesion, refrescarSesion, sesion } from '#lib/stores/sesion';
+	import { listarStock } from '#lib/api/stock';
 	import './layout.css';
 	import favicon from '#lib/assets/favicon.svg';
 	import type { LayoutProps } from './$types';
 
 	let { children }: LayoutProps = $props();
 
+	let alertasBajoMinimo = $state(0);
+
 	onMount(() => {
 		void refrescarSesion();
+		void cargarAlertas();
 	});
+
+	async function cargarAlertas() {
+		try {
+			const res = await listarStock({ bajoMinimo: true, porPagina: 1 });
+			alertasBajoMinimo = res.total;
+		} catch {
+			alertasBajoMinimo = 0;
+		}
+	}
 
 	// Sin sesión → a /login (excepto la propia /login). Con password temporal → cambio obligatorio.
 	$effect(() => {
@@ -43,7 +56,12 @@
 					<a class="rounded px-2 py-1 hover:bg-slate-100" href="/admin/categorias">Categorías</a>
 					<a class="rounded px-2 py-1 hover:bg-slate-100" href="/admin/productos">Productos</a>
 					<a class="rounded px-2 py-1 hover:bg-slate-100" href="/admin/depositos">Depósitos</a>
-					<a class="rounded px-2 py-1 hover:bg-slate-100" href="/admin/stock">Stock</a>
+					<a class="rounded px-2 py-1 hover:bg-slate-100" href="/admin/stock">
+						Stock
+						{#if alertasBajoMinimo > 0}
+							<span class="ml-1 rounded bg-red-500 px-1.5 py-0.5 text-xs text-white">{alertasBajoMinimo}</span>
+						{/if}
+					</a>
 				{/if}
 				<span class="text-slate-600">
 					{$sesion.usuario.nombre}
