@@ -12,6 +12,8 @@ pub struct AppConfig {
     pub email_from: String,
     pub smtp_url: Option<String>,
     pub app_env: String,
+    /// Swagger UI + OpenAPI (000). Default: encendido fuera de producción.
+    pub docs_enabled: bool,
 }
 
 impl AppConfig {
@@ -23,6 +25,44 @@ impl AppConfig {
 
     pub fn es_entorno_produccion(app_env: &str) -> bool {
         app_env.trim().eq_ignore_ascii_case("production")
+    }
+
+    /// Interruptor textual tolerante (`true`/`1`, `false`/`0`, sin distinguir
+    /// mayúsculas). Cualquier otro valor es error de configuración: no se
+    /// adivina el default cuando el operador escribió algo distinto.
+    pub fn parsear_interruptor(nombre: &str, valor: &str) -> Result<bool, AppError> {
+        match valor.trim().to_lowercase().as_str() {
+            "true" | "1" => Ok(true),
+            "false" | "0" => Ok(false),
+            _ => Err(AppError::Validacion(format!(
+                "{nombre} debe ser true o false"
+            ))),
+        }
+    }
+
+    /// Default de `DOCS_ENABLED`: encendido en desarrollo, apagado en
+    /// producción. Un valor explícito siempre gana.
+    pub fn docs_por_defecto(app_env: &str) -> bool {
+        !Self::es_entorno_produccion(app_env)
+    }
+
+    /// Fail-closed de producción (T029): sin `SMTP_URL` no hay forma de entregar
+    /// la contraseña temporal, así que el arranque falla en vez de crear cuentas
+    /// sin credenciales. En desarrollo el stub de consola alcanza.
+    pub fn validar(&self) -> Result<(), AppError> {
+        if !self.es_produccion() {
+            return Ok(());
+        }
+        let smtp_configurado = self
+            .smtp_url
+            .as_deref()
+            .map(str::trim)
+            .is_some_and(|url| !url.is_empty());
+        if !smtp_configurado {
+            tracing::error!("APP_ENV=production requiere SMTP_URL para enviar la contraseña temporal");
+            return Err(AppError::Interno("SMTP_URL no definida en producción".into()));
+        }
+        Ok(())
     }
 
     pub fn desde_entorno() -> Result<Self, AppError> {
@@ -47,6 +87,10 @@ impl AppConfig {
             .ok()
             .filter(|s| !s.trim().is_empty());
         let app_env = std::env::var("APP_ENV").unwrap_or_else(|_| "development".into());
+        let docs_enabled = match std::env::var("DOCS_ENABLED") {
+            Ok(valor) => Self::parsear_interruptor("DOCS_ENABLED", &valor)?,
+            Err(_) => Self::docs_por_defecto(&app_env),
+        };
         Ok(Self {
             database_url,
             app_url,
@@ -56,6 +100,7 @@ impl AppConfig {
             email_from,
             smtp_url,
             app_env,
+            docs_enabled,
         })
     }
 }

@@ -34,8 +34,10 @@ impl FromRequestParts<AppEstado> for AuthUsuario {
 }
 
 /// Requiere sesión válida + familia `GESTION` (403 `sin_permisos` si es OPERACION).
-/// Con `password_temporal` vigente responde 403 `cambio_password_requerido`:
-/// la sesión solo alcanza para `/auth/sesion` y `/auth/cambiar-password` (FR-008a).
+/// El orden es temporal → familia: con `password_temporal` vigente responde 403
+/// `cambio_password_requerido`, sin importar el rol (FR-008a). El gate global de
+/// `auth::gate` aplica la misma regla a toda la superficie autenticada; éste es
+/// el respaldo del extractor cuando se usa fuera de ese grupo.
 pub struct RequiereGestion(pub Usuario);
 
 impl FromRequestParts<AppEstado> for RequiereGestion {
@@ -46,11 +48,11 @@ impl FromRequestParts<AppEstado> for RequiereGestion {
         state: &AppEstado,
     ) -> Result<Self, Self::Rejection> {
         let AuthUsuario(usuario) = AuthUsuario::from_request_parts(parts, state).await?;
-        if usuario.familia_rol != "GESTION" {
-            return Err(AppError::SinPermisos);
-        }
         if usuario.password_temporal {
             return Err(AppError::DebeCambiarPassword);
+        }
+        if usuario.familia_rol != "GESTION" {
+            return Err(AppError::SinPermisos);
         }
         Ok(RequiereGestion(usuario))
     }

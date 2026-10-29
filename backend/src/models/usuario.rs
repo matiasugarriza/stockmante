@@ -2,6 +2,7 @@
 
 use chrono::{DateTime, Utc};
 use serde::Serialize;
+use utoipa::ToSchema;
 
 /// Normaliza email para almacenamiento y lookup: minúsculas + sin espacios.
 pub fn normalizar_email(email: &str) -> String {
@@ -9,7 +10,7 @@ pub fn normalizar_email(email: &str) -> String {
 }
 
 /// Usuario tal como lo devuelven servicios y handlers.
-#[derive(Debug, Clone, Serialize, sqlx::FromRow)]
+#[derive(Debug, Clone, Serialize, sqlx::FromRow, ToSchema)]
 pub struct Usuario {
     pub id: i32,
     pub nombre: String,

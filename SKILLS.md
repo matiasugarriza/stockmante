@@ -2,7 +2,7 @@
 
 Este documento contiene los patrones de diseño, snippets de código obligatorios y guías paso a paso que el agente debe consultar y replicar para mantener consistencia en la arquitectura.
 
-Fuente de verdad del diseño del Módulo 1: `specs/001-user-auth-catalog/` (`spec.md`, `plan.md`, `data-model.md`, `contracts/`). Constitución: `.specify/memory/constitution.md` (v1.1.1).
+Fuente de verdad del diseño del Módulo 1: `specs/README.md` (mapa por caso de uso, partición FR/SC y ledger de migraciones) y, para la base técnica, `specs/001-autenticacion-sesion/` (`spec.md`, `plan.md`, `data-model.md`, `contracts/`). Constitución: `.specify/memory/constitution.md` (v1.1.1).
 
 ---
 
@@ -33,7 +33,7 @@ Antes de escribir código, el agente debe identificar el tipo de tarea y consult
 
 # Módulo 1 — Habilidades de ejecución (Usuarios, Auth, Catálogo, Depósitos)
 
-Referencias: `specs/001-user-auth-catalog/contracts/api.md`, `data-model.md`, `validation.md`, `research.md`, `quickstart.md`.
+Referencias: `specs/README.md` (partición y ledger) y los contratos de cada spec en `specs/*/contracts/`; la base compartida (auth, guards, sobre de error) vive en `specs/001-autenticacion-sesion/`.
 
 ## 📌 Habilidad M1-G: Comandos, scripts y quality gates (Módulo 1)
 
@@ -65,7 +65,7 @@ npm test                    # vitest: $lib/api, schemas Zod, stores
 3. `cargo sqlx prepare --check` sin diferencias.
 4. Sin `unwrap()` / `panic!` / `expect()` en rutas de producción.
 5. Errores de dominio con variante `AppError` específica (Habilidad M1-E).
-6. Spec/docs actualizados si cambió el comportamiento (`specs/001-user-auth-catalog/`, `README.md` raíz).
+6. Spec/docs actualizados si cambió el comportamiento (`specs/<NNN-feature>/`, `specs/README.md`, `README.md` raíz).
 7. Unidad de trabajo = un commit convencional (`feat: …`, `fix: …`, `test: …`, `docs: …`).
 
 ---

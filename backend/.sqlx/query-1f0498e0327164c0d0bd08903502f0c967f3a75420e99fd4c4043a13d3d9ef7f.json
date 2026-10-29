@@ -1,0 +1,68 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO usuarios (nombre, email, password_hash, password_temporal, rol, familia_rol, activo)\n           VALUES ($1, $2, $3, TRUE, $4, $5, TRUE)\n           RETURNING id, nombre, email, rol, familia_rol, activo, password_temporal, creado_en",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 1,
+        "name": "nombre",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 2,
+        "name": "email",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 3,
+        "name": "rol",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 4,
+        "name": "familia_rol",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 5,
+        "name": "activo",
+        "type_info": "Bool"
+      },
+      {
+        "ordinal": 6,
+        "name": "password_temporal",
+        "type_info": "Bool"
+      },
+      {
+        "ordinal": 7,
+        "name": "creado_en",
+        "type_info": "Timestamptz"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Varchar",
+        "Varchar",
+        "Varchar",
+        "Varchar",
+        "Varchar"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "1f0498e0327164c0d0bd08903502f0c967f3a75420e99fd4c4043a13d3d9ef7f"
+}

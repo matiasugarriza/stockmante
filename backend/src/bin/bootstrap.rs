@@ -29,7 +29,7 @@ async fn correr(reset_admin: bool) -> Result<(), AppError> {
     let pool = db::crear_pool(&config.database_url).await?;
 
     // 1) Depósito inicial "Principal" (idempotente)
-    let deposito_id = sqlx::query_scalar::<_, i32>(
+    let deposito_id = sqlx::query_scalar!(
         r#"INSERT INTO depositos (nombre, identificador)
            VALUES ('Principal', 'PRINCIPAL')
            ON CONFLICT (nombre) DO UPDATE SET nombre = EXCLUDED.nombre
@@ -45,10 +45,12 @@ async fn correr(reset_admin: bool) -> Result<(), AppError> {
         .trim()
         .to_lowercase();
 
-    let existe = sqlx::query_scalar::<_, bool>(r#"SELECT EXISTS(SELECT 1 FROM usuarios WHERE email = $1)"#)
-        .bind(&email_admin)
-        .fetch_one(&pool)
-        .await?;
+    let existe = sqlx::query_scalar!(
+        r#"SELECT EXISTS(SELECT 1 FROM usuarios WHERE email = $1) AS "existe!""#,
+        email_admin.as_str()
+    )
+    .fetch_one(&pool)
+    .await?;
 
     if existe {
         if reset_admin {
@@ -60,14 +62,14 @@ async fn correr(reset_admin: bool) -> Result<(), AppError> {
 
     let password_temporal = generar_password_temporal();
     let hash = hash_password(&password_temporal)?;
-    let admin_id = sqlx::query_scalar::<_, i32>(
+    let admin_id = sqlx::query_scalar!(
         r#"INSERT INTO usuarios (nombre, email, password_hash, password_temporal, rol, familia_rol, activo)
            VALUES ($1, $2, $3, TRUE, 'ADMIN', 'GESTION', TRUE)
            RETURNING id"#,
+        "Administrador",
+        email_admin.as_str(),
+        hash
     )
-    .bind("Administrador")
-    .bind(&email_admin)
-    .bind(&hash)
     .fetch_one(&pool)
     .await?;
     tracing::info!(id = admin_id, email = %email_admin, "admin inicial creado");
@@ -94,8 +96,7 @@ async fn resetear_admin(
         ));
     }
 
-    let admin_id = sqlx::query_scalar::<_, i32>("SELECT id FROM usuarios WHERE email = $1")
-        .bind(email)
+    let admin_id = sqlx::query_scalar!(r#"SELECT id FROM usuarios WHERE email = $1"#, email)
         .fetch_one(pool)
         .await?;
 
@@ -103,17 +104,17 @@ async fn resetear_admin(
     let hash = hash_password(&password_temporal)?;
 
     let mut tx = pool.begin().await?;
-    sqlx::query(
+    sqlx::query!(
         "UPDATE sesiones SET revocada_en = now() WHERE usuario_id = $1 AND revocada_en IS NULL",
+        admin_id
     )
-    .bind(admin_id)
     .execute(&mut *tx)
     .await?;
-    sqlx::query(
+    sqlx::query!(
         "UPDATE usuarios SET password_hash = $1, password_temporal = TRUE, actualizado_en = now() WHERE id = $2",
+        hash,
+        admin_id
     )
-    .bind(&hash)
-    .bind(admin_id)
     .execute(&mut *tx)
     .await?;
     tx.commit().await?;

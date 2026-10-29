@@ -10,10 +10,11 @@ axum = "0.8"
 axum-extra = { version = "0.10", features = ["cookie"] }
 tokio = { version = "1", features = ["full"] }
 tower-http = { version = "0.6", features = ["cors"] }
-sqlx = { version = "0.8", features = ["runtime-tokio", "tls-rustls", "postgres", "uuid", "chrono", "migrate"] }
+sqlx = { version = "0.8", features = ["runtime-tokio", "tls-rustls", "postgres", "uuid", "chrono", "migrate", "rust_decimal"] }
 serde = { version = "1", features = ["derive"] }
+# 003: montos NUMERIC(12,2) como número JSON (serde-float), no string.
+rust_decimal = { version = "1", features = ["serde-float"] }
 serde_json = "1"
-validator = { version = "0.19", features = ["derive"] }
 argon2 = "0.5"
 rand = "0.9"
 thiserror = "2"
@@ -24,6 +25,11 @@ tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 dotenvy = "0.15"
 async-trait = "0.1"
 time = "0.3"
+# Correo real de la contraseña temporal (T029): async sobre rustls, sin OpenSSL.
+lettre = { version = "0.11", default-features = false, features = ["builder", "smtp-transport", "tokio1", "tokio1-rustls-tls"] }
+# Documentación viva de la API (000): OpenAPI 3.1 + Swagger UI servido por el backend.
+utoipa = { version = "6", features = ["chrono"] }
+utoipa-swagger-ui = { version = "10", features = ["axum", "vendored"] }
 
 [[test]]
 name = "test_password"
@@ -40,6 +46,10 @@ path = "tests/unit/test_mail.rs"
 [[test]]
 name = "test_config"
 path = "tests/unit/test_config.rs"
+
+[[test]]
+name = "test_openapi"
+path = "tests/unit/test_openapi.rs"
 
 [[test]]
 name = "test_auth_login"
@@ -76,6 +86,58 @@ path = "tests/integration/test_auth_http.rs"
 [[test]]
 name = "test_usuarios_http"
 path = "tests/integration/test_usuarios_http.rs"
+
+[[test]]
+name = "test_categoria_normalizacion"
+path = "tests/unit/test_categoria_normalizacion.rs"
+
+[[test]]
+name = "test_sku"
+path = "tests/unit/test_sku.rs"
+
+[[test]]
+name = "test_producto_validacion"
+path = "tests/unit/test_producto_validacion.rs"
+
+[[test]]
+name = "test_categorias_http"
+path = "tests/integration/test_categorias_http.rs"
+
+[[test]]
+name = "test_productos_http"
+path = "tests/integration/test_productos_http.rs"
+
+[[test]]
+name = "test_catalogo_baja_logica"
+path = "tests/integration/test_catalogo_baja_logica.rs"
+
+[[test]]
+name = "test_busqueda"
+path = "tests/unit/test_busqueda.rs"
+
+[[test]]
+name = "test_busqueda_http"
+path = "tests/integration/test_busqueda_http.rs"
+
+[[test]]
+name = "test_deposito_validacion"
+path = "tests/unit/test_deposito_validacion.rs"
+
+[[test]]
+name = "test_depositos_http"
+path = "tests/integration/test_depositos_http.rs"
+
+[[test]]
+name = "test_rbac_matriz"
+path = "tests/integration/test_rbac_matriz.rs"
+
+[[test]]
+name = "test_movimiento_validacion"
+path = "tests/unit/test_movimiento_validacion.rs"
+
+[[test]]
+name = "test_movimientos_http"
+path = "tests/integration/test_movimientos_http.rs"
 
 [dev-dependencies]
 tower = { version = "0.5", features = ["util"] }

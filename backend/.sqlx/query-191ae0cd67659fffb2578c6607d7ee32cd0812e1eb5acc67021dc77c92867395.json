@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE sesiones SET revocada_en = $1\n           WHERE usuario_id = $2 AND revocada_en IS NULL",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Timestamptz",
+        "Int4"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "191ae0cd67659fffb2578c6607d7ee32cd0812e1eb5acc67021dc77c92867395"
+}

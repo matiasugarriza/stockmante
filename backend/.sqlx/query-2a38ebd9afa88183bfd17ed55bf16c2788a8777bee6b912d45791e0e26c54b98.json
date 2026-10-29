@@ -1,0 +1,66 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT id, nombre, email, rol, familia_rol, activo, password_temporal, creado_en\n           FROM usuarios\n           WHERE $1::boolean IS NULL OR activo = $1\n           ORDER BY id\n           LIMIT $2 OFFSET $3",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 1,
+        "name": "nombre",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 2,
+        "name": "email",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 3,
+        "name": "rol",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 4,
+        "name": "familia_rol",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 5,
+        "name": "activo",
+        "type_info": "Bool"
+      },
+      {
+        "ordinal": 6,
+        "name": "password_temporal",
+        "type_info": "Bool"
+      },
+      {
+        "ordinal": 7,
+        "name": "creado_en",
+        "type_info": "Timestamptz"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Bool",
+        "Int8",
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "2a38ebd9afa88183bfd17ed55bf16c2788a8777bee6b912d45791e0e26c54b98"
+}

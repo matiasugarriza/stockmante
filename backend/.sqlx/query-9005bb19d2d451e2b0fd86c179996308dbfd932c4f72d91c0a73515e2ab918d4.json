@@ -1,0 +1,68 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE usuarios\n           SET nombre = $1, email = $2, rol = $3, familia_rol = $4, actualizado_en = now()\n           WHERE id = $5\n           RETURNING id, nombre, email, rol, familia_rol, activo, password_temporal, creado_en",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 1,
+        "name": "nombre",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 2,
+        "name": "email",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 3,
+        "name": "rol",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 4,
+        "name": "familia_rol",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 5,
+        "name": "activo",
+        "type_info": "Bool"
+      },
+      {
+        "ordinal": 6,
+        "name": "password_temporal",
+        "type_info": "Bool"
+      },
+      {
+        "ordinal": 7,
+        "name": "creado_en",
+        "type_info": "Timestamptz"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Varchar",
+        "Varchar",
+        "Varchar",
+        "Varchar",
+        "Int4"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "9005bb19d2d451e2b0fd86c179996308dbfd932c4f72d91c0a73515e2ab918d4"
+}

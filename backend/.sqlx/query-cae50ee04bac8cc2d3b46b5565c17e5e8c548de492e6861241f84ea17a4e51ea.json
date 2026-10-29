@@ -1,0 +1,20 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO depositos (nombre, identificador)\n           VALUES ('Principal', 'PRINCIPAL')\n           ON CONFLICT (nombre) DO UPDATE SET nombre = EXCLUDED.nombre\n           RETURNING id",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int4"
+      }
+    ],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "cae50ee04bac8cc2d3b46b5565c17e5e8c548de492e6861241f84ea17a4e51ea"
+}

@@ -16,9 +16,15 @@ use std::sync::Arc;
 use tower::ServiceExt;
 
 async fn app_de_test() -> (axum::Router, sqlx::PgPool) {
+    app_con_config(|_| {}).await
+}
+
+/// Igual que `app_de_test` pero permite ajustar la configuración (T028/T030).
+async fn app_con_config(ajustar: impl FnOnce(&mut AppConfig)) -> (axum::Router, sqlx::PgPool) {
     let _ = dotenvy::dotenv();
     let pool = pool_de_test().await;
-    let config = AppConfig::desde_entorno().expect("config de test");
+    let mut config = AppConfig::desde_entorno().expect("config de test");
+    ajustar(&mut config);
     let estado = AppEstado {
         pool: pool.clone(),
         config,
@@ -331,4 +337,172 @@ async fn login_con_json_invalido_usa_el_sobre_de_error() {
             "cuerpo: {cuerpo} sin mensaje"
         );
     }
+}
+
+/// T030 / FR-002a — la cookie de sesión es `Secure` sólo con `APP_ENV=production`.
+#[tokio::test]
+async fn la_cookie_lleva_secure_solo_en_produccion() {
+    let email = email_unico("cookie-secure");
+
+    let (app_prod, pool) = app_con_config(|c| c.app_env = "production".into()).await;
+    crear_usuario(
+        &pool,
+        "Cookie Prod",
+        &email,
+        "Password1",
+        "ADMIN",
+        "GESTION",
+        true,
+        false,
+    )
+    .await;
+
+    let res = app_prod
+        .clone()
+        .oneshot(login_request(&app_prod, &email, "Password1"))
+        .await
+        .expect("login en producción");
+    assert_eq!(res.status(), StatusCode::NO_CONTENT);
+    let cookie_prod = res
+        .headers()
+        .get_all(header::SET_COOKIE)
+        .iter()
+        .filter_map(|v| v.to_str().ok())
+        .find(|c| c.starts_with("stockmante_sesion="))
+        .expect("Set-Cookie de sesión")
+        .to_ascii_lowercase();
+    assert!(
+        cookie_prod.contains("secure"),
+        "en producción la cookie debe ser Secure: {cookie_prod}"
+    );
+    assert!(cookie_prod.contains("httponly"), "falta HttpOnly: {cookie_prod}");
+    assert!(
+        cookie_prod.contains("samesite=lax"),
+        "falta SameSite=Lax: {cookie_prod}"
+    );
+    assert!(cookie_prod.contains("path=/"), "falta path=/: {cookie_prod}");
+
+    let (app_dev, _) = app_con_config(|c| c.app_env = "development".into()).await;
+    let res = app_dev
+        .clone()
+        .oneshot(login_request(&app_dev, &email, "Password1"))
+        .await
+        .expect("login en desarrollo");
+    let cookie_dev = res
+        .headers()
+        .get_all(header::SET_COOKIE)
+        .iter()
+        .filter_map(|v| v.to_str().ok())
+        .find(|c| c.starts_with("stockmante_sesion="))
+        .expect("Set-Cookie de sesión en dev")
+        .to_ascii_lowercase();
+    assert!(
+        !cookie_dev.contains("secure"),
+        "en desarrollo la cookie no debe ser Secure: {cookie_dev}"
+    );
+
+    borrar_usuario(&pool, &email).await;
+}
+
+/// T028 / FR-008a — el gate de contraseña temporal se evalúa antes que la
+/// familia: un OPERARIO con temporal pendiente recibe `cambio_password_requerido`
+/// (no `sin_permisos`) en cualquier endpoint protegido.
+#[tokio::test]
+async fn el_gate_de_password_temporal_gana_a_la_familia() {
+    let (app, pool) = app_de_test().await;
+    let email = email_unico("gate-temporal");
+    crear_usuario(
+        &pool,
+        "Gate Temporal",
+        &email,
+        "Temporal1",
+        "OPERARIO",
+        "OPERACION",
+        true,
+        true,
+    )
+    .await;
+
+    let res = app
+        .clone()
+        .oneshot(login_request(&app, &email, "Temporal1"))
+        .await
+        .expect("login con temporal");
+    let cookie = cookie_de_sesion(&res);
+
+    let res = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("GET")
+                .uri("/api/usuarios")
+                .header(header::COOKIE, &cookie)
+                .body(Body::empty())
+                .expect("request"),
+        )
+        .await
+        .expect("gestión con temporal");
+    assert_eq!(res.status(), StatusCode::FORBIDDEN);
+    let body = cuerpo_json(res).await;
+    assert_eq!(
+        body["error"]["codigo"], "cambio_password_requerido",
+        "el gate debe ganarle a sin_permisos"
+    );
+
+    borrar_usuario(&pool, &email).await;
+}
+
+/// T028 — las excepciones del gate siguen abiertas: sesión propia y salud.
+#[tokio::test]
+async fn salud_y_sesion_siguen_abiertos_con_temporal_pendiente() {
+    let (app, pool) = app_de_test().await;
+    let email = email_unico("gate-excepciones");
+    crear_usuario(
+        &pool,
+        "Gate Excepciones",
+        &email,
+        "Temporal1",
+        "GERENTE",
+        "GESTION",
+        true,
+        true,
+    )
+    .await;
+
+    let res = app
+        .clone()
+        .oneshot(login_request(&app, &email, "Temporal1"))
+        .await
+        .expect("login con temporal");
+    let cookie = cookie_de_sesion(&res);
+
+    let res = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("GET")
+                .uri("/api/auth/sesion")
+                .header(header::COOKIE, &cookie)
+                .body(Body::empty())
+                .expect("request"),
+        )
+        .await
+        .expect("sesión propia");
+    assert_eq!(res.status(), StatusCode::OK);
+
+    let res = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("GET")
+                .uri("/api/salud")
+                .header(header::COOKIE, &cookie)
+                .body(Body::empty())
+                .expect("request"),
+        )
+        .await
+        .expect("salud");
+    assert_eq!(res.status(), StatusCode::OK);
+
+    borrar_usuario(&pool, &email).await;
 }

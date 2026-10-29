@@ -1,4 +1,4 @@
-//! T030 — Integración HTTP de /api/usuarios contra el router real (contracts/api.md).
+//! 002/T005 — Integración HTTP de /api/usuarios contra el router real (contracts/api.md).
 
 #[path = "../unit/common/mod.rs"]
 mod common;
@@ -123,6 +123,36 @@ async fn id_de(pool: &sqlx::PgPool, email: &str) -> i32 {
         .fetch_one(pool)
         .await
         .expect("id del usuario de test")
+}
+
+/// Recorre todas las páginas del listado (100 por página, el máximo) y
+/// devuelve los items. Así los tests no dependen de que la población total de
+/// la base de test quepa en una sola página.
+async fn listar_todos(app: &axum::Router, cookie: &str, filtro: &str) -> Vec<Value> {
+    let mut items = Vec::new();
+    let mut pagina = 1_i64;
+    loop {
+        let mut uri = format!("/api/usuarios?por_pagina=100&pagina={pagina}");
+        if !filtro.is_empty() {
+            uri.push('&');
+            uri.push_str(filtro);
+        }
+        let res = app
+            .clone()
+            .oneshot(solicitud("GET", &uri, cookie, None))
+            .await
+            .expect("listado paginado");
+        assert_eq!(res.status(), StatusCode::OK, "{uri}");
+        let body = cuerpo_json(res).await;
+        let total = body["total"].as_i64().expect("total del listado");
+        let lote = body["items"].as_array().expect("items de la página");
+        items.extend(lote.iter().cloned());
+        if items.len() as i64 >= total || lote.is_empty() {
+            break;
+        }
+        pagina += 1;
+    }
+    items
 }
 
 fn temporal_enviada(correo: &CorreoDev, destino: &str) -> String {
@@ -367,55 +397,33 @@ async fn listar_pagina_filtra_por_estado_y_el_detalle_faltante_es_404() {
     assert_eq!(body["pagina"].as_i64(), Some(1));
     assert_eq!(body["por_pagina"].as_i64(), Some(100));
     let items = body["items"].as_array().expect("items de la página");
+    assert!(items.iter().all(|u| u["activo"] == true));
+    assert!(items.iter().all(|u| u.get("password_hash").is_none()));
+    let todos = listar_todos(&app, &cookie, "activo=true").await;
     assert!(
-        items
+        todos
             .iter()
             .any(|u| u["email"].as_str() == Some(email_activo.as_str())),
         "el activo debe aparecer"
     );
     assert!(
-        !items
+        !todos
             .iter()
             .any(|u| u["email"].as_str() == Some(email_inactivo.as_str())),
         "el inactivo no debe aparecer con activo=true"
     );
-    assert!(items.iter().all(|u| u["activo"] == true));
-    assert!(items.iter().all(|u| u.get("password_hash").is_none()));
 
-    let res = app
-        .clone()
-        .oneshot(solicitud(
-            "GET",
-            "/api/usuarios?activo=false&por_pagina=100",
-            &cookie,
-            None,
-        ))
-        .await
-        .expect("listado inactivo");
-    let body = cuerpo_json(res).await;
-    let items = body["items"].as_array().expect("items de la página");
-    assert!(items
+    let todos = listar_todos(&app, &cookie, "activo=false").await;
+    assert!(todos
         .iter()
         .any(|u| u["email"].as_str() == Some(email_inactivo.as_str())));
 
     // `activo=all` devuelve ambas poblaciones.
-    let res = app
-        .clone()
-        .oneshot(solicitud(
-            "GET",
-            "/api/usuarios?activo=all&por_pagina=100",
-            &cookie,
-            None,
-        ))
-        .await
-        .expect("listado completo");
-    assert_eq!(res.status(), StatusCode::OK);
-    let body = cuerpo_json(res).await;
-    let items = body["items"].as_array().expect("items de la página");
-    assert!(items
+    let todos = listar_todos(&app, &cookie, "activo=all").await;
+    assert!(todos
         .iter()
         .any(|u| u["email"].as_str() == Some(email_activo.as_str())));
-    assert!(items
+    assert!(todos
         .iter()
         .any(|u| u["email"].as_str() == Some(email_inactivo.as_str())));
 
@@ -477,6 +485,56 @@ async fn listar_pagina_filtra_por_estado_y_el_detalle_faltante_es_404() {
     assert_eq!(res.status(), StatusCode::NOT_FOUND);
     let body = cuerpo_json(res).await;
     assert_eq!(body["error"]["codigo"], "recurso_no_encontrado");
+
+    borrar_usuario(&pool, &email_activo).await;
+    borrar_usuario(&pool, &email_inactivo).await;
+    borrar_usuario(&pool, &admin_email).await;
+}
+
+#[tokio::test]
+async fn listar_sin_filtro_devuelve_activos_e_inactivos() {
+    // Regresión de 002 (T-REG-01): al centralizar `parsear_activo` en
+    // handlers/mod.rs, el default de usuarios debe seguir siendo "todas".
+    let (app, pool, _correo) = app_de_test().await;
+    let (admin_email, cookie) = crear_gestor_y_loguear(&app, &pool, "http-sin-filtro-admin").await;
+    let email_activo = email_unico("http-sin-filtro-activo");
+    let email_inactivo = email_unico("http-sin-filtro-inactivo");
+    crear_usuario(
+        &pool,
+        "Activo",
+        &email_activo,
+        "Password1",
+        "CAJERO",
+        "OPERACION",
+        true,
+        false,
+    )
+    .await;
+    crear_usuario(
+        &pool,
+        "Inactivo",
+        &email_inactivo,
+        "Password1",
+        "CAJERO",
+        "OPERACION",
+        false,
+        false,
+    )
+    .await;
+
+    let items = listar_todos(&app, &cookie, "").await;
+    assert!(
+        items
+            .iter()
+            .any(|u| u["email"].as_str() == Some(email_activo.as_str())),
+        "sin filtro el activo debe aparecer"
+    );
+    assert!(
+        items
+            .iter()
+            .any(|u| u["email"].as_str() == Some(email_inactivo.as_str())),
+        "sin filtro el inactivo también debe aparecer"
+    );
 
     borrar_usuario(&pool, &email_activo).await;
     borrar_usuario(&pool, &email_inactivo).await;
@@ -707,7 +765,7 @@ async fn desactivar_revoca_sesiones_reactiva_y_regenera_temporal() {
 async fn gestor_con_password_temporal_no_puede_gestionar_hasta_cambiarla() {
     let (app, pool, _correo) = app_de_test().await;
     let email = email_unico("http-temporal-gestion");
-    let id = crear_usuario(
+    crear_usuario(
         &pool,
         "Gestor Temporal",
         &email,
@@ -868,14 +926,21 @@ async fn rechazos_de_extractores_usan_el_sobre_de_error() {
     let (app, pool, _correo) = app_de_test().await;
     let (admin_email, cookie) = crear_gestor_y_loguear(&app, &pool, "http-extractores-admin").await;
 
-    let usuarios_antes: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM usuarios")
-        .fetch_one(&pool)
-        .await
-        .expect("conteo previo");
+    // El conteo global es frágil: los tests de este binario corren en paralelo
+    // y crean usuarios mientras tanto. Se cuenta solo la marca única de este
+    // caso, que es la que un rechazo podría haber persistido.
+    let marcador = format!("Sin email {}", uuid::Uuid::new_v4().simple());
+    let cuerpo_sin_email = format!(r#"{{"nombre":"{marcador}"}}"#);
+    let usuarios_antes: i64 =
+        sqlx::query_scalar("SELECT COUNT(*) FROM usuarios WHERE nombre = $1")
+            .bind(&marcador)
+            .fetch_one(&pool)
+            .await
+            .expect("conteo previo");
 
     let casos: [(&str, &str, Option<&str>); 4] = [
         ("POST", "/api/usuarios", Some("{json roto")),
-        ("POST", "/api/usuarios", Some(r#"{"nombre":"Sin email"}"#)),
+        ("POST", "/api/usuarios", Some(cuerpo_sin_email.as_str())),
         ("GET", "/api/usuarios/abc", None),
         ("GET", "/api/usuarios?por_pagina=abc", None),
     ];
@@ -908,10 +973,13 @@ async fn rechazos_de_extractores_usan_el_sobre_de_error() {
         );
     }
 
-    let usuarios_despues: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM usuarios")
-        .fetch_one(&pool)
-        .await
-        .expect("conteo posterior");
+    let usuarios_despues: i64 =
+        sqlx::query_scalar("SELECT COUNT(*) FROM usuarios WHERE nombre = $1")
+            .bind(&marcador)
+            .fetch_one(&pool)
+            .await
+            .expect("conteo posterior");
+    assert_eq!(usuarios_antes, 0, "la marca no debe existir de antemano");
     assert_eq!(
         usuarios_despues, usuarios_antes,
         "ningún rechazo debe persistir altas"

@@ -1,0 +1,24 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO usuarios (nombre, email, password_hash, password_temporal, rol, familia_rol, activo)\n           VALUES ($1, $2, $3, TRUE, 'ADMIN', 'GESTION', TRUE)\n           RETURNING id",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int4"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Varchar",
+        "Varchar",
+        "Varchar"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "b485c64dd91e44fd0e2ca0db4b1dbf87739021baf1975614d87675c6792ac875"
+}

@@ -3,6 +3,7 @@
 
 use crate::app::AppEstado;
 use crate::auth::extractors::RequiereGestion;
+use crate::docs::ErrorRespuesta;
 use crate::error::AppError;
 use crate::extractores::{JsonValido, PathValido, QueryValida};
 use crate::models::usuario::Usuario;
@@ -14,6 +15,7 @@ use axum::{
     Router,
 };
 use serde::Deserialize;
+use utoipa::{IntoParams, ToSchema};
 
 pub fn router() -> Router<AppEstado> {
     Router::new()
@@ -24,52 +26,74 @@ pub fn router() -> Router<AppEstado> {
         .route("/{id}/password-temporal", post(password_temporal))
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, IntoParams)]
 pub struct ListarQuery {
+    /// `true`, `false` o `all` (ausente = todas).
     pub activo: Option<String>,
+    /// Página (desde 1).
     pub pagina: Option<i64>,
+    /// Tamaño de página (1–100).
     pub por_pagina: Option<i64>,
 }
 
-/// `?activo=true|false|all` (ausente = todas).
-fn parsear_activo(valor: Option<&str>) -> Result<Option<bool>, AppError> {
-    match valor.map(|v| v.trim().to_lowercase()).as_deref() {
-        None | Some("") | Some("all") => Ok(None),
-        Some("true") => Ok(Some(true)),
-        Some("false") => Ok(Some(false)),
-        Some(_) => Err(AppError::Validacion(
-            "El filtro activo debe ser true, false o all".into(),
-        )),
-    }
-}
-
 /// GET /api/usuarios?activo=&pagina=&por_pagina= → 200 lista paginada.
-async fn listar(
+#[utoipa::path(
+    get,
+    path = "/api/usuarios",
+    tag = "usuarios",
+    summary = "Lista usuarios (GESTION)",
+    params(ListarQuery),
+    responses(
+        (status = 200, description = "Página de usuarios", body = ListaUsuarios),
+        (status = 401, description = "Sin sesión", body = ErrorRespuesta),
+        (status = 403, description = "Requiere familia GESTION", body = ErrorRespuesta),
+        (status = 422, description = "Filtros inválidos", body = ErrorRespuesta)
+    )
+)]
+pub async fn listar(
     State(estado): State<AppEstado>,
     _admin: RequiereGestion,
     QueryValida(query): QueryValida<ListarQuery>,
 ) -> Result<Json<ListaUsuarios>, AppError> {
-    let activo = parsear_activo(query.activo.as_deref())?;
+    let activo = super::parsear_activo(query.activo.as_deref(), None)?;
     let lista = usuarios::listar(&estado.pool, activo, query.pagina, query.por_pagina).await?;
     Ok(Json(lista))
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, ToSchema)]
 pub struct CrearUsuarioDto {
     pub nombre: String,
+    #[schema(example = "operario@stockmante.local")]
     pub email: String,
+    #[schema(example = "OPERARIO")]
     pub rol: String,
 }
 
 /// POST /api/usuarios → 201 usuario (sin hash ni contraseña) + temporal por correo.
-async fn crear(
+#[utoipa::path(
+    post,
+    path = "/api/usuarios",
+    tag = "usuarios",
+    summary = "Alta de usuario (GESTION)",
+    description = "Genera una contraseña temporal y la envía por correo dentro de la transacción.",
+    request_body = CrearUsuarioDto,
+    responses(
+        (status = 201, description = "Usuario creado", body = Usuario),
+        (status = 401, description = "Sin sesión", body = ErrorRespuesta),
+        (status = 403, description = "Requiere familia GESTION", body = ErrorRespuesta),
+        (status = 409, description = "Email duplicado", body = ErrorRespuesta),
+        (status = 422, description = "Datos inválidos", body = ErrorRespuesta)
+    )
+)]
+pub async fn crear(
     State(estado): State<AppEstado>,
-    _admin: RequiereGestion,
+    admin: RequiereGestion,
     JsonValido(dto): JsonValido<CrearUsuarioDto>,
 ) -> Result<(StatusCode, Json<Usuario>), AppError> {
     let usuario = usuarios::crear(
         &estado.pool,
         estado.correo.as_ref(),
+        admin.0.id,
         &dto.nombre,
         &dto.email,
         &dto.rol,
@@ -79,7 +103,20 @@ async fn crear(
 }
 
 /// GET /api/usuarios/{id} → 200 o 404.
-async fn obtener(
+#[utoipa::path(
+    get,
+    path = "/api/usuarios/{id}",
+    tag = "usuarios",
+    summary = "Detalle de usuario (GESTION)",
+    params(("id" = i32, Path, description = "Id del usuario")),
+    responses(
+        (status = 200, description = "Usuario", body = Usuario),
+        (status = 401, description = "Sin sesión", body = ErrorRespuesta),
+        (status = 403, description = "Requiere familia GESTION", body = ErrorRespuesta),
+        (status = 404, description = "Usuario inexistente", body = ErrorRespuesta)
+    )
+)]
+pub async fn obtener(
     State(estado): State<AppEstado>,
     _admin: RequiereGestion,
     PathValido(id): PathValido<i32>,
@@ -87,7 +124,7 @@ async fn obtener(
     Ok(Json(usuarios::obtener(&estado.pool, id).await?))
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, ToSchema)]
 pub struct ActualizarUsuarioDto {
     pub nombre: Option<String>,
     pub email: Option<String>,
@@ -95,9 +132,26 @@ pub struct ActualizarUsuarioDto {
 }
 
 /// PUT /api/usuarios/{id} → 200 usuario actualizado.
-async fn actualizar(
+#[utoipa::path(
+    put,
+    path = "/api/usuarios/{id}",
+    tag = "usuarios",
+    summary = "Edición parcial de usuario (GESTION)",
+    description = "Cambiar el rol recalcula la familia; degradar al último gestor activo es 409.",
+    params(("id" = i32, Path, description = "Id del usuario")),
+    request_body = ActualizarUsuarioDto,
+    responses(
+        (status = 200, description = "Usuario actualizado", body = Usuario),
+        (status = 401, description = "Sin sesión", body = ErrorRespuesta),
+        (status = 403, description = "Requiere familia GESTION", body = ErrorRespuesta),
+        (status = 404, description = "Usuario inexistente", body = ErrorRespuesta),
+        (status = 409, description = "Email duplicado o último gestor", body = ErrorRespuesta),
+        (status = 422, description = "Datos inválidos", body = ErrorRespuesta)
+    )
+)]
+pub async fn actualizar(
     State(estado): State<AppEstado>,
-    _admin: RequiereGestion,
+    admin: RequiereGestion,
     PathValido(id): PathValido<i32>,
     JsonValido(dto): JsonValido<ActualizarUsuarioDto>,
 ) -> Result<Json<Usuario>, AppError> {
@@ -106,33 +160,78 @@ async fn actualizar(
         email: dto.email,
         rol: dto.rol,
     };
-    Ok(Json(usuarios::actualizar(&estado.pool, id, cambios).await?))
+    Ok(Json(
+        usuarios::actualizar(&estado.pool, id, cambios, admin.0.id).await?,
+    ))
 }
 
 /// POST /api/usuarios/{id}/desactivar → 204 (revoca sesiones).
-async fn desactivar(
+#[utoipa::path(
+    post,
+    path = "/api/usuarios/{id}/desactivar",
+    tag = "usuarios",
+    summary = "Baja lógica de usuario (GESTION)",
+    description = "Desactiva la cuenta y revoca sus sesiones. No se puede desactivar al último gestor.",
+    params(("id" = i32, Path, description = "Id del usuario")),
+    responses(
+        (status = 204, description = "Usuario desactivado"),
+        (status = 401, description = "Sin sesión", body = ErrorRespuesta),
+        (status = 403, description = "Requiere familia GESTION", body = ErrorRespuesta),
+        (status = 404, description = "Usuario inexistente", body = ErrorRespuesta),
+        (status = 409, description = "Último gestor activo", body = ErrorRespuesta)
+    )
+)]
+pub async fn desactivar(
     State(estado): State<AppEstado>,
-    _admin: RequiereGestion,
+    admin: RequiereGestion,
     PathValido(id): PathValido<i32>,
 ) -> Result<StatusCode, AppError> {
-    usuarios::desactivar(&estado.pool, estado.reloj.as_ref(), id).await?;
+    usuarios::desactivar(&estado.pool, estado.reloj.as_ref(), id, admin.0.id).await?;
     Ok(StatusCode::NO_CONTENT)
 }
 
 /// POST /api/usuarios/{id}/reactivar → 204.
-async fn reactivar(
+#[utoipa::path(
+    post,
+    path = "/api/usuarios/{id}/reactivar",
+    tag = "usuarios",
+    summary = "Reactiva un usuario (GESTION)",
+    params(("id" = i32, Path, description = "Id del usuario")),
+    responses(
+        (status = 204, description = "Usuario reactivado"),
+        (status = 401, description = "Sin sesión", body = ErrorRespuesta),
+        (status = 403, description = "Requiere familia GESTION", body = ErrorRespuesta),
+        (status = 404, description = "Usuario inexistente", body = ErrorRespuesta)
+    )
+)]
+pub async fn reactivar(
     State(estado): State<AppEstado>,
-    _admin: RequiereGestion,
+    admin: RequiereGestion,
     PathValido(id): PathValido<i32>,
 ) -> Result<StatusCode, AppError> {
-    usuarios::reactivar(&estado.pool, estado.reloj.as_ref(), id).await?;
+    usuarios::reactivar(&estado.pool, estado.reloj.as_ref(), id, admin.0.id).await?;
     Ok(StatusCode::NO_CONTENT)
 }
 
 /// POST /api/usuarios/{id}/password-temporal → 204 (nueva temporal por correo).
-async fn password_temporal(
+#[utoipa::path(
+    post,
+    path = "/api/usuarios/{id}/password-temporal",
+    tag = "usuarios",
+    summary = "Regenera la contraseña temporal (GESTION)",
+    description = "Actualiza el hash, marca cambio obligatorio y revoca las sesiones antes de enviar el correo.",
+    params(("id" = i32, Path, description = "Id del usuario")),
+    responses(
+        (status = 204, description = "Contraseña temporal regenerada y enviada"),
+        (status = 401, description = "Sin sesión", body = ErrorRespuesta),
+        (status = 403, description = "Requiere familia GESTION", body = ErrorRespuesta),
+        (status = 404, description = "Usuario inexistente", body = ErrorRespuesta),
+        (status = 500, description = "No se pudo enviar el correo", body = ErrorRespuesta)
+    )
+)]
+pub async fn password_temporal(
     State(estado): State<AppEstado>,
-    _admin: RequiereGestion,
+    admin: RequiereGestion,
     PathValido(id): PathValido<i32>,
 ) -> Result<StatusCode, AppError> {
     usuarios::regenerar_password_temporal(
@@ -140,6 +239,7 @@ async fn password_temporal(
         estado.reloj.as_ref(),
         estado.correo.as_ref(),
         id,
+        admin.0.id,
     )
     .await?;
     Ok(StatusCode::NO_CONTENT)

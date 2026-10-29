@@ -23,18 +23,36 @@ pub enum AppError {
     RecursoNoEncontrado(String),
     #[error("Ya existe un usuario con ese email")]
     EmailDuplicado,
-    #[error("Ya existe un producto con ese SKU")]
-    SkuDuplicado,
+    #[error("Ya existe un producto con el SKU {0}. Elegí otro.")]
+    SkuDuplicado(String),
     #[error("Ya existe un producto con ese código de barras")]
     CodigoBarrasDuplicado,
-    #[error("El producto tiene movimientos o asignaciones; desactívalo en lugar de borrarlo")]
-    ProductoConReferencias,
+    #[error("Ya existe una categoría con ese nombre.")]
+    CategoriaDuplicada,
     #[error("El depósito tiene ubicaciones o movimientos; desactívalo en lugar de borrarlo")]
     DepositoConDependencias,
+    #[error("Ya existe un depósito con ese nombre")]
+    DepositoNombreDuplicado,
+    #[error("Ya existe un depósito con ese identificador")]
+    DepositoIdentificadorDuplicado,
+    #[error("La ubicación tiene hijos o productos asignados; desactívala en lugar de borrarla")]
+    UbicacionConDependencias,
+    #[error("Ya existe una ubicación con ese nombre en el mismo nivel")]
+    UbicacionDuplicada,
+    #[error("La ubicación padre debe existir en el mismo depósito y estar activa")]
+    UbicacionHuerfana,
     #[error("No se puede desactivar al último usuario de gestión activo")]
     UltimoAdministrador,
     #[error("Debés cambiar tu contraseña temporal antes de continuar")]
     DebeCambiarPassword,
+    #[error("Stock insuficiente en {deposito}: {disponibles} disponibles, {solicitadas} solicitadas.")]
+    StockInsuficiente {
+        deposito: String,
+        disponibles: i32,
+        solicitadas: i32,
+    },
+    #[error("El producto está inactivo y no admite movimientos.")]
+    ProductoInactivo,
     #[error("{0}")]
     Validacion(String),
     #[error("Error interno. Intentá nuevamente o contactá al administrador")]
@@ -50,12 +68,20 @@ impl AppError {
             AppError::SinPermisos | AppError::DebeCambiarPassword => StatusCode::FORBIDDEN,
             AppError::RecursoNoEncontrado(_) => StatusCode::NOT_FOUND,
             AppError::EmailDuplicado
-            | AppError::SkuDuplicado
+            | AppError::SkuDuplicado(_)
             | AppError::CodigoBarrasDuplicado
-            | AppError::ProductoConReferencias
+            | AppError::CategoriaDuplicada
             | AppError::DepositoConDependencias
-            | AppError::UltimoAdministrador => StatusCode::CONFLICT,
-            AppError::Validacion(_) => StatusCode::UNPROCESSABLE_ENTITY,
+            | AppError::DepositoNombreDuplicado
+            | AppError::DepositoIdentificadorDuplicado
+            | AppError::UbicacionConDependencias
+            | AppError::UbicacionDuplicada
+            | AppError::UltimoAdministrador
+            | AppError::StockInsuficiente { .. }
+            | AppError::ProductoInactivo => StatusCode::CONFLICT,
+            AppError::UbicacionHuerfana | AppError::Validacion(_) => {
+                StatusCode::UNPROCESSABLE_ENTITY
+            }
             AppError::Interno(_) => StatusCode::INTERNAL_SERVER_ERROR,
         }
     }
@@ -68,11 +94,18 @@ impl AppError {
             AppError::SinPermisos => "sin_permisos",
             AppError::RecursoNoEncontrado(_) => "recurso_no_encontrado",
             AppError::EmailDuplicado => "email_duplicado",
-            AppError::SkuDuplicado => "sku_duplicado",
+            AppError::SkuDuplicado(_) => "sku_duplicado",
             AppError::CodigoBarrasDuplicado => "codigo_barras_duplicado",
-            AppError::ProductoConReferencias => "producto_con_referencias",
+            AppError::CategoriaDuplicada => "categoria_duplicada",
             AppError::DepositoConDependencias => "deposito_con_dependencias",
+            AppError::DepositoNombreDuplicado => "deposito_nombre_duplicado",
+            AppError::DepositoIdentificadorDuplicado => "deposito_identificador_duplicado",
+            AppError::UbicacionConDependencias => "ubicacion_con_dependencias",
+            AppError::UbicacionDuplicada => "ubicacion_duplicada",
+            AppError::UbicacionHuerfana => "ubicacion_huerfana",
             AppError::UltimoAdministrador => "ultimo_administrador",
+            AppError::StockInsuficiente { .. } => "stock_insuficiente",
+            AppError::ProductoInactivo => "producto_inactivo",
             AppError::DebeCambiarPassword => "cambio_password_requerido",
             AppError::Validacion(_) => "validacion",
             AppError::Interno(_) => "interno",

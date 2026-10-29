@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE usuarios SET activo = FALSE, actualizado_en = $1 WHERE id = $2",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Timestamptz",
+        "Int4"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "fb257ddcc441c49152e1b90c342bea5c1d7ddc1e45966b0521f1827acf705bd4"
+}

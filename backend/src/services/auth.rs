@@ -20,11 +20,12 @@ pub async fn login(
     expiry_hours: i64,
 ) -> Result<(Uuid, Usuario), AppError> {
     let email_norm = normalizar_email(email);
-    let fila = sqlx::query_as::<_, UsuarioConHash>(
+    let fila = sqlx::query_as!(
+        UsuarioConHash,
         r#"SELECT id, nombre, email, password_hash, rol, familia_rol, activo, password_temporal, creado_en
            FROM usuarios WHERE email = $1"#,
+        email_norm
     )
-    .bind(&email_norm)
     .fetch_optional(pool)
     .await?;
 
@@ -52,20 +53,44 @@ pub async fn login(
 
     // Sesión única: revocar la vigente anterior e insertar la nueva atómicamente.
     let mut tx = pool.begin().await?;
-    sqlx::query(
+
+    // El lock del usuario serializa logins concurrentes del mismo usuario: el
+    // segundo espera, revoca la sesión del primero e inserta la suya. El índice
+    // único parcial (`idx_sesiones_usuario_vigente`, migración 0005) respalda la
+    // invariante aunque otro camino intente insertar sin pasar por acá.
+    let usuario_bloqueado =
+        sqlx::query_scalar!(r#"SELECT id FROM usuarios WHERE id = $1 FOR UPDATE"#, u.id)
+            .fetch_optional(&mut *tx)
+            .await?;
+    if usuario_bloqueado.is_none() {
+        // el usuario se borró entre la lectura y el lock
+        return Err(AppError::NoAutenticado);
+    }
+
+    sqlx::query!(
         r#"UPDATE sesiones SET revocada_en = $1
            WHERE usuario_id = $2 AND revocada_en IS NULL"#,
+        ahora,
+        u.id
     )
-    .bind(ahora)
-    .bind(u.id)
     .execute(&mut *tx)
     .await?;
-    sqlx::query(r#"INSERT INTO sesiones (id, usuario_id, expira_en) VALUES ($1, $2, $3)"#)
-        .bind(sesion_id)
-        .bind(u.id)
-        .bind(expira_en)
-        .execute(&mut *tx)
-        .await?;
+    let insert = sqlx::query!(
+        r#"INSERT INTO sesiones (id, usuario_id, expira_en) VALUES ($1, $2, $3)"#,
+        sesion_id,
+        u.id,
+        expira_en
+    )
+    .execute(&mut *tx)
+    .await;
+    if let Err(e) = insert {
+        if matches!(&e, sqlx::Error::Database(db) if db.is_unique_violation()) {
+            // Invariante de sesión única violada: la BD manda y no se filtran
+            // detalles internos al cliente (la transacción se revierte al caer).
+            return Err(AppError::Interno("violación de sesión única".into()));
+        }
+        return Err(e.into());
+    }
     tx.commit().await?;
 
     Ok((sesion_id, u.into_publica()))
@@ -73,11 +98,13 @@ pub async fn login(
 
 /// Cierra la sesión (idempotente: no falla si ya estaba revocada o no existe).
 pub async fn logout(pool: &PgPool, reloj: &dyn Reloj, sesion_id: Uuid) -> Result<(), AppError> {
-    sqlx::query(r#"UPDATE sesiones SET revocada_en = $1 WHERE id = $2 AND revocada_en IS NULL"#)
-        .bind(reloj.ahora())
-        .bind(sesion_id)
-        .execute(pool)
-        .await?;
+    sqlx::query!(
+        r#"UPDATE sesiones SET revocada_en = $1 WHERE id = $2 AND revocada_en IS NULL"#,
+        reloj.ahora(),
+        sesion_id
+    )
+    .execute(pool)
+    .await?;
     Ok(())
 }
 
@@ -89,14 +116,15 @@ pub async fn sesion_actual(
     reloj: &dyn Reloj,
     sesion_id: Uuid,
 ) -> Result<Usuario, AppError> {
-    let fila = sqlx::query_as::<_, SesionVigente>(
+    let fila = sqlx::query_as!(
+        SesionVigente,
         r#"SELECT u.id, u.nombre, u.email, u.rol, u.familia_rol, u.activo, u.password_temporal,
                   u.creado_en, s.expira_en
            FROM sesiones s
            JOIN usuarios u ON u.id = s.usuario_id
            WHERE s.id = $1 AND s.revocada_en IS NULL"#,
+        sesion_id
     )
-    .bind(sesion_id)
     .fetch_optional(pool)
     .await?;
 
@@ -123,35 +151,35 @@ pub async fn cambiar_password(
 ) -> Result<(), AppError> {
     validar_politica_password(password_nueva)?;
 
-    let fila = sqlx::query_as::<_, (i32, String, bool)>(
+    let fila = sqlx::query!(
         r#"SELECT u.id, u.password_hash, u.activo
            FROM sesiones s
            JOIN usuarios u ON u.id = s.usuario_id
            WHERE s.id = $1 AND s.revocada_en IS NULL"#,
+        sesion_id
     )
-    .bind(sesion_id)
     .fetch_optional(pool)
     .await?;
 
-    let Some((usuario_id, hash_viejo, activo)) = fila else {
+    let Some(fila) = fila else {
         return Err(AppError::NoAutenticado);
     };
-    if !activo {
+    if !fila.activo {
         return Err(AppError::NoAutenticado);
     }
-    if !verify_password(password_actual, &hash_viejo) {
+    if !verify_password(password_actual, &fila.password_hash) {
         return Err(AppError::CredencialesInvalidas);
     }
 
     let hash_nuevo = hash_password(password_nueva)?;
-    sqlx::query(
+    sqlx::query!(
         r#"UPDATE usuarios
            SET password_hash = $1, password_temporal = FALSE, actualizado_en = $2
            WHERE id = $3"#,
+        hash_nuevo,
+        reloj.ahora(),
+        fila.id
     )
-    .bind(&hash_nuevo)
-    .bind(reloj.ahora())
-    .bind(usuario_id)
     .execute(pool)
     .await?;
     Ok(())

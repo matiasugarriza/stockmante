@@ -8,7 +8,7 @@
 mod common;
 
 use axum::http::StatusCode;
-use common::{borrar_usuario, email_unico, pool_de_test};
+use common::{actor_de_test, borrar_usuario, email_unico, pool_de_test};
 use stockmante_backend::auth::reloj::RelojSistema;
 use stockmante_backend::error::AppError;
 use stockmante_backend::mail::envio::CorreoDev;
@@ -35,17 +35,18 @@ async fn desactivar_o_degradar_al_ultimo_gestor_activo_es_rechazado() {
 
     let email_a = email_unico("ultimo-admin-a");
     let email_b = email_unico("ultimo-admin-b");
-    let gestor_a = usuarios::crear(&pool, &correo, "Gestor A", &email_a, "ADMIN")
+    let actor = actor_de_test(&pool).await;
+    let gestor_a = usuarios::crear(&pool, &correo, actor, "Gestor A", &email_a, "ADMIN")
         .await
         .expect("alta gestor A");
-    let gestor_b = usuarios::crear(&pool, &correo, "Gestor B", &email_b, "GERENTE")
+    let gestor_b = usuarios::crear(&pool, &correo, actor, "Gestor B", &email_b, "GERENTE")
         .await
         .expect("alta gestor B");
 
     // Operaciones bajo prueba (sin asserts todavía, para poder restaurar).
-    let baja_b = usuarios::desactivar(&pool, &reloj, gestor_b.id).await;
+    let baja_b = usuarios::desactivar(&pool, &reloj, gestor_b.id, actor).await;
     let estado_a = usuarios::obtener(&pool, gestor_a.id).await;
-    let baja_a = usuarios::desactivar(&pool, &reloj, gestor_a.id).await;
+    let baja_a = usuarios::desactivar(&pool, &reloj, gestor_a.id, actor).await;
     let degradar_a = usuarios::actualizar(
         &pool,
         gestor_a.id,
@@ -53,6 +54,7 @@ async fn desactivar_o_degradar_al_ultimo_gestor_activo_es_rechazado() {
             rol: Some("OPERARIO".into()),
             ..CambiosUsuario::default()
         },
+        actor,
     )
     .await;
     let estado_a_final = usuarios::obtener(&pool, gestor_a.id).await;

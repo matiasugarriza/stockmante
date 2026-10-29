@@ -1,4 +1,7 @@
-use stockmante_backend::mail::envio::{CorreoDev, EnvioCorreo};
+use stockmante_backend::mail::{
+    envio::{CorreoDev, EnvioCorreo},
+    smtp::CorreoSmtp,
+};
 
 #[tokio::test]
 async fn correo_dev_registra_intentos_sin_red() {
@@ -31,4 +34,30 @@ fn correo_dev_solo_expone_la_temporal_en_modo_desarrollo() {
         .expect("en desarrollo sí se imprime el aviso");
     assert!(aviso.contains("ana@mail.com"));
     assert!(aviso.contains("Temp123AbcDef"));
+}
+
+/// T029 — el transporte SMTP se construye desde `SMTP_URL`; una URL o un
+/// remitente inválidos fallan al construirlo (el arranque no sigue a ciegas).
+#[test]
+fn smtp_rechaza_url_o_remitente_invalidos() {
+    assert!(
+        CorreoSmtp::desde_url("no-es-una-url", "soporte@stockmante.local").is_err(),
+        "una SMTP_URL sin esquema válido debe fallar"
+    );
+    assert!(
+        CorreoSmtp::desde_url(
+            "smtps://usuario:secreto@smtp.example.com:465",
+            "no-es-email"
+        )
+        .is_err(),
+        "un EMAIL_FROM inválido debe fallar"
+    );
+    assert!(
+        CorreoSmtp::desde_url(
+            "smtps://usuario:secreto@smtp.example.com:465",
+            "Stockmante <soporte@stockmante.local>"
+        )
+        .is_ok(),
+        "una URL smtps y un remitente con nombre son válidos"
+    );
 }
