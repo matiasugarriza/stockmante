@@ -4,6 +4,7 @@ pub mod depositos;
 pub mod movimientos;
 pub mod productos;
 pub mod stock;
+pub mod transferencias;
 pub mod ubicaciones;
 pub mod usuarios;
 
