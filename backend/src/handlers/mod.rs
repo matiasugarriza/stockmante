@@ -1,4 +1,5 @@
 pub mod auth;
+pub mod auditoria;
 pub mod categorias;
 pub mod conteos;
 pub mod depositos;
