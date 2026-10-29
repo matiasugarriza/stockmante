@@ -148,6 +148,23 @@ y `422 validacion` para depósito/ubicación inválidos. Motivo `OTRO` exige obs
 `stock_por_deposito` es la fuente de verdad (con ubicación opcional);
 `productos.stock_actual` es el cache global recalculado en la misma transacción.
 
+### Transferencias entre depósitos (Módulo 2, spec 008)
+
+| Método | Ruta | Auth | Éxito |
+|---|---|---|---|
+| POST | `/api/transferencias` | sesión² | 201 transferencia con stock resultante en origen y destino |
+| GET | `/api/transferencias?producto_id=&deposito_origen_id=&deposito_destino_id=&desde=&hasta=&pagina=&por_pagina=` | sesión | 200 página |
+| GET | `/api/transferencias/{id}` | sesión | 200 con los dos movimientos generados |
+
+² `OPERACION` y `GESTION`. Errores: `409 stock_insuficiente`, `409 producto_inactivo`,
+`422 transferencia_mismo_deposito` (`"El depósito de origen y el de destino deben ser distintos."`),
+`422 validacion` para depósito/ubicación inválidos o inactivos.
+
+La operación es inmediata y atómica: descuenta origen, incrementa destino, escribe dos
+movimientos (`SALIDA` y `ENTRADA`, motivo `TRANSFERENCIA`) enlazados a la transferencia
+y audita (`tabla_ref = 'transferencias'`, acción `CREAR`). La suma global de stock se
+conserva (SC-016).
+
 ### Salud y documentación
 
 | Método | Ruta | Auth | Éxito |

@@ -53,6 +53,8 @@ pub enum AppError {
     },
     #[error("El producto está inactivo y no admite movimientos.")]
     ProductoInactivo,
+    #[error("El depósito de origen y el de destino deben ser distintos.")]
+    TransferenciaMismoDeposito,
     #[error("{0}")]
     Validacion(String),
     #[error("Error interno. Intentá nuevamente o contactá al administrador")]
@@ -77,11 +79,11 @@ impl AppError {
             | AppError::UbicacionConDependencias
             | AppError::UbicacionDuplicada
             | AppError::UltimoAdministrador
-            | AppError::StockInsuficiente { .. }
+            |             AppError::StockInsuficiente { .. }
             | AppError::ProductoInactivo => StatusCode::CONFLICT,
-            AppError::UbicacionHuerfana | AppError::Validacion(_) => {
-                StatusCode::UNPROCESSABLE_ENTITY
-            }
+            AppError::UbicacionHuerfana
+            | AppError::TransferenciaMismoDeposito
+            | AppError::Validacion(_) => StatusCode::UNPROCESSABLE_ENTITY,
             AppError::Interno(_) => StatusCode::INTERNAL_SERVER_ERROR,
         }
     }
@@ -106,6 +108,7 @@ impl AppError {
             AppError::UltimoAdministrador => "ultimo_administrador",
             AppError::StockInsuficiente { .. } => "stock_insuficiente",
             AppError::ProductoInactivo => "producto_inactivo",
+            AppError::TransferenciaMismoDeposito => "transferencia_mismo_deposito",
             AppError::DebeCambiarPassword => "cambio_password_requerido",
             AppError::Validacion(_) => "validacion",
             AppError::Interno(_) => "interno",

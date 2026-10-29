@@ -48,6 +48,7 @@ pub fn construir_router(estado: AppEstado) -> Router {
         .nest("/api/depositos", handlers::depositos::router())
         .nest("/api/ubicaciones", handlers::ubicaciones::router())
         .nest("/api/movimientos", handlers::movimientos::router())
+        .nest("/api/transferencias", handlers::transferencias::router())
         .nest("/api/stock", handlers::stock::router())
         .layer(middleware::from_fn_with_state(
             estado.clone(),

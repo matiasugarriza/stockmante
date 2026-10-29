@@ -96,6 +96,9 @@ impl Modify for AgregarSeguridadCookie {
         crate::handlers::movimientos::crear,
         crate::handlers::movimientos::listar,
         crate::handlers::movimientos::obtener,
+        crate::handlers::transferencias::crear,
+        crate::handlers::transferencias::listar,
+        crate::handlers::transferencias::obtener,
         crate::handlers::stock::listar,
         crate::handlers::stock::detalle
     ),
@@ -116,6 +119,8 @@ impl Modify for AgregarSeguridadCookie {
         crate::models::stock::LineaMovimiento,
         crate::models::stock::MovimientoDetalle,
         crate::models::stock::ListaMovimientos,
+        crate::models::stock::TransferenciaDetalle,
+        crate::models::stock::ListaTransferencias,
         crate::models::stock::StockItem,
         crate::models::stock::ListaStock,
         crate::models::stock::DesgloseStock,

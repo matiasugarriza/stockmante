@@ -8,6 +8,8 @@ use serde::Serialize;
 use utoipa::ToSchema;
 
 /// Referencia mínima al depósito dentro de un movimiento.
+
+/// Referencia mínima al depósito dentro de un movimiento.
 #[derive(Debug, Clone, Serialize, ToSchema)]
 pub struct DepositoBreve {
     pub id: i32,
@@ -53,6 +55,56 @@ pub struct ListaMovimientos {
     pub total: i64,
     pub pagina: i64,
     pub por_pagina: i64,
+}
+
+/// Detalle de una transferencia entre depósitos (008).
+#[derive(Debug, Clone, Serialize, ToSchema)]
+pub struct TransferenciaDetalle {
+    pub id: i32,
+    pub producto_id: i32,
+    pub producto_nombre: String,
+    pub sku: String,
+    pub deposito_origen: DepositoBreve,
+    pub deposito_destino: DepositoBreve,
+    pub cantidad: i32,
+    pub stock_origen_resultante: i32,
+    pub stock_destino_resultante: i32,
+    pub usuario: UsuarioBreve,
+    pub creado_en: DateTime<Utc>,
+    pub movimiento_salida_id: i32,
+    pub movimiento_entrada_id: i32,
+    pub observacion: Option<String>,
+}
+
+/// Página del historial de transferencias.
+#[derive(Debug, Clone, Serialize, ToSchema)]
+pub struct ListaTransferencias {
+    pub items: Vec<TransferenciaDetalle>,
+    pub total: i64,
+    pub pagina: i64,
+    pub por_pagina: i64,
+}
+
+/// Fila plana del SELECT de la cabecera de la transferencia.
+#[derive(Debug, Clone, sqlx::FromRow)]
+pub struct TransferenciaFila {
+    pub id: i32,
+    pub producto_id: i32,
+    pub producto_nombre: String,
+    pub sku: String,
+    pub deposito_origen_id: i32,
+    pub deposito_origen_nombre: String,
+    pub deposito_destino_id: i32,
+    pub deposito_destino_nombre: String,
+    pub cantidad: i32,
+    pub stock_origen_resultante: i32,
+    pub stock_destino_resultante: i32,
+    pub usuario_id: i32,
+    pub usuario_nombre: String,
+    pub creado_en: DateTime<Utc>,
+    pub movimiento_salida_id: i32,
+    pub movimiento_entrada_id: i32,
+    pub observacion: Option<String>,
 }
 
 /// Fila plana del `SELECT` de la cabecera del movimiento.
