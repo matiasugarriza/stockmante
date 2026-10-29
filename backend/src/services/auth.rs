@@ -96,7 +96,49 @@ pub async fn login(
     Ok((sesion_id, u.into_publica()))
 }
 
-/// Cierra la sesión (idempotente: no falla si ya estaba revocada o no existe).
+/// Crea una sesión nueva para un usuario ya autenticado (SSO/registro).
+/// Revoca la sesión anterior del usuario.
+pub async fn crear_sesion_para_usuario(
+    pool: &PgPool,
+    reloj: &dyn Reloj,
+    usuario_id: i32,
+    expiry_hours: i64,
+) -> Result<Uuid, AppError> {
+    let ahora = reloj.ahora();
+    let expira_en = ahora + Duration::hours(expiry_hours);
+    let sesion_id = Uuid::new_v4();
+
+    let mut tx = pool.begin().await?;
+
+    let usuario_bloqueado =
+        sqlx::query_scalar!(r#"SELECT id FROM usuarios WHERE id = $1 FOR UPDATE"#, usuario_id)
+            .fetch_optional(&mut *tx)
+            .await?;
+    if usuario_bloqueado.is_none() {
+        return Err(AppError::NoAutenticado);
+    }
+
+    sqlx::query!(
+        r#"UPDATE sesiones SET revocada_en = $1
+           WHERE usuario_id = $2 AND revocada_en IS NULL"#,
+        ahora,
+        usuario_id
+    )
+    .execute(&mut *tx)
+    .await?;
+
+    sqlx::query!(
+        r#"INSERT INTO sesiones (id, usuario_id, expira_en) VALUES ($1, $2, $3)"#,
+        sesion_id,
+        usuario_id,
+        expira_en
+    )
+    .execute(&mut *tx)
+    .await?;
+
+    tx.commit().await?;
+    Ok(sesion_id)
+}
 pub async fn logout(pool: &PgPool, reloj: &dyn Reloj, sesion_id: Uuid) -> Result<(), AppError> {
     sqlx::query!(
         r#"UPDATE sesiones SET revocada_en = $1 WHERE id = $2 AND revocada_en IS NULL"#,

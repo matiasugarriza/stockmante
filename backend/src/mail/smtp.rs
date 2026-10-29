@@ -66,4 +66,34 @@ impl EnvioCorreo for CorreoSmtp {
             .map(|_| ())
             .map_err(|e| format!("envío SMTP falló: {e}"))
     }
+
+    async fn enviar_verificacion(
+        &self,
+        destino: &str,
+        nombre: &str,
+        token: &str,
+        base_url: &str,
+    ) -> Result<(), String> {
+        let destinatario: Mailbox = destino
+            .parse()
+            .map_err(|e| format!("destino inválido ({destino}): {e}"))?;
+        let enlace = format!("{}/verificar-correo?token={}", base_url.trim_end_matches('/'), token);
+        let cuerpo = format!(
+            "Hola {nombre}:\n\n\
+             Verificá tu correo para activar tu cuenta de Stockmante:\n{enlace}\n\n\
+             El enlace expira en 24 horas.\n"
+        );
+        let mensaje = Message::builder()
+            .from(self.remitente.clone())
+            .to(destinatario)
+            .subject("Verificá tu correo de Stockmante")
+            .header(ContentType::TEXT_PLAIN)
+            .body(cuerpo)
+            .map_err(|e| format!("no se pudo armar el correo: {e}"))?;
+        self.transporte
+            .send(mensaje)
+            .await
+            .map(|_| ())
+            .map_err(|e| format!("envío SMTP falló: {e}"))
+    }
 }

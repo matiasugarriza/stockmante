@@ -27,6 +27,9 @@ async-trait = "0.1"
 time = "0.3"
 # Correo real de la contraseña temporal (T029): async sobre rustls, sin OpenSSL.
 lettre = { version = "0.11", default-features = false, features = ["builder", "smtp-transport", "tokio1", "tokio1-rustls-tls"] }
+sha2 = "0.10"
+# HTTP client para intercambio de tokens SSO (OAuth 2.0/OIDC) — rustls, sin OpenSSL.
+reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
 # Documentación viva de la API (000): OpenAPI 3.1 + Swagger UI servido por el backend.
 utoipa = { version = "6", features = ["chrono"] }
 utoipa-swagger-ui = { version = "10", features = ["axum", "vendored"] }

@@ -11,6 +11,14 @@ pub trait EnvioCorreo: Send + Sync {
         nombre: &str,
         password_temporal: &str,
     ) -> Result<(), String>;
+
+    async fn enviar_verificacion(
+        &self,
+        destino: &str,
+        nombre: &str,
+        token: &str,
+        base_url: &str,
+    ) -> Result<(), String>;
 }
 
 /// Implementación de desarrollo: no manda correo, registra el intento en memoria
@@ -78,6 +86,24 @@ impl EnvioCorreo for CorreoDev {
                 nombre.to_string(),
                 password_temporal.to_string(),
             ));
+        }
+        Ok(())
+    }
+
+    async fn enviar_verificacion(
+        &self,
+        destino: &str,
+        nombre: &str,
+        token: &str,
+        base_url: &str,
+    ) -> Result<(), String> {
+        let enlace = format!("{}/verificar-correo?token={}", base_url.trim_end_matches('/'), token);
+        if self.modo_desarrollo {
+            println!("[correo dev] verificación de {nombre} <{destino}>: {enlace}");
+        }
+        tracing::info!(destino, nombre, "correo dev: verificación (no se envía red)");
+        if let Ok(mut v) = self.enviados.lock() {
+            v.push((destino.to_string(), nombre.to_string(), enlace));
         }
         Ok(())
     }

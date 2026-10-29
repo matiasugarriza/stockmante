@@ -28,8 +28,15 @@ export async function obtenerSesion(): Promise<UsuarioSesion> {
 }
 
 export async function cambiarPassword(datos: CambioPasswordInput): Promise<void> {
-  await api('/api/auth/cambiar-password', {
-    method: 'POST',
-    body: JSON.stringify(datos)
-  });
+	await api('/api/auth/cambiar-password', {
+		method: 'POST',
+		body: JSON.stringify(datos)
+	});
+}
+
+export async function registro(datos: { nombre: string; email: string; password: string }): Promise<void> {
+	await api('/api/auth/registro', {
+		method: 'POST',
+		body: JSON.stringify(datos)
+	});
 }
