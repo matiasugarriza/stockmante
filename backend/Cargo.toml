@@ -131,6 +131,14 @@ path = "tests/integration/test_depositos_http.rs"
 name = "test_rbac_matriz"
 path = "tests/integration/test_rbac_matriz.rs"
 
+[[test]]
+name = "test_movimiento_validacion"
+path = "tests/unit/test_movimiento_validacion.rs"
+
+[[test]]
+name = "test_movimientos_http"
+path = "tests/integration/test_movimientos_http.rs"
+
 [dev-dependencies]
 tower = { version = "0.5", features = ["util"] }
 http-body-util = "0.1"

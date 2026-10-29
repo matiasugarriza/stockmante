@@ -35,6 +35,7 @@
 			<span class="text-sm font-semibold">Stockmante</span>
 			<div class="flex items-center gap-3 text-sm">
 				<a class="rounded px-2 py-1 hover:bg-slate-100" href="/caja">Caja</a>
+				<a class="rounded px-2 py-1 hover:bg-slate-100" href="/movimientos">Movimientos</a>
 				{#if $sesion.usuario.familia_rol === 'GESTION'}
 					<a class="rounded px-2 py-1 hover:bg-slate-100" href="/admin/usuarios">Usuarios</a>
 					<a class="rounded px-2 py-1 hover:bg-slate-100" href="/admin/categorias">Categorías</a>

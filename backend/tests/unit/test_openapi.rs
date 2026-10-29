@@ -55,6 +55,10 @@ fn lista_todas_las_rutas_del_modulo_1() {
         "/api/ubicaciones/{id}",
         "/api/ubicaciones/{id}/desactivar",
         "/api/ubicaciones/{id}/reactivar",
+        "/api/movimientos",
+        "/api/movimientos/{id}",
+        "/api/stock",
+        "/api/stock/{producto_id}",
     ];
     for ruta in esperadas {
         assert!(paths.contains_key(ruta), "falta la ruta {ruta}");
@@ -75,6 +79,12 @@ fn documenta_los_schemas_de_negocio() {
         "Deposito",
         "Ubicacion",
         "ListaUbicaciones",
+        "MovimientoDetalle",
+        "ListaMovimientos",
+        "StockItem",
+        "ListaStock",
+        "StockProducto",
+        "CrearMovimientoDto",
     ] {
         assert!(schemas.contains_key(schema), "falta el schema {schema}");
     }

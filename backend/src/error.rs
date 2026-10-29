@@ -45,6 +45,14 @@ pub enum AppError {
     UltimoAdministrador,
     #[error("Debés cambiar tu contraseña temporal antes de continuar")]
     DebeCambiarPassword,
+    #[error("Stock insuficiente en {deposito}: {disponibles} disponibles, {solicitadas} solicitadas.")]
+    StockInsuficiente {
+        deposito: String,
+        disponibles: i32,
+        solicitadas: i32,
+    },
+    #[error("El producto está inactivo y no admite movimientos.")]
+    ProductoInactivo,
     #[error("{0}")]
     Validacion(String),
     #[error("Error interno. Intentá nuevamente o contactá al administrador")]
@@ -68,7 +76,9 @@ impl AppError {
             | AppError::DepositoIdentificadorDuplicado
             | AppError::UbicacionConDependencias
             | AppError::UbicacionDuplicada
-            | AppError::UltimoAdministrador => StatusCode::CONFLICT,
+            | AppError::UltimoAdministrador
+            | AppError::StockInsuficiente { .. }
+            | AppError::ProductoInactivo => StatusCode::CONFLICT,
             AppError::UbicacionHuerfana | AppError::Validacion(_) => {
                 StatusCode::UNPROCESSABLE_ENTITY
             }
@@ -94,6 +104,8 @@ impl AppError {
             AppError::UbicacionDuplicada => "ubicacion_duplicada",
             AppError::UbicacionHuerfana => "ubicacion_huerfana",
             AppError::UltimoAdministrador => "ultimo_administrador",
+            AppError::StockInsuficiente { .. } => "stock_insuficiente",
+            AppError::ProductoInactivo => "producto_inactivo",
             AppError::DebeCambiarPassword => "cambio_password_requerido",
             AppError::Validacion(_) => "validacion",
             AppError::Interno(_) => "interno",

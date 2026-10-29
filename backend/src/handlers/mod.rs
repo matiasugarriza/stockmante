@@ -1,7 +1,9 @@
 pub mod auth;
 pub mod categorias;
 pub mod depositos;
+pub mod movimientos;
 pub mod productos;
+pub mod stock;
 pub mod ubicaciones;
 pub mod usuarios;
 

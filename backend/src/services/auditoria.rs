@@ -10,6 +10,7 @@ use sqlx::{Postgres, Transaction};
 /// Tabla de referencia de las acciones auditadas.
 pub const TABLA_USUARIOS: &str = "usuarios";
 pub const TABLA_PRODUCTOS: &str = "productos";
+pub const TABLA_MOVIMIENTOS: &str = "movimientos";
 
 /// Acciones auditadas (valores estables en `auditoria.accion`).
 pub const ACCION_CREAR: &str = "CREAR";

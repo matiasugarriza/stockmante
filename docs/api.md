@@ -19,8 +19,8 @@ código (`utoipa`); esta página resume las decisiones que no se ven en el esque
 
 | Rol | Familia | Puede |
 |---|---|---|
-| `ADMIN`, `GERENTE` | `GESTION` | CRUD de usuarios, categorías, productos, depósitos, ubicaciones y asignaciones |
-| `OPERARIO`, `CAJERO` | `OPERACION` | Lectura de catálogo, búsqueda de caja y su propia sesión |
+| `ADMIN`, `GERENTE` | `GESTION` | CRUD de usuarios, categorías, productos, depósitos, ubicaciones y asignaciones; todos los movimientos incluido `AJUSTE` |
+| `OPERARIO`, `CAJERO` | `OPERACION` | Lectura de catálogo, búsqueda de caja, su propia sesión, consulta de stock e historial, y movimientos `ENTRADA`/`SALIDA`/`MERMA` |
 
 Las rutas de escritura y los listados de administración exigen `RequiereGestion`. El backend es la
 autoridad: ocultar un enlace en la UI no reemplaza el 403.
@@ -45,7 +45,8 @@ Códigos estables: `credenciales_invalidas`, `sesion_expirada`, `no_autenticado`
 `categoria_duplicada`, `deposito_con_dependencias`, `deposito_nombre_duplicado`,
 `deposito_identificador_duplicado`, `ubicacion_huerfana`, `ubicacion_con_dependencias`,
 `ubicacion_duplicada`,
-`ultimo_administrador`, `cambio_password_requerido`, `validacion`, `interno`.
+`ultimo_administrador`, `cambio_password_requerido`, `stock_insuficiente`,
+`producto_inactivo`, `validacion`, `interno`.
 
 ## Endpoints
 
@@ -123,6 +124,29 @@ primer carácter. `campo` ausente equivale a `todos` (SKU/código exactos primer
 Crear una ubicación con `deposito_id` inexistente o con un `padre_id` de otro depósito es
 `422 ubicacion_huerfana`. Mover una ubicación con hijos o productos asignados es
 `409 ubicacion_con_dependencias`.
+
+### Movimientos de stock (Módulo 2, spec 007)
+
+| Método | Ruta | Auth | Éxito |
+|---|---|---|---|
+| POST | `/api/movimientos` | sesión¹ | 201 movimiento con stock resultante |
+| GET | `/api/movimientos?tipo=&deposito_id=&producto_id=&desde=&hasta=&pagina=&por_pagina=` | sesión | 200 página |
+| GET | `/api/movimientos/{id}` | sesión | 200 con líneas |
+| GET | `/api/stock?q=&deposito_id=&categoria_id=&bajo_minimo=&activo=&pagina=&por_pagina=` | sesión | 200 página |
+| GET | `/api/stock/{producto_id}` | sesión | 200 desglose por depósito |
+
+¹ `ENTRADA`, `SALIDA` y `MERMA` para `OPERACION` y `GESTION`; `AJUSTE` solo `GESTION`
+(403 `sin_permisos`).
+
+Un movimiento tiene cabecera (tipo, depósito, motivo, observación opcional) y una o más
+líneas con `cantidad_delta` con signo: `ENTRADA > 0`, `SALIDA`/`MERMA < 0`, `AJUSTE ≠ 0`.
+La validación completa ocurre en una única transacción: si una línea falla, no se escribe
+nada (cabecera, líneas, auditoría ni stock). Errores nuevos: `409 stock_insuficiente`
+(`"Stock insuficiente en Principal: 3 disponibles, 5 solicitadas."`), `409 producto_inactivo`
+y `422 validacion` para depósito/ubicación inválidos. Motivo `OTRO` exige observación.
+
+`stock_por_deposito` es la fuente de verdad (con ubicación opcional);
+`productos.stock_actual` es el cache global recalculado en la misma transacción.
 
 ### Salud y documentación
 

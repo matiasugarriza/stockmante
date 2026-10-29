@@ -92,7 +92,12 @@ impl Modify for AgregarSeguridadCookie {
         crate::handlers::ubicaciones::actualizar,
         crate::handlers::ubicaciones::eliminar,
         crate::handlers::ubicaciones::desactivar,
-        crate::handlers::ubicaciones::reactivar
+        crate::handlers::ubicaciones::reactivar,
+        crate::handlers::movimientos::crear,
+        crate::handlers::movimientos::listar,
+        crate::handlers::movimientos::obtener,
+        crate::handlers::stock::listar,
+        crate::handlers::stock::detalle
     ),
     components(schemas(
         ErrorRespuesta,
@@ -106,6 +111,15 @@ impl Modify for AgregarSeguridadCookie {
         crate::models::deposito::Deposito,
         crate::models::deposito::Ubicacion,
         crate::models::deposito::ListaUbicaciones,
+        crate::models::stock::DepositoBreve,
+        crate::models::stock::UsuarioBreve,
+        crate::models::stock::LineaMovimiento,
+        crate::models::stock::MovimientoDetalle,
+        crate::models::stock::ListaMovimientos,
+        crate::models::stock::StockItem,
+        crate::models::stock::ListaStock,
+        crate::models::stock::DesgloseStock,
+        crate::models::stock::StockProducto,
         crate::services::usuarios::ListaUsuarios,
         crate::handlers::auth::LoginDto,
         crate::handlers::auth::CambioPasswordDto,
@@ -121,7 +135,9 @@ impl Modify for AgregarSeguridadCookie {
         crate::handlers::depositos::CrearDepositoDto,
         crate::handlers::depositos::ActualizarDepositoDto,
         crate::handlers::ubicaciones::CrearUbicacionDto,
-        crate::handlers::ubicaciones::ActualizarUbicacionDto
+        crate::handlers::ubicaciones::ActualizarUbicacionDto,
+        crate::handlers::movimientos::CrearMovimientoDto,
+        crate::handlers::movimientos::LineaMovimientoDto
     )),
     modifiers(&AgregarSeguridadCookie),
     security(("cookieAuth" = [])),
@@ -131,7 +147,9 @@ impl Modify for AgregarSeguridadCookie {
         (name = "categorias", description = "Categorías del catálogo"),
         (name = "productos", description = "Catálogo y búsqueda de caja"),
         (name = "depositos", description = "Depósitos y sus ubicaciones (GESTION)"),
-        (name = "ubicaciones", description = "Ubicaciones jerárquicas (GESTION)")
+        (name = "ubicaciones", description = "Ubicaciones jerárquicas (GESTION)"),
+        (name = "movimientos", description = "Entradas, salidas, mermas y ajustes"),
+        (name = "stock", description = "Consulta de stock y desglose por depósito")
     )
 )]
 pub struct ApiDoc;
