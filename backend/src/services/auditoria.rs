@@ -12,6 +12,7 @@ pub const TABLA_USUARIOS: &str = "usuarios";
 pub const TABLA_PRODUCTOS: &str = "productos";
 pub const TABLA_MOVIMIENTOS: &str = "movimientos";
 pub const TABLA_TRANSFERENCIAS: &str = "transferencias";
+pub const TABLA_CONTEOS: &str = "conteos";
 
 /// Acciones auditadas (valores estables en `auditoria.accion`).
 pub const ACCION_CREAR: &str = "CREAR";

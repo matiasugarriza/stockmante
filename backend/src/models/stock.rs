@@ -148,7 +148,73 @@ impl From<LineaFila> for LineaMovimiento {
     }
 }
 
-/// Fila del listado de stock.
+/// Detalle de un conteo de inventario (009).
+#[derive(Debug, Clone, Serialize, ToSchema)]
+pub struct ConteoLinea {
+    pub id: i32,
+    pub producto_id: i32,
+    pub producto_nombre: String,
+    pub sku: String,
+    pub ubicacion_id: Option<i32>,
+    pub ubicacion_nombre: Option<String>,
+    pub cantidad_sistema: i32,
+    pub cantidad_contada: Option<i32>,
+    pub diferencia: Option<i32>,
+}
+
+#[derive(Debug, Clone, Serialize, ToSchema)]
+pub struct ConteoDetalle {
+    pub id: i32,
+    pub deposito_id: i32,
+    pub deposito_nombre: String,
+    pub estado: String,
+    pub usuario: UsuarioBreve,
+    pub creado_en: DateTime<Utc>,
+    pub cerrado_en: Option<DateTime<Utc>>,
+    pub cancelado_en: Option<DateTime<Utc>>,
+    pub movimiento_ajuste_id: Option<i32>,
+    pub observacion: Option<String>,
+    pub lineas: Vec<ConteoLinea>,
+}
+
+#[derive(Debug, Clone, Serialize, ToSchema)]
+pub struct ListaConteos {
+    pub items: Vec<ConteoDetalle>,
+    pub total: i64,
+    pub pagina: i64,
+    pub por_pagina: i64,
+}
+
+/// Fila plana del SELECT de la cabecera del conteo.
+#[derive(Debug, Clone, sqlx::FromRow)]
+pub struct ConteoFila {
+    pub id: i32,
+    pub deposito_id: i32,
+    pub deposito_nombre: String,
+    pub estado: String,
+    pub usuario_id: i32,
+    pub usuario_nombre: String,
+    pub creado_en: DateTime<Utc>,
+    pub cerrado_en: Option<DateTime<Utc>>,
+    pub cancelado_en: Option<DateTime<Utc>>,
+    pub movimiento_ajuste_id: Option<i32>,
+    pub observacion: Option<String>,
+}
+
+/// Fila plana de una línea de conteo.
+#[derive(Debug, Clone, sqlx::FromRow)]
+pub struct ConteoLineaFila {
+    pub id: i32,
+    pub conteo_id: i32,
+    pub producto_id: i32,
+    pub producto_nombre: String,
+    pub sku: String,
+    pub ubicacion_id: Option<i32>,
+    pub ubicacion_nombre: Option<String>,
+    pub cantidad_sistema: i32,
+    pub cantidad_contada: Option<i32>,
+    pub diferencia: Option<i32>,
+}
 #[derive(Debug, Clone, sqlx::FromRow)]
 pub struct StockFila {
     pub producto_id: i32,

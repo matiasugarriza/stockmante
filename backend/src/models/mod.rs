@@ -1,5 +1,6 @@
 //! Modelos del catálogo, de depósitos y de stock (003/004/005/007).
 
+pub mod conteo;
 pub mod deposito;
 pub mod movimiento;
 pub mod producto;

@@ -55,6 +55,12 @@ pub enum AppError {
     ProductoInactivo,
     #[error("El depósito de origen y el de destino deben ser distintos.")]
     TransferenciaMismoDeposito,
+    #[error("El conteo ya está cerrado o cancelado.")]
+    ConteoCerrado,
+    #[error("El conteo está cancelado.")]
+    ConteoCancelado,
+    #[error("No existe el conteo.")]
+    ConteoNoEncontrado,
     #[error("{0}")]
     Validacion(String),
     #[error("Error interno. Intentá nuevamente o contactá al administrador")]
@@ -68,7 +74,7 @@ impl AppError {
             | AppError::SesionExpirada
             | AppError::NoAutenticado => StatusCode::UNAUTHORIZED,
             AppError::SinPermisos | AppError::DebeCambiarPassword => StatusCode::FORBIDDEN,
-            AppError::RecursoNoEncontrado(_) => StatusCode::NOT_FOUND,
+            AppError::RecursoNoEncontrado(_) | AppError::ConteoNoEncontrado => StatusCode::NOT_FOUND,
             AppError::EmailDuplicado
             | AppError::SkuDuplicado(_)
             | AppError::CodigoBarrasDuplicado
@@ -80,7 +86,9 @@ impl AppError {
             | AppError::UbicacionDuplicada
             | AppError::UltimoAdministrador
             |             AppError::StockInsuficiente { .. }
-            | AppError::ProductoInactivo => StatusCode::CONFLICT,
+            | AppError::ProductoInactivo
+            | AppError::ConteoCerrado
+            | AppError::ConteoCancelado => StatusCode::CONFLICT,
             AppError::UbicacionHuerfana
             | AppError::TransferenciaMismoDeposito
             | AppError::Validacion(_) => StatusCode::UNPROCESSABLE_ENTITY,
@@ -109,6 +117,9 @@ impl AppError {
             AppError::StockInsuficiente { .. } => "stock_insuficiente",
             AppError::ProductoInactivo => "producto_inactivo",
             AppError::TransferenciaMismoDeposito => "transferencia_mismo_deposito",
+            AppError::ConteoCerrado => "conteo_cerrado",
+            AppError::ConteoCancelado => "conteo_cancelado",
+            AppError::ConteoNoEncontrado => "conteo_no_encontrado",
             AppError::DebeCambiarPassword => "cambio_password_requerido",
             AppError::Validacion(_) => "validacion",
             AppError::Interno(_) => "interno",
