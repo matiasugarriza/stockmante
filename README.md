@@ -111,8 +111,19 @@ de stock debe ser transaccional (módulos posteriores); la lógica de acceso viv
 `opencode.json` declara un servidor MCP de PostgreSQL en modo **solo lectura** (DBHub). Requiere
 `DATABASE_URL` en `.env` y `npx` disponible. Ver [`docs/mcp.md`](./docs/mcp.md).
 
-## Alcance del Módulo 1
+## Módulos y roadmap
 
-Incluye login/sesión, usuarios, catálogo, búsqueda de caja, depósitos/ubicaciones, RBAC y auditoría
-básica. **Fuera de alcance**: movimientos de stock, transferencias, facturación, reportes
-financieros, notificaciones de stock mínimo, importación masiva y chatbot de inventario.
+El **Módulo 1** está implementado y cerrado: login/sesión, usuarios, catálogo, búsqueda de caja,
+depósitos/ubicaciones, RBAC y auditoría básica.
+
+Lo que estaba fuera de su alcance ya está especificado y todavía **no implementado**:
+
+| Módulo | Specs | Foco |
+|---|---|---|
+| 2 — Operación de stock | 007–011 | Movimientos, transferencias, consulta, conteo y alertas |
+| 3 — Abastecimiento y ventas | 012–014 | Compras con proveedores, ventas y reportes de salida |
+| 4 — Gobierno y asistencia | 015–017 | Auditoría consultable, importación y asistente |
+
+El orden de implementación, las prioridades y las migraciones reservadas viven en
+[`specs/README.md`](./specs/README.md#roadmap-posterior-al-módulo-1). Cada spec genera su `plan.md`
+y `tasks.md` al implementarse.
