@@ -29,6 +29,14 @@ pub enum AppError {
     CodigoBarrasDuplicado,
     #[error("Ya existe una categoría con ese nombre.")]
     CategoriaDuplicada,
+    #[error("Ya existe un proveedor con ese nombre.")]
+    ProveedorDuplicado,
+    #[error("La compra ya fue confirmada; no se puede confirmar dos veces.")]
+    CompraYaConfirmada,
+    #[error("La compra no se puede editar en su estado actual.")]
+    CompraNoEditable,
+    #[error("La venta ya está anulada; no se puede anular dos veces.")]
+    VentaYaAnulada,
     #[error("El depósito tiene ubicaciones o movimientos; desactívalo en lugar de borrarlo")]
     DepositoConDependencias,
     #[error("Ya existe un depósito con ese nombre")]
@@ -91,6 +99,10 @@ impl AppError {
             | AppError::SkuDuplicado(_)
             | AppError::CodigoBarrasDuplicado
             | AppError::CategoriaDuplicada
+            | AppError::ProveedorDuplicado
+            | AppError::CompraYaConfirmada
+            | AppError::CompraNoEditable
+            | AppError::VentaYaAnulada
             | AppError::DepositoConDependencias
             | AppError::DepositoNombreDuplicado
             | AppError::DepositoIdentificadorDuplicado
@@ -125,6 +137,10 @@ impl AppError {
             AppError::SkuDuplicado(_) => "sku_duplicado",
             AppError::CodigoBarrasDuplicado => "codigo_barras_duplicado",
             AppError::CategoriaDuplicada => "categoria_duplicada",
+            AppError::ProveedorDuplicado => "proveedor_duplicado",
+            AppError::CompraYaConfirmada => "compra_ya_confirmada",
+            AppError::CompraNoEditable => "compra_no_editable",
+            AppError::VentaYaAnulada => "venta_ya_anulada",
             AppError::DepositoConDependencias => "deposito_con_dependencias",
             AppError::DepositoNombreDuplicado => "deposito_nombre_duplicado",
             AppError::DepositoIdentificadorDuplicado => "deposito_identificador_duplicado",

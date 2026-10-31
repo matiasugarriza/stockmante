@@ -1,14 +1,18 @@
 pub mod auth;
 pub mod auditoria;
 pub mod categorias;
+pub mod clientes;
+pub mod compras;
 pub mod conteos;
 pub mod depositos;
 pub mod movimientos;
 pub mod productos;
+pub mod proveedores;
 pub mod stock;
 pub mod transferencias;
 pub mod ubicaciones;
 pub mod usuarios;
+pub mod ventas;
 
 use crate::error::AppError;
 use axum::Json;

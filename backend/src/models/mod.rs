@@ -4,6 +4,8 @@ pub mod conteo;
 pub mod deposito;
 pub mod movimiento;
 pub mod producto;
+pub mod proveedor;
 pub mod stock;
 pub mod transferencia;
 pub mod usuario;
+pub mod venta;
