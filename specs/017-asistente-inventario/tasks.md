@@ -15,16 +15,16 @@
 
 ## Phase 1: Backend
 
-- [ ] T001 [US17] Create service `backend/src/services/asistente.rs` (cliente LLM + tool dispatch)
-- [ ] T002 [US17] Create handler `backend/src/handlers/asistente.rs` + router + OpenAPI
-- [ ] T003 [US17] Tests (mock LLM)
-- [ ] T004 [US17] Run `cargo test`, `cargo sqlx prepare --check`
+- [X] T001 [US17] Create service `backend/src/services/asistente.rs` (cliente LLM + tool dispatch)
+- [X] T002 [US17] Create handler `backend/src/handlers/asistente.rs` + router + OpenAPI
+- [X] T003 [US17] Tests (mock LLM)
+- [X] T004 [US17] Run `cargo test`, `cargo sqlx prepare --check`
 
 ## Phase 2: Frontend
 
-- [ ] T005 [P] [US17] Create `frontend/src/routes/asistente/+page.svelte` (chat widget)
-- [ ] T006 [US17] Run `npm test`, `npm run check`, `npm run build`
+- [X] T005 [P] [US17] Create `frontend/src/routes/asistente/+page.svelte` (chat widget)
+- [X] T006 [US17] Run `npm test`, `npm run check`, `npm run build`
 
 ## Phase 3: Polish
 
-- [ ] T007 Update `docs/api.md`
+- [X] T007 Update `docs/api.md`

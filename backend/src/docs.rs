@@ -130,7 +130,11 @@ impl Modify for AgregarSeguridadCookie {
         crate::handlers::ventas::obtener_venta,
         crate::handlers::ventas::anular_venta,
         crate::handlers::stock::listar,
-        crate::handlers::stock::detalle
+        crate::handlers::stock::detalle,
+        crate::handlers::reportes::kardex,
+        crate::handlers::reportes::stock_valorizado,
+        crate::handlers::reportes::rotacion,
+        crate::handlers::reportes::ventas,
     ),
     components(schemas(
         ErrorRespuesta,
@@ -165,6 +169,10 @@ impl Modify for AgregarSeguridadCookie {
         crate::models::venta::VentaDetalle,
         crate::models::venta::VentaLinea,
         crate::models::venta::ListaVentas,
+        crate::services::reportes::KardexReporte,
+        crate::services::reportes::StockValorizadoReporte,
+        crate::services::reportes::RotacionReporte,
+        crate::services::reportes::VentasReporte,
         crate::models::stock::StockItem,
         crate::models::stock::ListaStock,
         crate::models::stock::DesgloseStock,

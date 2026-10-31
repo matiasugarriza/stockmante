@@ -1,13 +1,16 @@
 pub mod auth;
+pub mod asistente;
 pub mod auditoria;
 pub mod categorias;
 pub mod clientes;
 pub mod compras;
 pub mod conteos;
 pub mod depositos;
+pub mod importaciones;
 pub mod movimientos;
 pub mod productos;
 pub mod proveedores;
+pub mod reportes;
 pub mod stock;
 pub mod transferencias;
 pub mod ubicaciones;

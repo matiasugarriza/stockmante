@@ -37,6 +37,8 @@ pub enum AppError {
     CompraNoEditable,
     #[error("La venta ya está anulada; no se puede anular dos veces.")]
     VentaYaAnulada,
+    #[error("El asistente no está configurado en este entorno.")]
+    AsistenteNoDisponible,
     #[error("El depósito tiene ubicaciones o movimientos; desactívalo en lugar de borrarlo")]
     DepositoConDependencias,
     #[error("Ya existe un depósito con ese nombre")]
@@ -122,7 +124,7 @@ impl AppError {
             | AppError::TokenVerificacionInvalido
             | AppError::ProveedorNoSoportado => StatusCode::UNPROCESSABLE_ENTITY,
             AppError::Interno(_) => StatusCode::INTERNAL_SERVER_ERROR,
-            AppError::ProveedorNoDisponible => StatusCode::SERVICE_UNAVAILABLE,
+            AppError::ProveedorNoDisponible | AppError::AsistenteNoDisponible => StatusCode::SERVICE_UNAVAILABLE,
         }
     }
 
@@ -157,6 +159,7 @@ impl AppError {
             AppError::CorreoYaRegistrado => "correo_ya_registrado",
             AppError::TokenVerificacionInvalido => "token_verificacion_invalido",
             AppError::ProveedorNoDisponible => "proveedor_no_disponible",
+            AppError::AsistenteNoDisponible => "asistente_no_disponible",
             AppError::IdentidadYaVinculada => "identidad_ya_vinculada",
             AppError::UltimaIdentidad => "ultima_identidad",
             AppError::ProveedorNoSoportado => "proveedor_no_soportado",

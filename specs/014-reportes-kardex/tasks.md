@@ -15,20 +15,20 @@
 
 ## Phase 1: Backend
 
-- [ ] T001 [P] [US14] Create service `backend/src/services/reportes.rs` (kardex, valorización, resúmenes)
-- [ ] T002 [US14] Create handler `backend/src/handlers/reportes.rs` + router + OpenAPI
-- [ ] T003 [US14] Tests unit + integration
-- [ ] T004 [US14] Run `cargo test`, `cargo sqlx prepare --check`
+- [X] T001 [P] [US14] Create service `backend/src/services/reportes.rs` (kardex, valorización, resúmenes)
+- [X] T002 [US14] Create handler `backend/src/handlers/reportes.rs` + router + OpenAPI
+- [X] T003 [US14] Tests unit + integration
+- [X] T004 [US14] Run `cargo test`, `cargo sqlx prepare --check`
 
 ## Phase 2: Frontend
 
-- [ ] T005 [P] [US14] Create `frontend/src/routes/admin/reportes/+page.svelte`
-- [ ] T006 [US14] Schemas + API client
-- [ ] T007 [US14] Run `npm test`, `npm run check`, `npm run build`
+- [X] T005 [P] [US14] Create `frontend/src/routes/admin/reportes/+page.svelte`
+- [X] T006 [US14] Schemas + API client
+- [X] T007 [US14] Run `npm test`, `npm run check`, `npm run build`
 
 ## Phase 3: Polish
 
-- [ ] T008 Update `docs/api.md`
+- [X] T008 Update `docs/api.md`
 
 ---
 
