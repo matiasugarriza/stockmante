@@ -5,7 +5,9 @@
 //! si la acción se revierte, la fila de auditoría también desaparece.
 
 use crate::error::AppError;
+use crate::services::normalizar_paginacion;
 use sqlx::{Postgres, Transaction};
+use sqlx::PgPool;
 
 /// Tabla de referencia de las acciones auditadas.
 pub const TABLA_USUARIOS: &str = "usuarios";
@@ -40,4 +42,59 @@ pub async fn registrar(
     .execute(&mut **tx)
     .await?;
     Ok(())
+}
+
+#[derive(Debug, sqlx::FromRow)]
+pub struct AuditoriaFila {
+    pub id: i32,
+    pub tabla_ref: String,
+    pub registro_id: i32,
+    pub accion: String,
+    pub usuario_id: i32,
+    pub usuario_nombre: String,
+    pub cuando: chrono::DateTime<chrono::Utc>,
+}
+
+pub async fn listar(
+    pool: &PgPool,
+    tabla_ref: Option<&str>,
+    usuario_id: Option<i32>,
+    desde: Option<chrono::DateTime<chrono::Utc>>,
+    hasta: Option<chrono::DateTime<chrono::Utc>>,
+    pagina: Option<i64>,
+    por_pagina: Option<i64>,
+) -> Result<(Vec<AuditoriaFila>, i64), AppError> {
+    let (_p, pp, offset) = normalizar_paginacion(pagina, por_pagina)?;
+    let total: i64 = sqlx::query_scalar(
+        r#"SELECT count(*) FROM auditoria a
+           WHERE ($1::text IS NULL OR a.tabla_ref = $1)
+             AND ($2::int IS NULL OR a.usuario_id = $2)
+             AND ($3::timestamptz IS NULL OR a.cuando >= $3)
+             AND ($4::timestamptz IS NULL OR a.cuando <= $4)"#,
+    )
+    .bind(tabla_ref)
+    .bind(usuario_id)
+    .bind(desde)
+    .bind(hasta)
+    .fetch_one(pool)
+    .await?;
+    let filas = sqlx::query_as::<_, AuditoriaFila>(
+        r#"SELECT a.id, a.tabla_ref, a.registro_id, a.accion, a.usuario_id, u.nombre AS usuario_nombre, a.cuando
+           FROM auditoria a JOIN usuarios u ON u.id = a.usuario_id
+           WHERE ($1::text IS NULL OR a.tabla_ref = $1)
+             AND ($2::int IS NULL OR a.usuario_id = $2)
+             AND ($3::timestamptz IS NULL OR a.cuando >= $3)
+             AND ($4::timestamptz IS NULL OR a.cuando <= $4)
+           ORDER BY a.cuando DESC, a.id DESC
+           LIMIT $5 OFFSET $6"#,
+    )
+    .bind(tabla_ref)
+    .bind(usuario_id)
+    .bind(desde)
+    .bind(hasta)
+    .bind(pp)
+    .bind(offset)
+    .fetch_all(pool)
+    .await?;
+    Ok((filas, total))
 }

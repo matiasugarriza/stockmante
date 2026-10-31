@@ -59,6 +59,7 @@ pub fn construir_router(estado: AppEstado) -> Router {
     let mut router = Router::new()
         .route("/api/salud", get(handlers::salud))
         .nest("/api/auth", handlers::auth::router())
+        .nest("/api/auditoria", handlers::auditoria::router())
         .merge(autenticado);
 
     // 000: Swagger UI + OpenAPI. Públicas y fuera del gate de sesión; se

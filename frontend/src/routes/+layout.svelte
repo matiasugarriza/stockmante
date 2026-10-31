@@ -62,6 +62,7 @@
 							<span class="ml-1 rounded bg-red-500 px-1.5 py-0.5 text-xs text-white">{alertasBajoMinimo}</span>
 						{/if}
 					</a>
+					<a class="rounded px-2 py-1 hover:bg-slate-100" href="/admin/auditoria">Auditoría</a>
 				{/if}
 				<span class="text-slate-600">
 					{$sesion.usuario.nombre}
