@@ -44,6 +44,7 @@ pub fn construir_router(estado: AppEstado) -> Router {
     let autenticado = Router::new()
         .nest("/api/usuarios", handlers::usuarios::router())
         .nest("/api/categorias", handlers::categorias::router())
+        .nest("/api/conteos", handlers::conteos::router())
         .nest("/api/productos", handlers::productos::router())
         .nest("/api/depositos", handlers::depositos::router())
         .nest("/api/ubicaciones", handlers::ubicaciones::router())

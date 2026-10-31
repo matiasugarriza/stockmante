@@ -21,6 +21,16 @@ impl EnvioCorreo for CorreoQueFalla {
     ) -> Result<(), String> {
         Err("SMTP no disponible".into())
     }
+
+    async fn enviar_verificacion(
+        &self,
+        _destino: &str,
+        _nombre: &str,
+        _token: &str,
+        _base_url: &str,
+    ) -> Result<(), String> {
+        Err("SMTP no disponible".into())
+    }
 }
 
 #[tokio::test]

@@ -38,10 +38,12 @@
 				<a class="rounded px-2 py-1 hover:bg-slate-100" href="/movimientos">Movimientos</a>
 				<a class="rounded px-2 py-1 hover:bg-slate-100" href="/transferencias">Transferencias</a>
 				{#if $sesion.usuario.familia_rol === 'GESTION'}
+					<a class="rounded px-2 py-1 hover:bg-slate-100" href="/conteos">Conteos</a>
 					<a class="rounded px-2 py-1 hover:bg-slate-100" href="/admin/usuarios">Usuarios</a>
 					<a class="rounded px-2 py-1 hover:bg-slate-100" href="/admin/categorias">Categorías</a>
 					<a class="rounded px-2 py-1 hover:bg-slate-100" href="/admin/productos">Productos</a>
 					<a class="rounded px-2 py-1 hover:bg-slate-100" href="/admin/depositos">Depósitos</a>
+					<a class="rounded px-2 py-1 hover:bg-slate-100" href="/admin/stock">Stock</a>
 				{/if}
 				<span class="text-slate-600">
 					{$sesion.usuario.nombre}

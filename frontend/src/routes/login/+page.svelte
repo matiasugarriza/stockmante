@@ -139,6 +139,24 @@
 					{enviando ? 'Ingresando…' : 'Ingresar'}
 				</button>
 			</form>
+
+			<div class="mt-4 flex flex-col gap-2">
+				<a
+					class="rounded border border-slate-300 px-4 py-2 text-center text-sm hover:bg-slate-100"
+					href="/api/auth/sso/google/iniciar"
+				>
+					Continuar con Google
+				</a>
+				<a
+					class="rounded border border-slate-300 px-4 py-2 text-center text-sm hover:bg-slate-100"
+					href="/api/auth/sso/microsoft/iniciar"
+				>
+					Continuar con Microsoft
+				</a>
+				<p class="text-center text-sm text-slate-500">
+					¿No tenés cuenta? <a class="text-blue-600 underline" href="/registro">Registrate</a>
+				</p>
+			</div>
 		{:else}
 			<p class="mb-5 text-sm text-amber-700">
 				Tu contraseña es temporal: creá una nueva para continuar.

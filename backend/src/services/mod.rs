@@ -3,9 +3,12 @@
 pub mod auditoria;
 pub mod auth;
 pub mod categorias;
+pub mod conteos;
 pub mod depositos;
 pub mod movimientos;
 pub mod productos;
+pub mod registro;
+pub mod sso;
 pub mod stock;
 pub mod transferencias;
 pub mod usuarios;

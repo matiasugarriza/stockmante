@@ -55,6 +55,24 @@ pub enum AppError {
     ProductoInactivo,
     #[error("El depósito de origen y el de destino deben ser distintos.")]
     TransferenciaMismoDeposito,
+    #[error("El conteo ya está cerrado o cancelado.")]
+    ConteoCerrado,
+    #[error("El conteo está cancelado.")]
+    ConteoCancelado,
+    #[error("No existe el conteo.")]
+    ConteoNoEncontrado,
+    #[error("El correo ya está registrado.")]
+    CorreoYaRegistrado,
+    #[error("El token de verificación es inválido o expiró.")]
+    TokenVerificacionInvalido,
+    #[error("El proveedor SSO no está disponible.")]
+    ProveedorNoDisponible,
+    #[error("La identidad ya está vinculada a otra cuenta.")]
+    IdentidadYaVinculada,
+    #[error("No se puede desvincular la última identidad disponible.")]
+    UltimaIdentidad,
+    #[error("Proveedor SSO no soportado.")]
+    ProveedorNoSoportado,
     #[error("{0}")]
     Validacion(String),
     #[error("Error interno. Intentá nuevamente o contactá al administrador")]
@@ -68,7 +86,7 @@ impl AppError {
             | AppError::SesionExpirada
             | AppError::NoAutenticado => StatusCode::UNAUTHORIZED,
             AppError::SinPermisos | AppError::DebeCambiarPassword => StatusCode::FORBIDDEN,
-            AppError::RecursoNoEncontrado(_) => StatusCode::NOT_FOUND,
+            AppError::RecursoNoEncontrado(_) | AppError::ConteoNoEncontrado => StatusCode::NOT_FOUND,
             AppError::EmailDuplicado
             | AppError::SkuDuplicado(_)
             | AppError::CodigoBarrasDuplicado
@@ -80,11 +98,19 @@ impl AppError {
             | AppError::UbicacionDuplicada
             | AppError::UltimoAdministrador
             |             AppError::StockInsuficiente { .. }
-            | AppError::ProductoInactivo => StatusCode::CONFLICT,
+            | AppError::ProductoInactivo
+            | AppError::ConteoCerrado
+            | AppError::ConteoCancelado
+            | AppError::CorreoYaRegistrado
+            | AppError::IdentidadYaVinculada
+            | AppError::UltimaIdentidad => StatusCode::CONFLICT,
             AppError::UbicacionHuerfana
             | AppError::TransferenciaMismoDeposito
-            | AppError::Validacion(_) => StatusCode::UNPROCESSABLE_ENTITY,
+            | AppError::Validacion(_)
+            | AppError::TokenVerificacionInvalido
+            | AppError::ProveedorNoSoportado => StatusCode::UNPROCESSABLE_ENTITY,
             AppError::Interno(_) => StatusCode::INTERNAL_SERVER_ERROR,
+            AppError::ProveedorNoDisponible => StatusCode::SERVICE_UNAVAILABLE,
         }
     }
 
@@ -109,6 +135,15 @@ impl AppError {
             AppError::StockInsuficiente { .. } => "stock_insuficiente",
             AppError::ProductoInactivo => "producto_inactivo",
             AppError::TransferenciaMismoDeposito => "transferencia_mismo_deposito",
+            AppError::ConteoCerrado => "conteo_cerrado",
+            AppError::ConteoCancelado => "conteo_cancelado",
+            AppError::ConteoNoEncontrado => "conteo_no_encontrado",
+            AppError::CorreoYaRegistrado => "correo_ya_registrado",
+            AppError::TokenVerificacionInvalido => "token_verificacion_invalido",
+            AppError::ProveedorNoDisponible => "proveedor_no_disponible",
+            AppError::IdentidadYaVinculada => "identidad_ya_vinculada",
+            AppError::UltimaIdentidad => "ultima_identidad",
+            AppError::ProveedorNoSoportado => "proveedor_no_soportado",
             AppError::DebeCambiarPassword => "cambio_password_requerido",
             AppError::Validacion(_) => "validacion",
             AppError::Interno(_) => "interno",
