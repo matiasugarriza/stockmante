@@ -45,9 +45,9 @@
 |---|---|---|---|
 | POST | `/api/auth/registro` | público | 202 registro pendiente |
 | GET | `/api/auth/verificar-correo?token=` | público | 200 cuenta activada |
-| GET | `/api/auth/sso/config` | público | 200 `{google_disponible, microsoft_disponible}` |
-| GET | `/api/auth/sso/{proveedor}/iniciar` | público | 302 redirección al proveedor |
-| GET | `/api/auth/sso/{proveedor}/callback` | público | 200 sesión creada (cookie) |
+| GET | `/api/auth/sso/config` | público | 200 `{google_disponible, microsoft_disponible}` (credenciales + salud, FR-071) |
+| GET | `/api/auth/sso/{proveedor}/iniciar` | público | 307 redirección al proveedor |
+| GET | `/api/auth/sso/{proveedor}/callback` | público | 303 redirige al panel con sesión creada (cookie) |
 | GET | `/api/auth/login` | pública | 204 + Set-Cookie (ver handlers existentes) |
 | POST | `/api/auth/logout` | sesión | 204 |
 | GET | `/api/auth/sesion` | sesión | 200 datos de sesión |

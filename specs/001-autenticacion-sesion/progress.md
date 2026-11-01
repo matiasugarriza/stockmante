@@ -165,3 +165,35 @@ Se revisó y actualizó `spec.md` para reflejar los ajustes funcionales y de arq
 - Follow-up cerrado el 2026-10-25: queries de 002 (`services/usuarios.rs`) y 003
   (`services/categorias.rs`, `services/productos.rs`) migradas a macros; `.sqlx` regenerado y
   `cargo sqlx prepare --check` verde.
+
+## Revisión de observaciones 2026-11-01 (SSO, registro, ocultado)
+
+Verificación y corrección de las cuatro observaciones del usuario sobre 001:
+
+1. **«SSO Google no funciona»** — tres causas corregidas:
+   - Los botones `<a>` apuntaban a `/api/auth/sso/...` **relativo**: en el origen del frontend
+     (Vite sin proxy `/api`) respondía **404** y el flujo ni arrancaba. Ahora usan
+     `urlInicioSso()` con el origen del backend (`PUBLIC_API_URL`), verificado en vivo
+     (`/api/auth/sso/config` → 404 en `:5173`, 200 en `:3000`).
+   - El callback devolvía **204** en una navegación del navegador → pantalla en blanco con la
+     sesión ya creada. Ahora redirige **303 a `APP_URL/`** con la cookie puesta.
+   - `sso_iniciar` usaba siempre el `client_id` de **Google** (también para Microsoft); ahora
+     toma el del proveedor pedido (vacío ⇒ 503 `sso_no_configurado`, pinneado por
+     `sso_iniciar_microsoft_sin_credenciales_devuelve_sso_no_configurado`).
+   - Queda **fuera del código**: verificar en Google Cloud Console que la *Authorized redirect
+     URI* incluya exactamente `http://localhost:3000/api/auth/sso/google/callback`.
+2. **Formulario de registro** — existía (ruta `/registro`, `POST /api/auth/registro` 202,
+   anti-enumeración); faltaba el destino del enlace del correo: la ruta **`/verificar-correo`**
+   no existía y el link de verificación (5173/verificar-correo) muería. Creada con auto-verificación
+   al cargar, estados ok/error/sin-token y salida a `/login`.
+3. **Ocultar SSO si no funciona** — se agregó la **salud del proveedor** (FR-071): el
+   `GET /auth/sso/config` combina credenciales + sonda HTTP (`SondaSso`, timeout 1,5 s, cache
+   60 s, inyectable en `AppEstado` con modo fijo para tests); si la salud falla, el frontend
+   oculta el botón. El ocultado por credenciales/fallo de red del config ya existía.
+4. **Contraseña manual/automática + mensaje en pantalla** — es `002/FR-008b` (Phase 2 de
+   `002-gestion-usuarios/tasks.md`), fuera de esta spec.
+
+Evidencia: `cargo test` completo en verde (incluye `test_sso_config` 3/3 y
+`test_sso_no_configurado` 2/2 nuevos), `npm test` 167/167, `npm run check` 0/0.
+Renumeración de IDs: `FR-009`–`FR-012` → `FR-070`–`FR-073` y `SC-005`–`SC-007` → `SC-026`–`SC-028`
+(los dueños originales de 003/004/005/006 no se tocaron).

@@ -1,4 +1,5 @@
-//! T034 — GET /api/auth/sso/config: disponibilidad de proveedores SSO.
+//! T034 — GET /api/auth/sso/config: disponibilidad de proveedores SSO
+//! (credenciales + salud del proveedor, FR-071).
 
 #[path = "../unit/common/mod.rs"]
 mod common;
@@ -11,10 +12,11 @@ use stockmante_backend::app::{construir_router, AppEstado};
 use stockmante_backend::auth::reloj::RelojSistema;
 use stockmante_backend::config::AppConfig;
 use stockmante_backend::mail::envio::CorreoDev;
+use stockmante_backend::services::sso::SondaSso;
 use std::sync::Arc;
 use tower::ServiceExt;
 
-async fn app_con_config(google_id: &str, google_secret: &str, ms_id: &str, ms_secret: &str) -> (axum::Router, sqlx::PgPool) {
+async fn app_con(google_id: &str, google_secret: &str, ms_id: &str, ms_secret: &str, sonda: SondaSso) -> (axum::Router, sqlx::PgPool) {
     let _ = dotenvy::dotenv();
     let pool = pool_de_test().await;
     let config = AppConfig {
@@ -38,40 +40,45 @@ async fn app_con_config(google_id: &str, google_secret: &str, ms_id: &str, ms_se
         config,
         reloj: Arc::new(RelojSistema),
         correo: Arc::new(CorreoDev::new()),
+        salud_sso: Arc::new(sonda),
     };
     (construir_router(estado), pool)
 }
 
-#[tokio::test]
-async fn sso_config_sin_credenciales_devuelve_false() {
-    let (app, _pool) = app_con_config("", "", "", "").await;
+async fn pedir_sso_config(app: axum::Router) -> Value {
     let req = Request::builder()
         .method("GET")
         .uri("/api/auth/sso/config")
         .header(header::CONTENT_TYPE, "application/json")
         .body(Body::empty())
         .expect("request");
-
     let res = app.oneshot(req).await.expect("request");
     assert_eq!(res.status(), StatusCode::OK);
-    let body: Value = cuerpo_json(res).await;
+    cuerpo_json(res).await
+}
+
+#[tokio::test]
+async fn sso_config_sin_credenciales_devuelve_false() {
+    let (app, _pool) = app_con("", "", "", "", SondaSso::fija(true, true)).await;
+    let body = pedir_sso_config(app).await;
     assert_eq!(body["google_disponible"], json!(false));
     assert_eq!(body["microsoft_disponible"], json!(false));
 }
 
 #[tokio::test]
 async fn sso_config_con_credenciales_devuelve_true() {
-    let (app, _pool) = app_con_config("g-id", "g-secret", "m-id", "m-secret").await;
-    let req = Request::builder()
-        .method("GET")
-        .uri("/api/auth/sso/config")
-        .header(header::CONTENT_TYPE, "application/json")
-        .body(Body::empty())
-        .expect("request");
-
-    let res = app.oneshot(req).await.expect("request");
-    assert_eq!(res.status(), StatusCode::OK);
-    let body: Value = cuerpo_json(res).await;
+    let (app, _pool) = app_con("g-id", "g-secret", "m-id", "m-secret", SondaSso::fija(true, true)).await;
+    let body = pedir_sso_config(app).await;
     assert_eq!(body["google_disponible"], json!(true));
     assert_eq!(body["microsoft_disponible"], json!(true));
+}
+
+/// FR-071: si el servicio de salud del proveedor falla, el botón se oculta
+/// aunque las credenciales estén presentes.
+#[tokio::test]
+async fn sso_config_con_salud_falla_oculta_ese_proveedor() {
+    let (app, _pool) = app_con("g-id", "g-secret", "m-id", "m-secret", SondaSso::fija(false, true)).await;
+    let body = pedir_sso_config(app).await;
+    assert_eq!(body["google_disponible"], json!(false), "Google caído debe ocultarse");
+    assert_eq!(body["microsoft_disponible"], json!(true), "Microsoft sano sigue visible");
 }

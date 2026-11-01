@@ -25,6 +25,9 @@ async fn app_de_test() -> (axum::Router, sqlx::PgPool, Arc<CorreoDev>) {
         config,
         reloj: Arc::new(RelojSistema),
         correo: correo.clone(),
+        salud_sso: Arc::new(
+            stockmante_backend::services::sso::SondaSso::fija(true, true),
+        ),
     };
     (construir_router(estado), pool, correo)
 }

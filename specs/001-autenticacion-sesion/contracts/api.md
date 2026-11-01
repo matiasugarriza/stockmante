@@ -23,6 +23,14 @@ Shape de error estándar (sin adornos — Principio III):
 | POST | `/auth/logout` | sesión | Revoca sesión; 204. |
 | GET | `/auth/sesion` | sesión | → `{ "usuario": { id, nombre, email, rol, familia_rol, debe_cambiar_password } }` o 401. |
 | POST | `/auth/cambiar-password` | sesión | Body: `{ "password_actual", "password_nueva" }` (la actual puede ser la temporal). Valida política. 204; `password_temporal=false`. 422 si no cumple política. |
+| POST | `/auth/registro` | pública | Body: `{ "nombre", "email", "password" }` → **202 anti-enumeración** (mismo mensaje aunque el correo exista); crea cuenta sin verificar y envía el enlace de verificación (FR-070). 422 entrada inválida. |
+| GET | `/auth/verificar-correo?token=` | pública | → 200 cuenta activada; 422 token inválido o expirado. La SPA expone `/verificar-correo` y llama este endpoint (FR-070). |
+| GET | `/auth/sso/config` | pública | → 200 `{ "google_disponible", "microsoft_disponible" }`: credenciales **y salud** del proveedor (sondeo con timeout 1,5 s, cache 60 s); si falla, el frontend oculta el botón (FR-071). |
+| GET | `/auth/sso/{proveedor}/iniciar` | pública | → 307 al proveedor con su `client_id` y `redirect_uri = SSO_REDIRECT_BASE/api/auth/sso/{proveedor}/callback` + cookie `sso_state` (10 min); 503 `sso_no_configurado` sin credenciales del proveedor pedido; 422 proveedor no soportado. |
+| GET | `/auth/sso/{proveedor}/callback` | pública | → **303 a `APP_URL/`** con Set-Cookie de sesión (redirigir en vez de 204 evita la pantalla en blanco del navegador); 422 state inválido; 503 proveedor caído (FR-071). |
+| GET | `/auth/identidades` | sesión | → 200 lista `[{ proveedor, email }]` (FR-072). |
+| POST | `/auth/identidades/{proveedor}/vincular` | sesión | Body `{ code, state }` → 200; 409 `identidad_ya_vinculada`; 422 proveedor no soportado. |
+| DELETE | `/auth/identidades/{proveedor}` | sesión | → 204; 409 `ultima_identidad` si es la única identidad sin contraseña local. |
 
 ## Guards
 

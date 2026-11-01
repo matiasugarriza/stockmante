@@ -2,7 +2,7 @@
  * Cliente de autenticación (Habilidad M1-F): las 4 rutas de contracts/api.md.
  * El backend setea/borra la cookie HttpOnly; acá solo pedimos con credentials.
  */
-import { api } from './client';
+import { api, BASE } from './client';
 import {
   SesionResponseSchema,
   type CambioPasswordInput,
@@ -48,4 +48,18 @@ export async function registro(datos: RegistroInput): Promise<void> {
 export async function obtenerSsoConfig(): Promise<SsoConfig> {
   const body = await api<unknown>('/api/auth/sso/config');
   return SsoConfigSchema.parse(body);
+}
+
+/**
+ * URL **absoluta** del inicio del flujo SSO. Los botones son `<a>` de
+ * navegación: contra el origen del frontend (sin proxy `/api` en Vite)
+ * respondían 404 — el flujo se lanza directo contra el backend.
+ */
+export function urlInicioSso(proveedor: 'google' | 'microsoft'): string {
+  return `${BASE}/api/auth/sso/${proveedor}/iniciar`;
+}
+
+/** Confirma la cuenta con el token del enlace del correo de verificación. */
+export async function verificarCorreo(token: string): Promise<void> {
+  await api(`/api/auth/verificar-correo?token=${encodeURIComponent(token)}`);
 }

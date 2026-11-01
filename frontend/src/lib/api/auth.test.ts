@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { ApiError } from './client';
-import { cambiarPassword, login, logout, obtenerSesion } from './auth';
+import { cambiarPassword, login, logout, obtenerSesion, urlInicioSso, verificarCorreo } from './auth';
 
 describe('cliente de auth', () => {
 	afterEach(() => {
@@ -91,5 +91,24 @@ describe('cliente de auth', () => {
 			password_actual: 'Temporal1',
 			password_nueva: 'Nueva1234'
 		});
+	});
+
+	// SSO: los <a> de navegación NO pasan por fetch ni por el dev server de
+	// Vite (que responde 404 en /api), así que la URL debe ser absoluta al
+	// backend (regresión del reporte "SSO Google no funciona").
+	it('urlInicioSso devuelve una URL absoluta al backend', () => {
+		const url = urlInicioSso('google');
+		expect(url).toMatch(/^https?:\/\//);
+		expect(url).toContain('/api/auth/sso/google/iniciar');
+		expect(urlInicioSso('microsoft')).toContain('/api/auth/sso/microsoft/iniciar');
+	});
+
+	it('verificarCorreo hace GET con el token codificado', async () => {
+		const fetchMock = vi.fn(async () => new Response(null, { status: 200 }));
+		vi.stubGlobal('fetch', fetchMock);
+		await verificarCorreo('tok 123/abc');
+		const [url, init] = fetchMock.mock.calls[0] as unknown as [string, RequestInit];
+		expect(url).toContain('/api/auth/verificar-correo?token=tok%20123%2Fabc');
+		expect(init.method ?? 'GET').toBe('GET');
 	});
 });

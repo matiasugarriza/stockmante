@@ -3,7 +3,9 @@
  * Usa cookies de sesión (`credentials: 'include'`); el backend setea la cookie HttpOnly.
  */
 
-const BASE = import.meta.env.PUBLIC_API_URL ?? 'http://localhost:3000';
+/** Origen del backend; también lo usan los enlaces de navegación (`<a>`),
+ * que no pasan por `fetch` ni por el dev server de Vite. */
+export const BASE = import.meta.env.PUBLIC_API_URL ?? 'http://localhost:3000';
 
 export interface ErrorBody {
   error: { codigo: string; mensaje: string };

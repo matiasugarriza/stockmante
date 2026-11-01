@@ -72,9 +72,9 @@ Como **Operario/Cajero**, quiero iniciar sesión con mi correo y contraseña par
 | ------ | -------------------------------------------- | ------- | ---------------------------------------------------------------------- |
 | POST   | `/api/auth/registro`                         | público | Procesa el **formulario de registro**, 202 pendiente                   |
 | GET    | `/api/auth/verificar-correo?token=`          | público | 200 cuenta activada                                                    |
-| GET    | `/api/auth/sso/config`                       | público | 200 `{ "google_disponible": bool, "microsoft_disponible": bool }` — estado de disponibilidad de SSO (para ocultar/mostrar UI) |
-| GET    | `/api/auth/sso/{proveedor}/iniciar`          | público | 302 redirección al proveedor (google/microsoft) |
-| GET    | `/api/auth/sso/{proveedor}/callback`         | público | 200 sesión creada (cookie) |
+| GET    | `/api/auth/sso/config`                       | público | 200 `{ "google_disponible": bool, "microsoft_disponible": bool }` — credenciales **y salud** del proveedor (FR-071; el frontend oculta los botones si falta alguna) |
+| GET    | `/api/auth/sso/{proveedor}/iniciar`          | público | 307 redirección al proveedor (google/microsoft) |
+| GET    | `/api/auth/sso/{proveedor}/callback`         | público | 303 redirige al panel con sesión creada (cookie) |
 | GET    | `/api/auth/identidades`                      | sesión  | 200 lista de identidades vinculadas                                    |
 | POST   | `/api/auth/identidades/{proveedor}/vincular` | sesión  | 200 identidad vinculada                                                |
 | DELETE | `/api/auth/identidades/{proveedor}`          | sesión  | 204 identidad desvinculada                                             |

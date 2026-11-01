@@ -30,6 +30,9 @@ async fn app_con_config(ajustar: impl FnOnce(&mut AppConfig)) -> (axum::Router, 
         config,
         reloj: Arc::new(RelojSistema),
         correo: Arc::new(CorreoDev::new()),
+        salud_sso: Arc::new(
+            stockmante_backend::services::sso::SondaSso::fija(true, true),
+        ),
     };
     (construir_router(estado), pool)
 }

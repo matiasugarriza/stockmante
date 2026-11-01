@@ -48,6 +48,7 @@ pub fn app_con(pool: PgPool) -> axum::Router {
         config,
         reloj: Arc::new(RelojSistema),
         correo: Arc::new(CorreoDev::new()),
+        salud_sso: Arc::new(stockmante_backend::services::sso::SondaSso::fija(true, true)),
     };
     construir_router(estado)
 }

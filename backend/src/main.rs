@@ -5,6 +5,7 @@ use stockmante_backend::{
     db,
     error::AppError,
     mail::{envio::{CorreoDev, EnvioCorreo}, smtp::CorreoSmtp},
+    services::sso::SondaSso,
 };
 use std::sync::Arc;
 
@@ -47,6 +48,7 @@ async fn arrancar() -> Result<(), AppError> {
         config: config.clone(),
         reloj: Arc::new(RelojSistema),
         correo,
+        salud_sso: Arc::new(SondaSso::http()),
     };
 
     let app = construir_router(estado);

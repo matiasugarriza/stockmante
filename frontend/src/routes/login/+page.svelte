@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
 	import { ApiError } from '#lib/api/client';
-	import { cambiarPassword, login, obtenerSsoConfig } from '#lib/api/auth';
+	import { cambiarPassword, login, obtenerSsoConfig, urlInicioSso } from '#lib/api/auth';
 	import {
 		CambioPasswordSchema,
 		LoginSchema
@@ -158,7 +158,7 @@
 				{#if ssoConfig?.google_disponible}
 					<a
 						class="rounded border border-slate-300 px-4 py-2 text-center text-sm hover:bg-slate-100"
-						href="/api/auth/sso/google/iniciar"
+						href={urlInicioSso('google')}
 					>
 						Continuar con Google
 					</a>
@@ -166,7 +166,7 @@
 				{#if ssoConfig?.microsoft_disponible}
 					<a
 						class="rounded border border-slate-300 px-4 py-2 text-center text-sm hover:bg-slate-100"
-						href="/api/auth/sso/microsoft/iniciar"
+						href={urlInicioSso('microsoft')}
 					>
 						Continuar con Microsoft
 					</a>

@@ -292,7 +292,16 @@ pub async fn verificar_correo(
     security(())
 )]
 pub async fn sso_config(State(estado): State<AppEstado>) -> axum::Json<SsoConfig> {
-    axum::Json(services::sso::sso_config(&estado.config))
+    let mut cfg = services::sso::sso_config(&estado.config);
+    // FR-071: credenciales presentes + proveedor que responde; si la salud
+    // falla, el botón se oculta igual que si faltaran las credenciales.
+    if cfg.google_disponible && !estado.salud_sso.salud("google").await {
+        cfg.google_disponible = false;
+    }
+    if cfg.microsoft_disponible && !estado.salud_sso.salud("microsoft").await {
+        cfg.microsoft_disponible = false;
+    }
+    axum::Json(cfg)
 }
 
 /// GET /api/auth/sso/{proveedor}/iniciar → 302.
@@ -322,7 +331,13 @@ pub async fn sso_iniciar(
     );
     let url = services::sso::url_autorizacion(
         &proveedor,
-        &estado.config.google_client_id,
+        // El client_id del proveedor pedido: Google nunca sirve para Microsoft
+        // (vacío ⇒ 503 sso_no_configurado en url_autorizacion).
+        match proveedor.as_str() {
+            "google" => estado.config.google_client_id.as_str(),
+            "microsoft" => estado.config.microsoft_client_id.as_str(),
+            _ => "",
+        },
         &state,
         &redirect_uri,
     )?;
@@ -338,7 +353,7 @@ pub async fn sso_iniciar(
     Ok((jar, axum::response::Redirect::temporary(&url)))
 }
 
-/// GET /api/auth/sso/{proveedor}/callback → 204 + cookie.
+/// GET /api/auth/sso/{proveedor}/callback → 303 al panel + cookie de sesión.
 #[utoipa::path(
     get,
     path = "/api/auth/sso/{proveedor}/callback",
@@ -350,7 +365,7 @@ pub async fn sso_iniciar(
         ("state" = String, Query, description = "State")
     ),
     responses(
-        (status = 204, description = "Sesión creada"),
+        (status = 303, description = "Sesión creada; redirige al panel (APP_URL)"),
         (status = 400, description = "State inválido", body = ErrorRespuesta),
         (status = 422, description = "Proveedor no soportado", body = ErrorRespuesta),
         (status = 503, description = "Proveedor no disponible", body = ErrorRespuesta)
@@ -362,7 +377,7 @@ pub async fn sso_callback(
     jar: CookieJar,
     PathValido(proveedor): PathValido<String>,
     QueryValida(q): QueryValida<SsoCallbackQuery>,
-) -> Result<(CookieJar, StatusCode), AppError> {
+) -> Result<(CookieJar, axum::response::Redirect), AppError> {
     // Validar state.
     let esperado = jar.get("sso_state").map(|c| c.value().to_string());
     if esperado.as_deref() != Some(q.state.as_str()) {
@@ -402,10 +417,14 @@ pub async fn sso_callback(
     )
     .await?;
 
+    // El navegador que vuelve de Google no espera JSON: redirigimos al panel
+    // con la cookie de sesión ya puesta (antes devolvía 204 y quedaba una
+    // página en blanco — el reporte de "SSO Google no funciona").
+    let destino = format!("{}/", estado.config.app_url.trim_end_matches('/'));
     let jar = jar
         .remove(Cookie::build(("sso_state", String::new())).path("/").build())
         .add(cookie_sesion(&estado, sesion_id));
-    Ok((jar, StatusCode::NO_CONTENT))
+    Ok((jar, axum::response::Redirect::to(&destino)))
 }
 
 #[derive(Debug, Deserialize, IntoParams)]

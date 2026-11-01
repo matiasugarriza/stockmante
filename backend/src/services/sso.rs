@@ -24,6 +24,77 @@ pub fn sso_config(config: &AppConfig) -> SsoConfig {
     }
 }
 
+/// Sonda de salud de los proveedores SSO (FR-071): credenciales presentes no
+/// alcanzan — si el proveedor no responde, el frontend oculta su botón.
+/// Resultado cacheado 60 s; timeout 1,5 s por sondeo. En modo `fija` (tests)
+/// devuelve valores fijos sin tocar la red.
+pub struct SondaSso {
+    cache: std::sync::Mutex<std::collections::HashMap<String, (std::time::Instant, bool)>>,
+    fijo: Option<std::collections::HashMap<String, bool>>,
+}
+
+impl SondaSso {
+    /// Modo producción: sondea a los proveedores por HTTP.
+    pub fn http() -> Self {
+        Self {
+            cache: std::sync::Mutex::new(std::collections::HashMap::new()),
+            fijo: None,
+        }
+    }
+
+    /// Modo prueba: valores fijos por proveedor, sin red.
+    pub fn fija(google: bool, microsoft: bool) -> Self {
+        let mut mapa = std::collections::HashMap::new();
+        mapa.insert("google".to_string(), google);
+        mapa.insert("microsoft".to_string(), microsoft);
+        Self {
+            cache: std::sync::Mutex::new(std::collections::HashMap::new()),
+            fijo: Some(mapa),
+        }
+    }
+
+    /// `true` si el proveedor responde. Cachea el resultado 60 segundos; un
+    /// proveedor desconocido se considera caído.
+    pub async fn salud(&self, proveedor: &str) -> bool {
+        if let Some(fijo) = &self.fijo {
+            return fijo.get(proveedor).copied().unwrap_or(false);
+        }
+        if let Ok(cache) = self.cache.lock() {
+            if let Some((ts, ok)) = cache.get(proveedor) {
+                if ts.elapsed() < std::time::Duration::from_secs(60) {
+                    return *ok;
+                }
+            }
+        }
+        let ok = self.sonpear(proveedor).await;
+        if let Ok(mut cache) = self.cache.lock() {
+            cache.insert(proveedor.to_string(), (std::time::Instant::now(), ok));
+        }
+        ok
+    }
+
+    async fn sonpear(&self, proveedor: &str) -> bool {
+        let url = match proveedor {
+            "google" => "https://accounts.google.com/o/oauth2/v2/auth",
+            "microsoft" => {
+                "https://login.microsoftonline.com/common/v2.0/.well-known/openid-configuration"
+            }
+            _ => return false,
+        };
+        let Ok(client) = reqwest::Client::builder()
+            .timeout(std::time::Duration::from_millis(1500))
+            .build()
+        else {
+            return false;
+        };
+        match client.get(url).send().await {
+            // Cualquier respuesta HTTP < 500 = el servicio está levantado.
+            Ok(resp) => resp.status().as_u16() < 500,
+            Err(_) => false,
+        }
+    }
+}
+
 fn proveedor_valido(proveedor: &str) -> bool {
     proveedor == "google" || proveedor == "microsoft"
 }
