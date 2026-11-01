@@ -61,10 +61,10 @@ Como **Operario/Cajero**, quiero iniciar sesión con mi correo y contraseña par
 - **FR-002a**: La cookie de sesión DEBE emitirse con `HttpOnly`, `SameSite=Lax`, `path=/` y, cuando `APP_ENV=production`, `Secure`.
 - **FR-003**: El sistema DEBE aplicar control de acceso por rol (RBAC) con dos familias: gestión (Administrador/Gerente) y operación (Operario/Cajero).
 - **FR-008a**: Al crear un usuario, el Administrador DEBE poder optar entre **generar una contraseña de forma manual** o **automática** (14 caracteres, con al menos una mayúscula y un dígito). El sistema DEBE **imprimir o mostrar en pantalla un mensaje claro con el correo y la contraseña temporal** creada. Asimismo, enviarla al correo mediante el transporte configurado (`SMTP_URL`; en desarrollo `CorreoDev`). El usuario deberá cambiarla obligatoriamente en su primer ingreso (`password_temporal = true`).
-- **FR-009 Formulario de Registro**: El sistema DEBE implementar un **Formulario de Registro** accesible públicamente que permita el auto-registro con correo y contraseña, validando unicidad de correo y política de contraseña (mínimo 8 caracteres, una mayúscula y un dígito). Crea cuenta pendiente de verificación y aplica anti-enumeración respondiendo un mensaje genérico si el correo ya existe.
-- **FR-010 Inicio de sesión SSO (Google y Microsoft)**: El sistema DEBE permitir iniciar sesión mediante SSO. El backend DEBE exponer `GET /api/auth/sso/config` (público) que devuelva el estado de disponibilidad de cada proveedor (`google_disponible`, `microsoft_disponible`) para que el frontend decida qué botones renderizar. El frontend DEBE **ocultar dinámicamente los botones y opciones de SSO** si las API keys/credenciales del proveedor no están configuradas en el entorno o si el servicio de salud del proveedor falla. Si está activo, redirige, valida el token/ID token, y vincula/crea la cuenta local. Si el correo ya pertenece a otra identidad distinta, responde 409 `identidad_ya_vinculada`.
-- **FR-011 Vinculación de identidades**: Un usuario autenticado DEBE poder vincular o desvincular una cuenta de Google/Microsoft; la desvinculación falla si es la única identidad y no posee contraseña local (409 `ultima_identidad`).
-- **FR-012 Provisión de rol en SSO**: Las cuentas creadas por SSO DEBEN recibir la familia `OPERACION` por defecto.
+- **FR-070 Formulario de Registro**: El sistema DEBE implementar un **Formulario de Registro** accesible públicamente que permita el auto-registro con correo y contraseña, validando unicidad de correo y política de contraseña (mínimo 8 caracteres, una mayúscula y un dígito). Crea cuenta pendiente de verificación y aplica anti-enumeración respondiendo un mensaje genérico si el correo ya existe.
+- **FR-071 Inicio de sesión SSO (Google y Microsoft)**: El sistema DEBE permitir iniciar sesión mediante SSO. El backend DEBE exponer `GET /api/auth/sso/config` (público) que devuelva el estado de disponibilidad de cada proveedor (`google_disponible`, `microsoft_disponible`) para que el frontend decida qué botones renderizar. El frontend DEBE **ocultar dinámicamente los botones y opciones de SSO** si las API keys/credenciales del proveedor no están configuradas en el entorno o si el servicio de salud del proveedor falla. Si está activo, redirige, valida el token/ID token, y vincula/crea la cuenta local. Si el correo ya pertenece a otra identidad distinta, responde 409 `identidad_ya_vinculada`.
+- **FR-072 Vinculación de identidades**: Un usuario autenticado DEBE poder vincular o desvincular una cuenta de Google/Microsoft; la desvinculación falla si es la única identidad y no posee contraseña local (409 `ultima_identidad`).
+- **FR-073 Provisión de rol en SSO**: Las cuentas creadas por SSO DEBEN recibir la familia `OPERACION` por defecto.
 
 ### Superficie de API
 
@@ -102,9 +102,9 @@ Como **Operario/Cajero**, quiero iniciar sesión con mi correo y contraseña par
 
 - **SC-003**: Intentos de login con credenciales inválidas o inactivas devuelven el mensaje genérico sin revelar datos.
 - **SC-004**: Cero sesiones activas tras la invalidación o baja de usuario.
-- **SC-005**: El formulario de registro valida correctamente campos, requiere verificación por correo y previene la enumeración de usuarios.
-- **SC-006**: Los botones de Google/Microsoft SSO se ocultan de manera automática en la interfaz si faltan las credenciales o claves API correspondientes; si están presentes y operativas, el flujo completo de autenticación externa funciona correctamente.
-- **SC-007**: La creación manual o automática de usuarios por parte de un administrador expone de forma inmediata y clara en la pantalla el correo junto con la contraseña temporal generada.
+- **SC-026**: El formulario de registro valida correctamente campos, requiere verificación por correo y previene la enumeración de usuarios.
+- **SC-027**: Los botones de Google/Microsoft SSO se ocultan de manera automática en la interfaz si faltan las credenciales o claves API correspondientes; si están presentes y operativas, el flujo completo de autenticación externa funciona correctamente.
+- **SC-028**: La creación manual o automática de usuarios por parte de un administrador expone de forma inmediata y clara en la pantalla el correo junto con la contraseña temporal generada.
 
 ---
 

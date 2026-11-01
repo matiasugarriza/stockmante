@@ -13,7 +13,7 @@ conservan **verbatim**; solo se distribuyeron por caso de uso.
 
 | Spec | Caso de uso | Requisitos | Criterios | Estado | Depende de |
 |---|---|---|---|---|---|
-| [001-autenticacion-sesion](./001-autenticacion-sesion/spec.md) | Login, sesión única y cambio obligatorio de contraseña | FR-001, FR-002, FR-003, FR-008a | SC-003, SC-004 | Implementado y cerrado | — |
+| [001-autenticacion-sesion](./001-autenticacion-sesion/spec.md) | Login, sesión única y cambio obligatorio de contraseña | FR-001, FR-002, FR-003, FR-008a, FR-070 ... FR-073 | SC-003, SC-004, SC-026 ... SC-028 | Implementado; ajustes 2026-11 (registro, SSO, credenciales) en revisión | — |
 | [002-gestion-usuarios](./002-gestion-usuarios/spec.md) | Alta, edición, baja lógica y reactivación de usuarios | FR-004, FR-005, FR-006, FR-007, FR-008, FR-008b | SC-001 | Implementado (retro-documentado); ajustes 2026-11 en Phase 2 | 001 |
 | [003-catalogo-productos](./003-catalogo-productos/spec.md) | CRUD de productos y categorías, baja lógica | FR-009, FR-010, FR-012, FR-014, FR-020 … FR-023 | SC-006, SC-009 … SC-012 | Implementado y verificado; incluido en el commit de cierre | 001 |
 | [004-busqueda-caja](./004-busqueda-caja/spec.md) | Búsqueda rápida por SKU, código, nombre y categoría | FR-011, FR-013 | SC-002 | Implementado y verificado (2026-10-26) | 001, 003 |
@@ -108,6 +108,10 @@ Cada FR tiene **un solo dueño**. Los demás specs lo referencian, no lo repiten
 | FR-067 | 017 | Escrituras del asistente solo por API |
 | FR-068 | 017 | Seguridad del token y límites del asistente |
 | FR-069 | 017 | Permisos y trazabilidad del asistente |
+| FR-070 | 001 | Formulario de registro público con verificación por correo y anti-enumeración |
+| FR-071 | 001 | SSO Google/Microsoft con `GET /auth/sso/config` y ocultado si faltan credenciales o falla la salud |
+| FR-072 | 001 | Vinculación/desvinculación de identidades externas |
+| FR-073 | 001 | Provisión de familia `OPERACION` por defecto en cuentas SSO |
 
 ## Partición de criterios de éxito
 
@@ -138,6 +142,9 @@ Cada FR tiene **un solo dueño**. Los demás specs lo referencian, no lo repiten
 | SC-023 | 015 | Auditoría consultable < 2 s con 1.000.000 de filas |
 | SC-024 | 016 | 5.000 filas importadas < 60 s o ninguna |
 | SC-025 | 017 | Cero escrituras del asistente fuera de la API |
+| SC-026 | 001 | Registro con verificación por correo y sin enumeración |
+| SC-027 | 001 | Botones SSO ocultos sin credenciales; flujo completo con ellas |
+| SC-028 | 001 | Credenciales (correo + contraseña) visibles en pantalla al crear usuario |
 
 ## Ledger de migraciones
 
@@ -255,5 +262,11 @@ Se reevalúan solo si aparece un requisito concreto (Principio I: YAGNI).
   pantalla): se le asignó subíndice `b` porque `FR-008a` ya estaba registrada a 001 y cada FR
   tiene un solo dueño. 001 puede repetir el texto como contexto de su FR-008a, pero el dueño
   del requisito de operativa de alta es 002.
+- **Renumeración 2026-11-01**: los IDs que la actualización 2026-11 de 001 había asignado
+  libremente (`FR-009`–`FR-012` y `SC-005`–`SC-007`) chocaban con dueños ya registrados de 003,
+  004, 005 y 006. Se movieron a los siguientes libres del registro: `FR-070` (registro),
+  `FR-071` (SSO config/ocultado), `FR-072` (vinculación), `FR-073` (rol SSO), `SC-026`
+  (registro), `SC-027` (ocultado SSO), `SC-028` (credenciales en pantalla). Las specs dueñas
+  originales no se tocaron.
 - **Auditoría**: el spec original solo la menciona en US6 y en Supuestos; 006 la formaliza
   como FR-019 (derivado), sin ampliar alcance.

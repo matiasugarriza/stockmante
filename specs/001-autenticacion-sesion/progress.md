@@ -132,7 +132,7 @@ Se implementaron todos los ajustes funcionales y de arquitectura de la spec 001:
    - Popup de entrega inmediata: infraestructura backend lista; el popup UI se muestra en la página de creación de usuarios (002).
 
 4. **Criterios de Aceptación y Superficie de API**:
-   - SC-005, SC-006, SC-007 validados contra los requisitos.
+   - SC-026, SC-027, SC-028 validados contra los requisitos.
    - Tabla de superficie de API incluye `/api/auth/sso/config` con respuesta detallada y errores asociados.
 
 **Gates de calidad**: `cargo test` (todos los tests en verde), `cargo sqlx prepare --check`, `npm test` (165 tests), `npm run check` (0 errores), `npm run build` (OK).
@@ -143,17 +143,17 @@ Se revisó y actualizó `spec.md` para reflejar los ajustes funcionales y de arq
 
 1. **SSO config endpoint y visibilidad condicional (Google/Microsoft)**:
    - `GET /api/auth/sso/config` añadido a la tabla de superficie de API con formato de respuesta (`google_disponible`, `microsoft_disponible`).
-   - FR-010 actualizada: el backend expone el endpoint y el frontend oculta los botones SSO si faltan credenciales o el servicio falla.
+   - FR-071 actualizada: el backend expone el endpoint y el frontend oculta los botones SSO si faltan credenciales o el servicio falla.
    - Error `sso_no_configurado` (503/422) asociado explícitamente a `GET /api/auth/sso/{proveedor}/iniciar` y `GET /api/auth/sso/{proveedor}/callback`.
 
 2. **Formulario de Registro de Usuarios**:
-   - FR-009 formaliza `POST /api/auth/registro` con política de contraseña (mínimo 8 caracteres, una mayúscula, un dígito) y unicidad de correo con anti-enumeración (mensaje genérico).
+   - FR-070 formaliza `POST /api/auth/registro` con política de contraseña (mínimo 8 caracteres, una mayúscula, un dígito) y unicidad de correo con anti-enumeración (mensaje genérico).
 
 3. **Generación e impresión de contraseñas temporales (creación por Admin)**:
    - FR-008a mantiene la opción manual o automática (14 caracteres, ≥1 mayúscula y 1 dígito), visualización en pantalla (mensaje emergente/alerta) del correo y contraseña temporal, y `password_temporal = true` con bloqueo de cambio obligatorio en primer ingreso.
 
 4. **Criterios de Aceptación y Superficie de API**:
-   - SC-005, SC-006 y SC-007 ya estaban definidos y validados contra los requisitos acima.
+   - SC-026, SC-027 y SC-028 ya estaban definidos y validados contra los requisitos acima.
    - Tabla de superficie de API incluye `/api/auth/sso/config` con respuesta detallada y errores asociados.
 
 **Estado**: spec actualizada y consistente; no hay cambios pendientes de clarificación.

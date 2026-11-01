@@ -36,8 +36,11 @@
   conservaron **verbatim**.
 - Colisión resuelta: el requisito nuevo se renumeró `FR-008a` → `FR-008b` (el registro global de
   `specs/README.md` ya le asignaba `FR-008a` a 001); se corrigió el puntero en `001/spec.md`.
+  Las colisiones `FR-009`–`FR-012` y `SC-005`–`SC-007` que la actualización 2026-11 de 001 había
+  creado también se resolvieron moviéndolas a `FR-070`–`FR-073` y `SC-026`–`SC-028`
+  (2026-11-01).
 - Los detalles de contrato derivados (campo `password`, envoltura de credenciales, 204→200 en
   regenerado) viven en `contracts/api.md`, no en la spec: la spec sigue sin filtros de
   implementación.
-- Fuera de alcance: `001/spec.md` define `FR-009`–`FR-012` que colisionan con 003/004 en el
-  registro global; pendiente de decisión en la próxima pasada sobre 001.
+- Fuera de alcance de 002: las colisiones de IDs de 001 con 003/004/005/006 — resueltas el
+  2026-11-01 con la renumeración a `FR-070`–`FR-073` / `SC-026`–`SC-028`.

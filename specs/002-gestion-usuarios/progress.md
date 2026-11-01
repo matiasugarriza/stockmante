@@ -123,9 +123,9 @@ decisiones D1–D8 (campo opcional `password`, envoltura de credenciales, 204→
 fail-closed conservado, política compartida con 001). `tasks.md` agrega **Phase 2, T008–T016**
 (PRIMERO tests RED → backend → frontend (schemas, selector, modales) → docs → gates).
 
-**Hallazgo fuera de alcance (no modificado)**: la `001/spec.md` define `FR-009`–`FR-012`
-(registro, SSO, identidades, rol SSO) que en el registro global ya pertenecen a 003/004; la
-renumeración tocaría una spec distinta y quedó pendiente de decisión.
+**Hallazgo resuelto**: `001/spec.md` definió `FR-009`–`FR-012` que colisionaban con 003/004 en
+  el registro global; se renumeraron a `FR-070`–`FR-073` (y sus `SC-005`–`SC-007` a
+  `SC-026`–`SC-028`) el 2026-11-01 — ver `specs/README.md` § Decisiones de la partición.
 
 ## Siguiente paso
 
