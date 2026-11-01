@@ -36,6 +36,11 @@ Todas las respuestas 4xx/5xx del Módulo 1 conservan:
         "type": "local",
         "command": ["npx", "-y", "@bytebase/dbhub@latest", "--config", "dbhub.toml"],
         "enabled": true
+      },
+      "playwright": {
+        "type": "local",
+        "command": ["npx", "-y", "@playwright/mcp"],
+        "enabled": true
       }
     }
   }
@@ -55,3 +60,11 @@ max_rows = 200
 - Sin credenciales en el repositorio: el DSN sale de `.env`/entorno.
 - El servidor expone `execute_sql` en modo lectura; las escrituras se rechazan.
 - `context7` ya está configurado globalmente; no se duplica en el proyecto.
+
+## MCP de Playwright
+
+- **Paquete**: `@playwright/mcp` (verificado en npm; `@modelcontextprotocol/server-playwright` no existe).
+- **Propósito**: validación visual y pruebas E2E autónomas sobre la aplicación frontend servida por Vite en `http://localhost:5173`.
+- **Requisitos**: Node.js 20+ y `npx`; frontend levantado (`cd frontend && npm run dev`).
+- **Uso**: el agente navega a `http://localhost:5173` y puede tomar capturas de pantalla y verificar el renderizado de componentes Svelte. No requiere credenciales.
+

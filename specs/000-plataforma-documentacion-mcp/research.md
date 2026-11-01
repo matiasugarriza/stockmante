@@ -68,3 +68,27 @@ DBHub carga `.env` desde el directorio de trabajo; el DSN nunca se versiona.
 - `docs/arquitectura.md`: capas backend, SPA, migraciones y decisiones.
 - `docs/mcp.md`: cómo habilitar DBHub, ejemplos de consultas y límites.
 - `README.md` raíz: setup, comandos, mapa de specs y enlaces.
+
+## Decisión 6: MCP de Playwright (E2E/UI)
+
+| Opción | Veredicto |
+|---|---|
+| `@playwright/mcp` | **Elegida**: servidor oficial de Playwright bajo MCP, permite navegación headless y capturas de pantalla sobre `http://localhost:5173`. |
+| `@modelcontextprotocol/server-playwright` | **Descartada**: el paquete no existe en el registro npm (E404). |
+| Playwright sin MCP | No integra con OpenCode; el agente no puede usarlo como herramienta de MCP. |
+
+Configuración (`opencode.json`):
+
+```json
+"playwright": {
+  "type": "local",
+  "command": ["npx", "-y", "@playwright/mcp"]
+}
+```
+
+Requisitos:
+- Node.js 20+ y `npx`.
+- Frontend corriendo: `cd frontend && npm run dev` (Vite en `http://localhost:5173`).
+
+Uso: el agente navega a `http://localhost:5173` con las herramientas del MCP y puede tomar screenshots, verificar elementos y flujos de UI. No requiere credenciales.
+

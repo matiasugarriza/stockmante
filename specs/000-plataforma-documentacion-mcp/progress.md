@@ -1,8 +1,7 @@
 # Progreso de implementación — Documentación de API y MCP (000)
 
-**Spec**: [spec.md](./spec.md) | **Plan**: [plan.md](./plan.md) | **Actualizado**: 2026-10-26 |
-**Estado**: completa y verificada; incluida en el commit único de cierre del Módulo 1 (2026-10-26),
-como pidió el usuario (todo el proyecto en un solo commit).
+**Spec**: [spec.md](./spec.md) | **Plan**: [plan.md](./plan.md) | **Actualizado**: 2026-10-31 |
+**Estado**: completa y verificada; incluida en el commit único de cierre del Módulo 1 (2026-10-26), como pidió el usuario (todo el proyecto en un solo commit). Última actualización: adición de Playwright MCP (`@playwright/mcp`) y corrección de paquetes.
 
 ## Estado por fase
 
@@ -10,19 +9,17 @@ como pidió el usuario (todo el proyecto en un solo commit).
 |---|---|---|---|
 | 1. Setup | T001–T005 | Completa | `utoipa` 6 / `utoipa-swagger-ui` 10; `docs_enabled`; `test_config` 5/5; `test_openapi` 6/6 |
 | 2. Anotaciones | T006–T010 | Completa | auth, usuarios, categorías, productos y salud anotados |
-| 3. MCP | T011–T012 | Completa | DBHub 1.5.0 contra `stockmante`: lectura OK, escritura rechazada |
-| 4. Documentación | T013–T015 | Completa | `README.md`, `docs/api.md`, `docs/arquitectura.md`, `docs/mcp.md`, `.env.example` |
-| 5. Cierre | T016–T017 | Completa | gates abajo; revisión del JSON |
+| 3. MCP | T011–T013 | Completa (T013 pendiente de verificación remota) | DBHub 1.5.0 contra `stockmante`: lectura OK, escritura rechazada; `@playwright/mcp` verificado en npm |
+| 4. Documentación | T014–T016 | Completa | `README.md`, `docs/api.md`, `docs/arquitectura.md`, `docs/mcp.md`, `.env.example` |
+| 5. Cierre | T017–T018 | Completa | gates abajo; revisión del JSON |
 
 ## Evidencia observada (2026-10-26)
 
 ### Documentación viva
 
-- `DOCS_ENABLED` ausente en desarrollo → encendido; `APP_ENV=production` → apagado;
-  `true`/`false`/`1`/`0` explícitos mandan; valor inválido → `422 validacion`.
+- `DOCS_ENABLED` ausente en desarrollo → encendido; `APP_ENV=production` → apagado; `true`/`false`/`1`/`0` explícitos mandan; valor inválido → `422 validacion`.
 - `docs.rs` expone `/docs` y `/api-docs/openapi.json` solo si el flag está encendido.
-- `test_openapi` verifica rutas, `cookieAuth`, seguridad pública de login/logout y los schemas
-  `Producto`, `Categoria`, `Usuario`, `ErrorRespuesta`.
+- `test_openapi` verifica rutas, `cookieAuth`, seguridad pública de login/logout y los schemas `Producto`, `Categoria`, `Usuario`, `ErrorRespuesta`.
 
 ### MCP (DBHub 1.5.0)
 
@@ -35,10 +32,16 @@ Comando: `npx -y @bytebase/dbhub@latest --config dbhub.toml` con `DATABASE_URL` 
 | Lectura | `SELECT count(*)::int AS productos FROM productos` → `{"productos":4}` |
 | Escritura | `CREATE TABLE mcp_no_debe_poder (id int)` → `READONLY_VIOLATION` |
 
-`readonly` y `max_rows` viven en `[[tools]]` (DBHub no los acepta por fuente); el DSN se interpola
-desde `DATABASE_URL` y no se versiona.
+`readonly` y `max_rows` viven en `[[tools]]` (DBHub no los acepta por fuente); el DSN se interpola desde `DATABASE_URL` y no se versiona.
 
-### Gates de calidad
+### Playwright MCP
+
+- Paquete corregido de `@modelcontextprotocol/server-playwright` (inexistente en npm) a `@playwright/mcp` (v0.0.84, verificado).
+- `opencode.json` incluye servidor `playwright` con comando `npx -y @playwright/mcp`.
+- `docs/mcp.md` documenta la sección Playwright (requisitos, configuración, prueba manual).
+- Pendiente: verificación remota contra `http://localhost:5173` con el frontend levantado (`cd frontend && npm run dev`).
+
+## Gates de calidad
 
 | Comando | Resultado |
 |---|---|
@@ -48,12 +51,11 @@ desde `DATABASE_URL` y no se versiona.
 | `cd frontend && npm run check` | 0 errores, 0 warnings |
 | `cd frontend && npm run build` | OK |
 
-### Revisión de exposición
+## Revisión de exposición
 
-El JSON se genera solo desde anotaciones `utoipa`; no incluye `DATABASE_URL`, credenciales,
-rutas absolutas del filesystem ni variables de entorno. La cookie se documenta como esquema de
-seguridad, sin valores reales. Swagger queda apagado en producción salvo elección explícita.
+El JSON se genera solo desde anotaciones `utoipa`; no incluye `DATABASE_URL`, credenciales, rutas absolutas del filesystem ni variables de entorno. La cookie se documenta como esquema de seguridad, sin valores reales. Swagger queda apagado en producción salvo elección explícita.
 
 ## Próximo paso
 
-Spec 004 (búsqueda y caja), luego 005 y 006. El commit de todo el proyecto queda para el final.
+- Verificar Playwright MCP contra `http://localhost:5173` (frontend levantado) para cerrar T013 / CA-04.
+- Spec 004 (búsqueda y caja), luego 005 y 006.
