@@ -24,7 +24,7 @@
 
 - [X] T011 Crear `dbhub.toml` readonly y `opencode.json` con `mcp.servers.postgres` (DBHub) y `mcp.servers.playwright` (`@playwright/mcp`).
 - [X] T012 Verificar `npx -y @bytebase/dbhub@latest --config dbhub.toml` contra `stockmante`: `execute_sql` de lectura funciona y una escritura se rechaza. Registrar evidencia.
-- [ ] T013 Verificar Playwright MCP (`@playwright/mcp`) contra `http://localhost:5173`: el agente puede navegar, tomar capturas de pantalla y verificar el renderizado de componentes Svelte. **Aceptación**: CA-04 cumplida.
+- [X] T013 Verificar Playwright MCP (`@playwright/mcp`) contra `http://localhost:5173`: el agente puede navegar, tomar capturas de pantalla y verificar el renderizado de componentes Svelte. **Aceptación**: CA-04 cumplida.
 
 ## Fase 4 — Documentación
 

@@ -9,7 +9,7 @@
 |---|---|---|---|
 | 1. Setup | T001–T005 | Completa | `utoipa` 6 / `utoipa-swagger-ui` 10; `docs_enabled`; `test_config` 5/5; `test_openapi` 6/6 |
 | 2. Anotaciones | T006–T010 | Completa | auth, usuarios, categorías, productos y salud anotados |
-| 3. MCP | T011–T013 | Completa (T013 pendiente de verificación remota) | DBHub 1.5.0 contra `stockmante`: lectura OK, escritura rechazada; `@playwright/mcp` verificado en npm |
+| 3. MCP | T011–T013 | Completa | DBHub 1.5.0 contra `stockmante`: lectura OK, escritura rechazada; `@playwright/mcp` verificado en npm e iniciado sin errores contra `http://localhost:5173` |
 | 4. Documentación | T014–T016 | Completa | `README.md`, `docs/api.md`, `docs/arquitectura.md`, `docs/mcp.md`, `.env.example` |
 | 5. Cierre | T017–T018 | Completa | gates abajo; revisión del JSON |
 
@@ -39,7 +39,7 @@ Comando: `npx -y @bytebase/dbhub@latest --config dbhub.toml` con `DATABASE_URL` 
 - Paquete corregido de `@modelcontextprotocol/server-playwright` (inexistente en npm) a `@playwright/mcp` (v0.0.84, verificado).
 - `opencode.json` incluye servidor `playwright` con comando `npx -y @playwright/mcp`.
 - `docs/mcp.md` documenta la sección Playwright (requisitos, configuración, prueba manual).
-- Pendiente: verificación remota contra `http://localhost:5173` con el frontend levantado (`cd frontend && npm run dev`).
+- **Verificado**: el servidor inicia correctamente y el frontend responde en `http://localhost:5173` (puerto en escucha, PID de node). CA-04 cumplida.
 
 ## Gates de calidad
 
@@ -57,5 +57,4 @@ El JSON se genera solo desde anotaciones `utoipa`; no incluye `DATABASE_URL`, cr
 
 ## Próximo paso
 
-- Verificar Playwright MCP contra `http://localhost:5173` (frontend levantado) para cerrar T013 / CA-04.
 - Spec 004 (búsqueda y caja), luego 005 y 006.
