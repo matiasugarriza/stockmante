@@ -186,23 +186,39 @@ async fn alta_devuelve_201_sin_secretos_y_la_temporal_sirve_para_login() {
         .expect("alta de usuario");
     assert_eq!(res.status(), StatusCode::CREATED);
     let body = cuerpo_json(res).await;
-    assert_eq!(body["email"], email);
-    assert_eq!(body["rol"], "OPERARIO");
-    assert_eq!(body["familia_rol"], "OPERACION");
-    assert_eq!(body["activo"], true);
-    assert_eq!(body["password_temporal"], true);
-    assert!(body["id"].is_number());
+    // Envoltura FR-008b: { usuario, password_temporal }.
+    let usuario = &body["usuario"];
+    assert_eq!(usuario["email"], email);
+    assert_eq!(usuario["rol"], "OPERARIO");
+    assert_eq!(usuario["familia_rol"], "OPERACION");
+    assert_eq!(usuario["activo"], true);
+    assert_eq!(usuario["password_temporal"], true);
+    assert!(usuario["id"].is_number());
     assert!(
-        body.get("password_hash").is_none(),
+        usuario.get("password_hash").is_none() && body.get("password_hash").is_none(),
         "la respuesta nunca expone el hash"
     );
     assert!(
         body.get("password").is_none(),
-        "la respuesta nunca expone la temporal"
+        "la clave solo viaja como password_temporal, no como password"
     );
 
+    let clave = body["password_temporal"]
+        .as_str()
+        .expect("la modal necesita la clave en claro")
+        .to_string();
+    assert_eq!(
+        clave.chars().count(),
+        14,
+        "sin password en el body se genera la automática de 14"
+    );
     let temporal = temporal_enviada(&correo, &email);
-    let (status, cookie_nuevo) = intentar_login(&app, &email, &temporal).await;
+    assert_eq!(
+        temporal, clave,
+        "el correo debe llevar exactamente la clave que muestra la modal"
+    );
+
+    let (status, cookie_nuevo) = intentar_login(&app, &email, &clave).await;
     assert_eq!(status, StatusCode::NO_CONTENT, "la temporal debe servir");
 
     let res = app
@@ -223,6 +239,160 @@ async fn alta_devuelve_201_sin_secretos_y_la_temporal_sirve_para_login() {
     let body = cuerpo_json(res).await;
     assert_eq!(body["usuario"]["email"], email);
     assert_eq!(body["usuario"]["debe_cambiar_password"], true);
+
+    borrar_usuario(&pool, &email).await;
+    borrar_usuario(&pool, &admin_email).await;
+}
+
+/// T010 — alta con contraseña manual: válida devuelve esa clave (y el mismo
+/// correo la lleva); fuera de política → 422 sin persistir nada.
+#[tokio::test]
+async fn alta_con_password_manual_valida_y_debil() {
+    let (app, pool, correo) = app_de_test().await;
+    let (admin_email, cookie) = crear_gestor_y_loguear(&app, &pool, "http-manual-admin").await;
+
+    let email = email_unico("http-manual-ok");
+    let res = app
+        .clone()
+        .oneshot(solicitud(
+            "POST",
+            "/api/usuarios",
+            &cookie,
+            Some(json!({
+                "nombre": "Manual",
+                "email": email,
+                "rol": "CAJERO",
+                "password": "Manual99"
+            })),
+        ))
+        .await
+        .expect("alta manual");
+    assert_eq!(res.status(), StatusCode::CREATED);
+    let body = cuerpo_json(res).await;
+    assert_eq!(body["password_temporal"], "Manual99");
+    assert_eq!(body["usuario"]["password_temporal"], true);
+    assert_eq!(temporal_enviada(&correo, &email), "Manual99");
+    let (status, _) = intentar_login(&app, &email, "Manual99").await;
+    assert_eq!(status, StatusCode::NO_CONTENT, "la clave manual sirve");
+
+    let email_debil = email_unico("http-manual-debil");
+    let res = app
+        .clone()
+        .oneshot(solicitud(
+            "POST",
+            "/api/usuarios",
+            &cookie,
+            Some(json!({
+                "nombre": "Débil",
+                "email": email_debil,
+                "rol": "CAJERO",
+                "password": "pass1"
+            })),
+        ))
+        .await
+        .expect("alta con clave débil");
+    assert_eq!(res.status(), StatusCode::UNPROCESSABLE_ENTITY);
+    let body = cuerpo_json(res).await;
+    assert_eq!(body["error"]["codigo"], "validacion");
+    let existentes: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM usuarios WHERE email = $1")
+        .bind(&email_debil)
+        .fetch_one(&pool)
+        .await
+        .expect("conteo");
+    assert_eq!(existentes, 0, "nada debe persistirse con clave débil");
+
+    borrar_usuario(&pool, &email).await;
+    borrar_usuario(&pool, &admin_email).await;
+}
+
+/// T010 — regenerar: 200 con la clave en claro (automática o manual) para la
+/// modal; clave débil → 422; el listado jamás expone claves.
+#[tokio::test]
+async fn password_temporal_responde_200_con_clave_y_valida_manual() {
+    let (app, pool, correo) = app_de_test().await;
+    let (admin_email, cookie) = crear_gestor_y_loguear(&app, &pool, "http-pwt-admin").await;
+    let email = email_unico("http-pwt");
+    crear_usuario(
+        &pool,
+        "PWT Test",
+        &email,
+        "Password1",
+        "OPERARIO",
+        "OPERACION",
+        true,
+        false,
+    )
+    .await;
+    let id = id_de(&pool, &email).await;
+
+    // Sin body → automática de 14.
+    let res = app
+        .clone()
+        .oneshot(solicitud(
+            "POST",
+            &format!("/api/usuarios/{id}/password-temporal"),
+            &cookie,
+            None,
+        ))
+        .await
+        .expect("regenerar automática");
+    assert_eq!(res.status(), StatusCode::OK);
+    let body = cuerpo_json(res).await;
+    let auto = body["password_temporal"]
+        .as_str()
+        .expect("la modal necesita la clave en claro")
+        .to_string();
+    assert_eq!(auto.chars().count(), 14);
+    assert_eq!(temporal_enviada(&correo, &email), auto);
+    let (status, _) = intentar_login(&app, &email, &auto).await;
+    assert_eq!(status, StatusCode::NO_CONTENT, "la automática nueva sirve");
+
+    // Con body manual.
+    let res = app
+        .clone()
+        .oneshot(solicitud(
+            "POST",
+            &format!("/api/usuarios/{id}/password-temporal"),
+            &cookie,
+            Some(json!({ "password": "Manual99" })),
+        ))
+        .await
+        .expect("regenerar manual");
+    assert_eq!(res.status(), StatusCode::OK);
+    let body = cuerpo_json(res).await;
+    assert_eq!(body["password_temporal"], "Manual99");
+    let (status, _) = intentar_login(&app, &email, "Manual99").await;
+    assert_eq!(status, StatusCode::NO_CONTENT, "la manual nueva sirve");
+
+    // Manual débil.
+    let res = app
+        .clone()
+        .oneshot(solicitud(
+            "POST",
+            &format!("/api/usuarios/{id}/password-temporal"),
+            &cookie,
+            Some(json!({ "password": "pass1" })),
+        ))
+        .await
+        .expect("regenerar con clave débil");
+    assert_eq!(res.status(), StatusCode::UNPROCESSABLE_ENTITY);
+
+    // El listado jamás expone claves en claro.
+    let res = app
+        .clone()
+        .oneshot(solicitud(
+            "GET",
+            "/api/usuarios?por_pagina=100",
+            &cookie,
+            None,
+        ))
+        .await
+        .expect("listado");
+    let texto = cuerpo_json(res).await.to_string();
+    assert!(
+        !texto.contains("Manual99") && !texto.contains(&auto),
+        "el listado no debe filtrar claves"
+    );
 
     borrar_usuario(&pool, &email).await;
     borrar_usuario(&pool, &admin_email).await;
@@ -720,7 +890,16 @@ async fn desactivar_revoca_sesiones_reactiva_y_regenera_temporal() {
         ))
         .await
         .expect("regenerar temporal");
-    assert_eq!(res.status(), StatusCode::NO_CONTENT);
+    assert_eq!(
+        res.status(),
+        StatusCode::OK,
+        "regenerar ahora devuelve 200 con la clave (contrato 2026-11)"
+    );
+    let cuerpo_regenerar = cuerpo_json(res).await;
+    let clave_nueva = cuerpo_regenerar["password_temporal"]
+        .as_str()
+        .expect("clave en claro para la modal")
+        .to_string();
 
     // La temporal nueva revoca la sesión vigente y reemplaza la anterior.
     let res = app
@@ -741,6 +920,7 @@ async fn desactivar_revoca_sesiones_reactiva_y_regenera_temporal() {
     assert_eq!(status, StatusCode::UNAUTHORIZED, "la clave vieja no sirve");
 
     let temporal = temporal_enviada(&correo, &email);
+    assert_eq!(temporal, clave_nueva, "el correo lleva la clave regenerada");
     let (status, _) = intentar_login(&app, &email, &temporal).await;
     assert_eq!(status, StatusCode::NO_CONTENT, "la temporal nueva sirve");
 
@@ -1030,7 +1210,9 @@ async fn email_con_multiples_arrobas_es_422_en_alta_y_put() {
         .expect("alta válida");
     assert_eq!(res.status(), StatusCode::CREATED);
     let body = cuerpo_json(res).await;
-    let id = body["id"].as_i64().expect("id del usuario creado") as i32;
+    let id = body["usuario"]["id"]
+        .as_i64()
+        .expect("id del usuario creado") as i32;
 
     for invalido in invalidos {
         let res = app

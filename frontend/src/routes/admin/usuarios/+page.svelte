@@ -10,6 +10,8 @@
 		regenerarPasswordTemporal
 	} from '#lib/api/usuarios';
 	import { ApiError } from '#lib/api/client';
+	import CredencialesModal from '#lib/components/usuarios/CredencialesModal.svelte';
+	import PasswordTemporalModal from '#lib/components/usuarios/PasswordTemporalModal.svelte';
 	import UsuarioForm from '#lib/components/usuarios/UsuarioForm.svelte';
 	import UsuarioTabla from '#lib/components/usuarios/UsuarioTabla.svelte';
 	import type { Rol, Usuario } from '#lib/schemas/usuarios';
@@ -30,6 +32,11 @@
 	let aviso = $state<string | null>(null);
 	let modalAbierto = $state(false);
 	let editando = $state<Usuario | null>(null);
+	// FR-008b: credenciales en pantalla tras alta/regenerado (modal obligatoria).
+	let credenciales = $state<{ titulo: string; email: string; password: string } | null>(null);
+	let regenerando = $state<Usuario | null>(null);
+	let regenerandoGuardando = $state(false);
+	let regenerandoError = $state<string | null>(null);
 	const paginas = $derived(totalPaginas(total, POR_PAGINA));
 
 	$effect(() => {
@@ -121,7 +128,12 @@
 		}
 	}
 
-	async function guardar(datos: { nombre: string; email: string; rol: Rol }) {
+	async function guardar(datos: {
+		nombre: string;
+		email: string;
+		rol: Rol;
+		password?: string;
+	}) {
 		guardando = true;
 		error = null;
 		errorModal = null;
@@ -129,11 +141,17 @@
 			if (editando) {
 				await actualizarUsuario(editando.id, datos);
 				aviso = 'Usuario actualizado.';
+				modalAbierto = false;
 			} else {
-				await crearUsuario(datos);
-				aviso = `Usuario creado. La contraseña temporal se envió a ${datos.email}.`;
+				const creado = await crearUsuario(datos);
+				modalAbierto = false;
+				// Modal obligatoria con correo + clave (FR-008b).
+				credenciales = {
+					titulo: 'Usuario creado',
+					email: creado.usuario.email,
+					password: creado.password_temporal
+				};
 			}
-			modalAbierto = false;
 			await cargar();
 		} catch (e) {
 			// El modal tapa el banner de la página: el error se muestra dentro.
@@ -160,14 +178,31 @@
 		}
 	}
 
-	async function regenerar(usuario: Usuario) {
+	/** Abre el diálogo de regeneración (escenario 5): elige método y confirma. */
+	function regenerar(usuario: Usuario) {
 		error = null;
 		aviso = null;
+		regenerandoError = null;
+		regenerando = usuario;
+	}
+
+	/** Pide la clave nueva al backend y muestra la modal con las credenciales. */
+	async function generar(password?: string) {
+		if (!regenerando) return;
+		regenerandoGuardando = true;
+		regenerandoError = null;
 		try {
-			await regenerarPasswordTemporal(usuario.id);
-			aviso = `Se envió una nueva contraseña temporal a ${usuario.email}.`;
+			const resultado = await regenerarPasswordTemporal(regenerando.id, password);
+			credenciales = {
+				titulo: 'Contraseña regenerada',
+				email: regenerando.email,
+				password: resultado.password_temporal
+			};
+			regenerando = null;
 		} catch (e) {
-			error = mensajeError(e, 'No se pudo regenerar la contraseña temporal');
+			regenerandoError = mensajeError(e, 'No se pudo regenerar la contraseña temporal');
+		} finally {
+			regenerandoGuardando = false;
 		}
 	}
 
@@ -261,5 +296,24 @@
 		error={errorModal}
 		onGuardar={(datos) => void guardar(datos)}
 		onCerrar={cerrarModal}
+	/>
+{/if}
+
+{#if regenerando}
+	<PasswordTemporalModal
+		usuario={regenerando}
+		guardando={regenerandoGuardando}
+		error={regenerandoError}
+		onGenerar={(password) => void generar(password)}
+		onCerrar={() => (regenerando = null)}
+	/>
+{/if}
+
+{#if credenciales}
+	<CredencialesModal
+		titulo={credenciales.titulo}
+		email={credenciales.email}
+		password={credenciales.password}
+		onCerrar={() => (credenciales = null)}
 	/>
 {/if}

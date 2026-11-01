@@ -36,12 +36,14 @@ async fn desactivar_o_degradar_al_ultimo_gestor_activo_es_rechazado() {
     let email_a = email_unico("ultimo-admin-a");
     let email_b = email_unico("ultimo-admin-b");
     let actor = actor_de_test(&pool).await;
-    let gestor_a = usuarios::crear(&pool, &correo, actor, "Gestor A", &email_a, "ADMIN")
-        .await
-        .expect("alta gestor A");
-    let gestor_b = usuarios::crear(&pool, &correo, actor, "Gestor B", &email_b, "GERENTE")
-        .await
-        .expect("alta gestor B");
+    let (gestor_a, _clave_a) =
+        usuarios::crear(&pool, &correo, actor, "Gestor A", &email_a, "ADMIN", None)
+            .await
+            .expect("alta gestor A");
+    let (gestor_b, _clave_b) =
+        usuarios::crear(&pool, &correo, actor, "Gestor B", &email_b, "GERENTE", None)
+            .await
+            .expect("alta gestor B");
 
     // Operaciones bajo prueba (sin asserts todavía, para poder restaurar).
     let baja_b = usuarios::desactivar(&pool, &reloj, gestor_b.id, actor).await;

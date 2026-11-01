@@ -35,6 +35,39 @@ where
     }
 }
 
+/// `Option<Json<T>>` con el sobre de error del contrato: sin cuerpo (o vacío)
+/// → `None`; cuerpo mal formado → 422 `validacion` (mismo mensaje que
+/// `JsonValido`). Usado por `POST /usuarios/{id}/password-temporal`.
+pub struct JsonValidoOpcional<T>(pub Option<T>);
+
+impl<S, T> FromRequest<S> for JsonValidoOpcional<T>
+where
+    T: DeserializeOwned,
+    S: Send + Sync,
+{
+    type Rejection = AppError;
+
+    async fn from_request(req: axum::extract::Request, state: &S) -> Result<Self, Self::Rejection> {
+        let _ = state;
+        let limite = 2 * 1024 * 1024;
+        let bytes = axum::body::to_bytes(req.into_body(), limite)
+            .await
+            .map_err(|_| AppError::Validacion(MENSAJE_JSON.into()))?;
+        if bytes.is_empty() {
+            return Ok(JsonValidoOpcional(None));
+        }
+        serde_json::from_slice::<T>(&bytes)
+            .map(JsonValidoOpcional::some)
+            .map_err(|_| AppError::Validacion(MENSAJE_JSON.into()))
+    }
+}
+
+impl<T> JsonValidoOpcional<T> {
+    fn some(valor: T) -> Self {
+        JsonValidoOpcional(Some(valor))
+    }
+}
+
 /// `Path<T>` con rechazos en el sobre de error del contrato.
 pub struct PathValido<T>(pub T);
 

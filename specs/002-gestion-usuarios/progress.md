@@ -1,6 +1,6 @@
 # Progreso de implementación — Gestión de usuarios (002)
 
-**Spec**: [spec.md](./spec.md) | **Actualizado**: 2026-11-01 | **Estado**: Fase 1 implementada y verificada; ajuste `FR-008b` (credenciales manual/automáticas + modal en pantalla) planificado en Phase 2, pendiente
+**Spec**: [spec.md](./spec.md) | **Actualizado**: 2026-11-01 | **Estado**: Fase 1 y Phase 2 (`FR-008b`: credenciales manual/automáticas + modal en pantalla) **implementadas y verificadas**
 
 > Retro-spec del caso de uso US2, ya implementado y pusheado. Este archivo conserva la
 > arquitectura y la evidencia de verificación que antes vivían en `001/progress.md`.
@@ -127,7 +127,29 @@ fail-closed conservado, política compartida con 001). `tasks.md` agrega **Phase
   el registro global; se renumeraron a `FR-070`–`FR-073` (y sus `SC-005`–`SC-007` a
   `SC-026`–`SC-028`) el 2026-11-01 — ver `specs/README.md` § Decisiones de la partición.
 
+## Phase 2 — FR-008b implementada (2026-11-01)
+
+TDD con RED observado en ambos lados (backend E0061/E0308 contra la firma nueva; frontend
+7 tests en rojo con la envoltura/política sin implementar) y GREEN completo:
+
+- **Backend**: `elegir_password_temporal` compartido entre `crear` (ahora
+  `(Usuario, String)`) y `regenerar_password_temporal` (devuelve `String`); política manual
+  reutiliza `validar_politica_password` de 001 (D5); vacío/en blanco ⇒ automática (D1).
+  Contratos: 201 `{ usuario, password_temporal }` (`UsuarioCreado`) y 200
+  `{ password_temporal }` (`ClaveTemporalGenerada`) — **204 → 200 en regenerar (D3)**; extractor
+  nuevo `JsonValidoOpcional` para el body opcional con el sobre de error estándar. El correo
+  sigue dentro de la transacción con fail-closed (D4) y la clave en claro no se loguea (D7).
+- **Frontend**: `CrearUsuarioSchema.password` con política Zod + `ActualizarUsuarioSchema` sin
+  password (D8); `UsuarioCreadoSchema`/`ClaveTemporalGeneradaSchema`; selector manual/automática
+  en `UsuarioForm`; `PasswordTemporalModal` para el regenerado (escenario 5) y
+  `CredencialesModal` obligatoria con botón «Copiar contraseña» tras alta y regenerado.
+- **Puntos tocados por el cambio**: `test_usuarios_http` (alta a la envoltura, regenerar a 200),
+  `test_rbac_matriz` (204→200 de password-temporal + id bajo `usuario`), `test_usuarios_email`
+  y `test_ultimo_admin` (firma de `crear`).
+- **Gates**: `cargo test` 158/158; `cargo sqlx prepare --check` exit 0 (sin queries nuevas);
+  `npm test` 174/174; `npm run check` 0/0; `npm run build` OK.
+
 ## Siguiente paso
 
-Ejecutar Phase 2 de [tasks.md](./tasks.md) (T008–T016) para cerrar `FR-008b`. El resto del
-Módulo 1 continúa en [003-catalogo-productos](../003-catalogo-productos/progress.md).
+002 queda **cerrada** (Fase 1 + Phase 2). El resto del Módulo 1 continúa en
+[003-catalogo-productos](../003-catalogo-productos/progress.md).

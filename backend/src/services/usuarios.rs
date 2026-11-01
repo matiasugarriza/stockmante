@@ -54,6 +54,35 @@ pub struct ListaUsuarios {
     pub por_pagina: i64,
 }
 
+/// Envoltura de credenciales del alta (FR-008b): usuario público + clave en
+/// claro **solo** para la modal de entrega inmediata. Nunca se persiste en
+/// claro, nunca se loguea y no viaja en listados ni detalles.
+#[derive(Debug, Serialize, ToSchema)]
+pub struct UsuarioCreado {
+    pub usuario: Usuario,
+    pub password_temporal: String,
+}
+
+/// Respuesta de `POST /usuarios/{id}/password-temporal` (200): la clave nueva
+/// en claro para la misma modal (escenario 5, FR-008b).
+#[derive(Debug, Serialize, ToSchema)]
+pub struct ClaveTemporalGenerada {
+    pub password_temporal: String,
+}
+
+/// Elige la contraseña del alta/regenerado (FR-008b, plan D5/D6):
+/// manual si viene (validada con la política de 001) o la automática de 14.
+/// Vacío o en blanco cuenta como automática (plan D1).
+fn elegir_password_temporal(password: Option<&str>) -> Result<String, AppError> {
+    match password.map(str::trim).filter(|p| !p.is_empty()) {
+        Some(manual) => {
+            crate::auth::password::validar_politica_password(manual)?;
+            Ok(manual.to_string())
+        }
+        None => Ok(generar_password_temporal()),
+    }
+}
+
 fn validar_nombre(nombre: &str) -> Result<String, AppError> {
     let nombre = nombre.trim();
     if nombre.is_empty() {
@@ -189,7 +218,9 @@ pub async fn obtener(pool: &PgPool, id: i32) -> Result<Usuario, AppError> {
     .ok_or_else(|| AppError::RecursoNoEncontrado("usuario no encontrado".into()))
 }
 
-/// Alta: genera la temporal, la envía por correo y deja el usuario activo.
+/// Alta: elige la contraseña (manual con política o automática de 14), la
+/// envía por correo dentro de la transacción y devuelve `(usuario, clave)` en
+/// claro para la modal (FR-008b).
 pub async fn crear(
     pool: &PgPool,
     correo: &dyn EnvioCorreo,
@@ -197,12 +228,13 @@ pub async fn crear(
     nombre: &str,
     email: &str,
     rol: &str,
-) -> Result<Usuario, AppError> {
+    password: Option<&str>,
+) -> Result<(Usuario, String), AppError> {
     let nombre = validar_nombre(nombre)?;
     let email = validar_email(email)?;
     let (rol, familia) = normalizar_rol(rol)?;
-    let temporal = generar_password_temporal();
-    let hash = hash_password(&temporal)?;
+    let clave = elegir_password_temporal(password)?;
+    let hash = hash_password(&clave)?;
 
     let mut tx = pool.begin().await?;
     let creado = match sqlx::query_as!(
@@ -225,7 +257,7 @@ pub async fn crear(
     };
 
     correo
-        .enviar_password_temporal(&creado.email, &creado.nombre, &temporal)
+        .enviar_password_temporal(&creado.email, &creado.nombre, &clave)
         .await
         .map_err(error_envio)?;
 
@@ -239,7 +271,7 @@ pub async fn crear(
     .await?;
 
     tx.commit().await?;
-    Ok(creado)
+    Ok((creado, clave))
 }
 
 /// Actualización parcial. Cambiar el rol recalcula `familia_rol`.
@@ -409,15 +441,17 @@ pub async fn reactivar(
     Ok(())
 }
 
-/// Nueva contraseña temporal: actualiza el hash, marca el cambio obligatorio y
-/// revoca las sesiones vigentes antes de enviarla por correo.
+/// Nueva contraseña temporal (manual o automática, misma regla que el alta,
+/// FR-008b): actualiza el hash, marca el cambio obligatorio, revoca las
+/// sesiones vigentes y devuelve la clave en claro para la modal.
 pub async fn regenerar_password_temporal(
     pool: &PgPool,
     reloj: &dyn Reloj,
     correo: &dyn EnvioCorreo,
     id: i32,
     actor_id: i32,
-) -> Result<(), AppError> {
+    password: Option<&str>,
+) -> Result<String, AppError> {
     let mut tx = pool.begin().await?;
 
     let usuario = sqlx::query_as!(
@@ -431,8 +465,8 @@ pub async fn regenerar_password_temporal(
     .await?
     .ok_or_else(|| AppError::RecursoNoEncontrado("usuario no encontrado".into()))?;
 
-    let temporal = generar_password_temporal();
-    let hash = hash_password(&temporal)?;
+    let clave = elegir_password_temporal(password)?;
+    let hash = hash_password(&clave)?;
     let ahora = reloj.ahora();
 
     sqlx::query!(
@@ -454,7 +488,7 @@ pub async fn regenerar_password_temporal(
     .await?;
 
     correo
-        .enviar_password_temporal(&usuario.email, &usuario.nombre, &temporal)
+        .enviar_password_temporal(&usuario.email, &usuario.nombre, &clave)
         .await
         .map_err(error_envio)?;
 
@@ -468,7 +502,7 @@ pub async fn regenerar_password_temporal(
     .await?;
 
     tx.commit().await?;
-    Ok(())
+    Ok(clave)
 }
 
 /// Bloquea a todos los gestores activos en orden de id. Se llama **antes** de

@@ -4,12 +4,16 @@
  */
 import { api } from './client';
 import {
+	ClaveTemporalGeneradaSchema,
 	ListaUsuariosSchema,
+	UsuarioCreadoSchema,
 	UsuarioSchema,
 	type ActualizarUsuarioInput,
+	type ClaveTemporalGenerada,
 	type CrearUsuarioInput,
 	type ListaUsuarios,
-	type Usuario
+	type Usuario,
+	type UsuarioCreado
 } from '../schemas/usuarios';
 
 export type FiltroActivo = 'true' | 'false' | 'all';
@@ -41,12 +45,13 @@ export async function obtenerUsuario(id: number): Promise<Usuario> {
 	return UsuarioSchema.parse(body);
 }
 
-export async function crearUsuario(datos: CrearUsuarioInput): Promise<Usuario> {
+/** Alta con envoltura FR-008b: usuario público + clave en claro para la modal. */
+export async function crearUsuario(datos: CrearUsuarioInput): Promise<UsuarioCreado> {
 	const body = await api<unknown>('/api/usuarios', {
 		method: 'POST',
 		body: JSON.stringify(datos)
 	});
-	return UsuarioSchema.parse(body);
+	return UsuarioCreadoSchema.parse(body);
 }
 
 export async function actualizarUsuario(
@@ -69,7 +74,18 @@ export async function reactivarUsuario(id: number): Promise<void> {
 	await api(`/api/usuarios/${id}/reactivar`, { method: 'POST' });
 }
 
-/** Regenera la temporal y la reenvía por correo; revoca sesiones vigentes. */
-export async function regenerarPasswordTemporal(id: number): Promise<void> {
-	await api(`/api/usuarios/${id}/password-temporal`, { method: 'POST' });
+/**
+ * Regenera la temporal (FR-008b): body `{ password? }` opcional — manual con
+ * política o automática — y devuelve la clave en claro para la modal (200).
+ * Además la envía por correo y revoca sesiones vigentes.
+ */
+export async function regenerarPasswordTemporal(
+	id: number,
+	password?: string
+): Promise<ClaveTemporalGenerada> {
+	const body = await api<unknown>(`/api/usuarios/${id}/password-temporal`, {
+		method: 'POST',
+		body: JSON.stringify(password ? { password } : {})
+	});
+	return ClaveTemporalGeneradaSchema.parse(body);
 }

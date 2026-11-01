@@ -295,7 +295,7 @@ async fn audita_altas_cambios_y_bajas_de_usuarios() {
     )
     .await;
     assert_eq!(status, StatusCode::CREATED, "{creado}");
-    let id = creado["id"].as_i64().expect("id de usuario") as i32;
+    let id = creado["usuario"]["id"].as_i64().expect("id de usuario") as i32;
 
     let (status, body) = pedir(
         &app,
@@ -316,7 +316,14 @@ async fn audita_altas_cambios_y_bajas_de_usuarios() {
             None,
         )
         .await;
-        assert_eq!(status, StatusCode::NO_CONTENT, "{accion}: {body}");
+        // `password-temporal` pasó de 204 a 200: devuelve la clave para la
+        // modal (contrato 2026-11, FR-008b); el resto sigue en 204.
+        let esperado = if accion == "password-temporal" {
+            StatusCode::OK
+        } else {
+            StatusCode::NO_CONTENT
+        };
+        assert_eq!(status, esperado, "{accion}: {body}");
     }
 
     let filas = acciones(&pool, "usuarios", id).await;

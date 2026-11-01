@@ -5,7 +5,7 @@
 		usuario: Usuario | null;
 		guardando: boolean;
 		error: string | null;
-		onGuardar: (datos: { nombre: string; email: string; rol: Rol }) => void;
+		onGuardar: (datos: { nombre: string; email: string; rol: Rol; password?: string }) => void;
 		onCerrar: () => void;
 	}
 
@@ -19,6 +19,9 @@
 	let email = $state(usuario?.email ?? '');
 	// svelte-ignore state_referenced_locally
 	let rol = $state<Rol>(usuario?.rol ?? 'OPERARIO');
+	// FR-008b: elección manual/automática (solo en el alta; editar no toca claves).
+	let metodoPassword = $state<'auto' | 'manual'>('auto');
+	let passwordManual = $state('');
 	let errorValidacion = $state<string | null>(null);
 
 	const roles: { valor: Rol; etiqueta: string }[] = [
@@ -30,7 +33,12 @@
 
 	function enviar() {
 		errorValidacion = null;
-		const datos = CrearUsuarioSchema.safeParse({ nombre, email, rol });
+		const base = { nombre, email, rol };
+		const datos = CrearUsuarioSchema.safeParse(
+			metodoPassword === 'manual' && !usuario
+				? { ...base, password: passwordManual }
+				: base
+		);
 		if (!datos.success) {
 			const primero = datos.error.issues[0];
 			errorValidacion = primero ? primero.message : 'Revisá los datos';
@@ -49,7 +57,7 @@
 				</h2>
 				{#if !usuario}
 					<p class="text-xs text-slate-500">
-						Se genera una contraseña temporal y se envía por correo.
+						Al crearla vas a ver la contraseña en pantalla; también se envía por correo.
 					</p>
 				{/if}
 			</div>
@@ -100,6 +108,46 @@
 					{/each}
 				</select>
 			</label>
+
+			{#if !usuario}
+				<fieldset class="flex flex-col gap-2 rounded border border-slate-200 p-3 text-sm">
+					<legend class="px-1 font-medium">Contraseña</legend>
+					<label class="flex items-center gap-2">
+						<input
+							type="radio"
+							name="metodo-password"
+							value="auto"
+							checked={metodoPassword === 'auto'}
+							onchange={() => (metodoPassword = 'auto')}
+						/>
+						<span>Automática (se genera de 14 caracteres)</span>
+					</label>
+					<label class="flex items-center gap-2">
+						<input
+							type="radio"
+							name="metodo-password"
+							value="manual"
+							checked={metodoPassword === 'manual'}
+							onchange={() => (metodoPassword = 'manual')}
+						/>
+						<span>Manual (la ingreso yo)</span>
+					</label>
+					{#if metodoPassword === 'manual'}
+						<label class="flex flex-col gap-1">
+							<span class="text-xs text-slate-500">
+								Mínimo 8 caracteres, 1 mayúscula y 1 dígito
+							</span>
+							<input
+								class="rounded border border-slate-300 px-3 py-2 focus:border-slate-500 focus:outline-none"
+								type="text"
+								autocomplete="off"
+								bind:value={passwordManual}
+								required
+							/>
+						</label>
+					{/if}
+				</fieldset>
+			{/if}
 
 			{#if error || errorValidacion}
 				<p class="rounded bg-red-50 px-3 py-2 text-sm text-red-700">

@@ -15,7 +15,7 @@ async fn alta_con_email_duplicado_devuelve_email_duplicado() {
     let email = email_unico("duplicado");
     let actor = actor_de_test(&pool).await;
 
-    let creado = usuarios::crear(&pool, &correo, actor, "Primera Persona", &email, "OPERARIO")
+    let (creado, _clave) = usuarios::crear(&pool, &correo, actor, "Primera Persona", &email, "OPERARIO", None)
         .await
         .expect("el primer alta debe funcionar");
     assert_eq!(creado.email, email);
@@ -25,7 +25,7 @@ async fn alta_con_email_duplicado_devuelve_email_duplicado() {
 
     // La unicidad no distingue mayúsculas ni espacios sobrantes.
     let repetido = format!("  {}  ", email.to_uppercase());
-    let err = usuarios::crear(&pool, &correo, actor, "Segunda Persona", &repetido, "GERENTE")
+    let err = usuarios::crear(&pool, &correo, actor, "Segunda Persona", &repetido, "GERENTE", None)
         .await
         .expect_err("el email ya está registrado");
     assert!(
@@ -45,7 +45,7 @@ async fn alta_con_email_invalido_es_validacion() {
     let actor = actor_de_test(&pool).await;
 
     for invalido in ["sin-arroba", "sin-dominio@", "@sin-usuario.com", "a@b"] {
-        let err = usuarios::crear(&pool, &correo, actor, "Persona", invalido, "OPERARIO")
+        let err = usuarios::crear(&pool, &correo, actor, "Persona", invalido, "OPERARIO", None)
             .await
             .expect_err("el email debe rechazarse");
         assert!(
@@ -69,6 +69,7 @@ async fn alta_valida_nombre_y_rol() {
         "   ",
         &email_unico("sin-nombre"),
         "OPERARIO",
+        None,
     )
     .await
     .expect_err("el nombre vacío no es válido");
@@ -81,6 +82,7 @@ async fn alta_valida_nombre_y_rol() {
         "Persona",
         &email_unico("rol-malo"),
         "SUPERVISOR",
+        None,
     )
     .await
     .expect_err("el rol fuera del catálogo no es válido");

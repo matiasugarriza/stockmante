@@ -46,8 +46,10 @@ describe('cliente de usuarios', () => {
 		expect(lista.items[0]?.email).toBe('ana@test.local');
 	});
 
-	it('crearUsuario hace POST y devuelve el usuario creado', async () => {
-		const fetchMock = vi.fn(async () => jsonResponse(usuario, 201));
+	it('crearUsuario hace POST y devuelve la envoltura de credenciales (FR-008b)', async () => {
+		const fetchMock = vi.fn(async () =>
+			jsonResponse({ usuario, password_temporal: 'ClaveAuto99x' }, 201)
+		);
 		vi.stubGlobal('fetch', fetchMock);
 
 		const creado = await crearUsuario({
@@ -64,7 +66,30 @@ describe('cliente de usuarios', () => {
 			email: 'ana@test.local',
 			rol: 'GERENTE'
 		});
-		expect(creado.id).toBe(7);
+		expect(creado.usuario.id).toBe(7);
+		expect(creado.password_temporal).toBe('ClaveAuto99x');
+	});
+
+	it('crearUsuario envía la contraseña manual cuando va en el payload', async () => {
+		const fetchMock = vi.fn(async () =>
+			jsonResponse({ usuario, password_temporal: 'Manual99' }, 201)
+		);
+		vi.stubGlobal('fetch', fetchMock);
+
+		await crearUsuario({
+			nombre: 'Ana',
+			email: 'ana@test.local',
+			rol: 'GERENTE',
+			password: 'Manual99'
+		});
+
+		const [, init] = fetchMock.mock.calls[0] as unknown as [string, RequestInit];
+		expect(JSON.parse(init.body as string)).toEqual({
+			nombre: 'Ana',
+			email: 'ana@test.local',
+			rol: 'GERENTE',
+			password: 'Manual99'
+		});
 	});
 
 	it('crearUsuario propaga el 409 email_duplicado', async () => {
@@ -101,8 +126,7 @@ describe('cliente de usuarios', () => {
 
 	it.each([
 		['desactivarUsuario', desactivarUsuario, '/api/usuarios/7/desactivar'],
-		['reactivarUsuario', reactivarUsuario, '/api/usuarios/7/reactivar'],
-		['regenerarPasswordTemporal', regenerarPasswordTemporal, '/api/usuarios/7/password-temporal']
+		['reactivarUsuario', reactivarUsuario, '/api/usuarios/7/reactivar']
 	])('%s hace POST y resuelve con 204', async (_nombre, accion, path) => {
 		const fetchMock = vi.fn(async () => new Response(null, { status: 204 }));
 		vi.stubGlobal('fetch', fetchMock);
@@ -112,5 +136,35 @@ describe('cliente de usuarios', () => {
 		const [url, init] = fetchMock.mock.calls[0] as unknown as [string, RequestInit];
 		expect(url).toContain(path);
 		expect(init.method).toBe('POST');
+	});
+
+	it('regenerarPasswordTemporal hace POST sin body y devuelve la clave (200)', async () => {
+		const fetchMock = vi.fn(async () =>
+			jsonResponse({ password_temporal: 'Auto12345xYz' }, 200)
+		);
+		vi.stubGlobal('fetch', fetchMock);
+
+		await expect(regenerarPasswordTemporal(7)).resolves.toEqual({
+			password_temporal: 'Auto12345xYz'
+		});
+
+		const [url, init] = fetchMock.mock.calls[0] as unknown as [string, RequestInit];
+		expect(url).toContain('/api/usuarios/7/password-temporal');
+		expect(init.method).toBe('POST');
+		expect(JSON.parse(init.body as string)).toEqual({});
+	});
+
+	it('regenerarPasswordTemporal acepta contraseña manual', async () => {
+		const fetchMock = vi.fn(async () =>
+			jsonResponse({ password_temporal: 'Manual99' }, 200)
+		);
+		vi.stubGlobal('fetch', fetchMock);
+
+		await expect(regenerarPasswordTemporal(7, 'Manual99')).resolves.toEqual({
+			password_temporal: 'Manual99'
+		});
+
+		const [, init] = fetchMock.mock.calls[0] as unknown as [string, RequestInit];
+		expect(JSON.parse(init.body as string)).toEqual({ password: 'Manual99' });
 	});
 });

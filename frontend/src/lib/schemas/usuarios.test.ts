@@ -77,6 +77,37 @@ describe('CrearUsuarioSchema', () => {
 		const r = CrearUsuarioSchema.safeParse(datos);
 		expect(r.success).toBe(false);
 	});
+
+	// FR-008b: la contraseña es opcional (ausente ⇒ automática) pero si va,
+	// tiene que cumplir la política de 001.
+	it('acepta sin password (automática) y con password manual válida', () => {
+		expect(
+			CrearUsuarioSchema.safeParse({ nombre: 'X', email: 'x@test.local', rol: 'OPERARIO' })
+				.success
+		).toBe(true);
+		expect(
+			CrearUsuarioSchema.safeParse({
+				nombre: 'X',
+				email: 'x@test.local',
+				rol: 'OPERARIO',
+				password: 'Manual99'
+			}).success
+		).toBe(true);
+	});
+
+	it.each([
+		['corta', 'Mn1'],
+		['sin mayúscula', 'manual99'],
+		['sin dígito', 'Manualnn']
+	])('rechaza la password manual %s', (_caso, password) => {
+		const r = CrearUsuarioSchema.safeParse({
+			nombre: 'X',
+			email: 'x@test.local',
+			rol: 'OPERARIO',
+			password
+		});
+		expect(r.success).toBe(false);
+	});
 });
 
 describe('ActualizarUsuarioSchema', () => {
@@ -88,5 +119,15 @@ describe('ActualizarUsuarioSchema', () => {
 	it('rechaza un email mal formado aunque sea parcial', () => {
 		const r = ActualizarUsuarioSchema.safeParse({ email: 'roto' });
 		expect(r.success).toBe(false);
+	});
+
+	it('no arrastra password al PUT (exclusivo de la regeneración, plan D8)', () => {
+		const r = ActualizarUsuarioSchema.safeParse({
+			nombre: 'Ana',
+			email: 'ana@test.local',
+			rol: 'CAJERO'
+		});
+		expect(r.success).toBe(true);
+		if (r.success) expect(r.data).not.toHaveProperty('password');
 	});
 });
