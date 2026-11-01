@@ -108,10 +108,28 @@ excepción anti-enumeración y W-001 registrado en Governance.
 
 ## Siguiente paso
 
-001 está **cerrada**: T026–T032 completas y constitución 1.2.0. El Módulo 1 continúa en
-[003-catalogo-productos](../003-catalogo-productos/progress.md) (US3), por T004 (handlers de
-productos y categorías). Después: 004 (búsqueda), 005 (depósitos) y 006 (RBAC/auditoría); el
-cierre transversal C1–C5 está en [specs/README.md](../README.md).
+001 está **cerrada**: T026–T032 completas y constitución 1.2.0.
+
+## Actualización de especificación (2026-10-31)
+
+Se revisó y actualizó `spec.md` para reflejar los ajustes funcionales y de arquitectura solicitados:
+
+1. **SSO config endpoint y visibilidad condicional (Google/Microsoft)**:
+   - `GET /api/auth/sso/config` añadido a la tabla de superficie de API con formato de respuesta (`google_disponible`, `microsoft_disponible`).
+   - FR-010 actualizada: el backend expone el endpoint y el frontend oculta los botones SSO si faltan credenciales o el servicio falla.
+   - Error `sso_no_configurado` (503/422) asociado explícitamente a `GET /api/auth/sso/{proveedor}/iniciar` y `GET /api/auth/sso/{proveedor}/callback`.
+
+2. **Formulario de Registro de Usuarios**:
+   - FR-009 formaliza `POST /api/auth/registro` con política de contraseña (mínimo 8 caracteres, una mayúscula, un dígito) y unicidad de correo con anti-enumeración (mensaje genérico).
+
+3. **Generación e impresión de contraseñas temporales (creación por Admin)**:
+   - FR-008a mantiene la opción manual o automática (14 caracteres, ≥1 mayúscula y 1 dígito), visualización en pantalla (mensaje emergente/alerta) del correo y contraseña temporal, y `password_temporal = true` con bloqueo de cambio obligatorio en primer ingreso.
+
+4. **Criterios de Aceptación y Superficie de API**:
+   - SC-005, SC-006 y SC-007 ya estaban definidos y validados contra los requisitos acima.
+   - Tabla de superficie de API incluye `/api/auth/sso/config` con respuesta detallada y errores asociados.
+
+**Estado**: spec actualizada y consistente; no hay cambios pendientes de clarificación.
 
 ## Pendientes administrativos
 
