@@ -20,7 +20,7 @@
 - Q: ¿Un mismo usuario puede tener varias sesiones activas al mismo tiempo (varios navegadores/puestos) o al iniciar sesión se cierra la anterior? → A: Una sola sesión vigente por usuario; un nuevo inicio de sesión invalida la sesión anterior; al desactivar, la sesión vigente se invalida en el siguiente request.
 - Q: ¿Gerente y Administrador tienen los mismos permisos o el Gerente tiene un alcance más acotado? → A: Mismos permisos: una sola familia de gestión (Administrador/Gerente); diferenciar roles queda para un módulo posterior si el negocio lo pide.
 
-> La clarificación sobre la contraseña inicial pertenece a `002/FR-008a`; la del formato de SKU a `003`.
+> La clarificación sobre la contraseña inicial pertenece a `002/FR-008b`; la del formato de SKU a `003`.
 
 ---
 

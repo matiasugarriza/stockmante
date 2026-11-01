@@ -1,6 +1,6 @@
 # Progreso de implementación — Gestión de usuarios (002)
 
-**Spec**: [spec.md](./spec.md) | **Actualizado**: 2026-10-25 | **Estado**: Implementado y cerrado
+**Spec**: [spec.md](./spec.md) | **Actualizado**: 2026-11-01 | **Estado**: Fase 1 implementada y verificada; ajuste `FR-008b` (credenciales manual/automáticas + modal en pantalla) planificado en Phase 2, pendiente
 
 > Retro-spec del caso de uso US2, ya implementado y pusheado. Este archivo conserva la
 > arquitectura y la evidencia de verificación que antes vivían en `001/progress.md`.
@@ -91,7 +91,43 @@
 - **A5**: `cambiarFiltro` no está guardado por `cargando` (race de clics rápidos, idéntico al
   baseline).
 
+## Ajuste de especificación 2026-11-01 (Phase 2 pendiente)
+
+El usuario actualizó la spec con la nueva operativa de credenciales al dar de alta:
+elección **manual/automática** de la contraseña y **modal obligatoria** con correo + clave en
+claro para entrega inmediata, además del correo por el transporte configurado.
+
+**Correcciones aplicadas sobre la spec y los docs de 002 (2026-11-01)**:
+
+1. Se restauró la estructura markdown del `spec.md` (el edit del usuario strippeó headings,
+   listas y links): `## Clarifications`, escenarios numerados, `Casos Borde`, `Requisitos`,
+   `Entidades Clave`, `Criterios de Éxito`, `Supuestos` y `Trazabilidad`, conservando
+   **verbatim** todos los textos nuevos del usuario.
+2. **Colisión de identificador resuelta**: el requisito nuevo estaba rotulado `FR-008a`, que ya
+   es de 001 en el registro global (`specs/README.md` § Partición de FRs, cual dueño único).
+   Se renumeró a **`FR-008b`** (dueño: 002, siguiente subíndice libre del par 008) con nota que
+   lo ata a la `FR-008a` de 001. Se actualizó el puntero `001/spec.md` (`002/FR-008a` →
+   `002/FR-008b`) y las filas del mapa/registro/decisiones de `specs/README.md`.
+3. **Estado corregido**: la línea de estado decía «Implementado con ajustes…» pero los ajustes
+   aún no existen en el código (`crear` solo genera automática y la clave solo va por correo);
+   ahora apunta a Phase 2 como pendiente.
+4. **Contratos alineados** en `contracts/api.md`: `POST /usuarios` con `password?` y respuesta
+   envuelta `{ usuario, password_temporal }`; `POST /{id}/password-temporal` 204→**200** con
+   `{ password_temporal }` y body opcional. En `contracts/validation.md` se corrigió el error de
+   «12 caracteres» de la automática (**`TEMP_LEN` es 14**) y se documentó la política manual.
+5. `quickstart.md`: V3 con elección de método + modal obligatoria; fila de regenerado 204→200;
+   fila nueva de clave manual fuera de política → 422.
+
+**Plan y tasks regenerados**: `plan.md` ahora documenta Fase 1 (condensada) + **Fase 2** con
+decisiones D1–D8 (campo opcional `password`, envoltura de credenciales, 204→200, correo
+fail-closed conservado, política compartida con 001). `tasks.md` agrega **Phase 2, T008–T016**
+(PRIMERO tests RED → backend → frontend (schemas, selector, modales) → docs → gates).
+
+**Hallazgo fuera de alcance (no modificado)**: la `001/spec.md` define `FR-009`–`FR-012`
+(registro, SSO, identidades, rol SSO) que en el registro global ya pertenecen a 003/004; la
+renumeración tocaría una spec distinta y quedó pendiente de decisión.
+
 ## Siguiente paso
 
-Ninguno para 002. El Módulo 1 continúa en
-[003-catalogo-productos](../003-catalogo-productos/progress.md).
+Ejecutar Phase 2 de [tasks.md](./tasks.md) (T008–T016) para cerrar `FR-008b`. El resto del
+Módulo 1 continúa en [003-catalogo-productos](../003-catalogo-productos/progress.md).

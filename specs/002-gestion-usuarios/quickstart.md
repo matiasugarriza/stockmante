@@ -12,9 +12,10 @@ entorno y el bootstrap están en [001/quickstart.md](../001-autenticacion-sesion
 ## V3 — Alta de usuario y rol
 
 1. Autenticarse como Administrador/Gerente y abrir `/admin/usuarios`.
-2. Crear un usuario con nombre, correo nuevo y rol `OPERARIO`.
-3. Esperado: 201/alta visible; la contraseña temporal llega por correo (en DEV se imprime en la
-   consola del backend).
+2. Crear un usuario con nombre, correo nuevo y rol `OPERARIO`, eligiendo el método de contraseña:
+   **automática** (se genera la de 14 caracteres) y repetir con **manual** (ej. `Manual99`).
+3. Esperado: se abre la **modal obligatoria** con el correo y la contraseña en claro (con botón
+   «Copiar»); además la clave llega por correo (en DEV se imprime en la consola del backend).
 4. Cerrar sesión e iniciar sesión con ese usuario: se exige el cambio de contraseña temporal.
 5. Al completarlo, el Operario no ve el menú de gestión y `POST /api/usuarios` responde 403.
 6. **SC-001**: cronometrar el recorrido de los pasos 2 a 4 (alta → primer login); debe completarse
@@ -33,9 +34,10 @@ entorno y el bootstrap están en [001/quickstart.md](../001-autenticacion-sesion
 |---|---|
 | Alta con un correo ya registrado | 409 `email_duplicado` |
 | Alta con `a@b@c.com`, `a@@b.com`, `a@b..com`, `.a@b.com` | 422 `validacion`, nada persistido |
+| Alta con contraseña manual fuera de política (`pass1`) | 422 `validacion`, nada persistido |
 | Desactivar un usuario con sesión abierta | Su siguiente request responde 401 |
 | Reactivar un usuario desactivado | Puede volver a iniciar sesión |
-| `POST /usuarios/{id}/password-temporal` | 204; la anterior deja de servir y las sesiones se revocan |
+| `POST /usuarios/{id}/password-temporal` sin body o con `{ password }` | 200 con `{ password_temporal }`; la anterior deja de servir y las sesiones se revocan |
 | Gestión con contraseña temporal pendiente | 403 `cambio_password_requerido` |
 
 ## V8 — Regresión de calidad

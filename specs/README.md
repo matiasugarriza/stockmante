@@ -14,7 +14,7 @@ conservan **verbatim**; solo se distribuyeron por caso de uso.
 | Spec | Caso de uso | Requisitos | Criterios | Estado | Depende de |
 |---|---|---|---|---|---|
 | [001-autenticacion-sesion](./001-autenticacion-sesion/spec.md) | Login, sesión única y cambio obligatorio de contraseña | FR-001, FR-002, FR-003, FR-008a | SC-003, SC-004 | Implementado y cerrado | — |
-| [002-gestion-usuarios](./002-gestion-usuarios/spec.md) | Alta, edición, baja lógica y reactivación de usuarios | FR-004, FR-005, FR-006, FR-007, FR-008 | SC-001 | Implementado (retro-documentado) | 001 |
+| [002-gestion-usuarios](./002-gestion-usuarios/spec.md) | Alta, edición, baja lógica y reactivación de usuarios | FR-004, FR-005, FR-006, FR-007, FR-008, FR-008b | SC-001 | Implementado (retro-documentado); ajustes 2026-11 en Phase 2 | 001 |
 | [003-catalogo-productos](./003-catalogo-productos/spec.md) | CRUD de productos y categorías, baja lógica | FR-009, FR-010, FR-012, FR-014, FR-020 … FR-023 | SC-006, SC-009 … SC-012 | Implementado y verificado; incluido en el commit de cierre | 001 |
 | [004-busqueda-caja](./004-busqueda-caja/spec.md) | Búsqueda rápida por SKU, código, nombre y categoría | FR-011, FR-013 | SC-002 | Implementado y verificado (2026-10-26) | 001, 003 |
 | [005-depositos-ubicaciones](./005-depositos-ubicaciones/spec.md) | Depósitos, ubicaciones jerárquicas y asignación a producto | FR-015, FR-016, FR-017, FR-018 | SC-005 | Implementado y verificado (2026-10-26) | 001 (003 para asignación) |
@@ -46,6 +46,7 @@ Cada FR tiene **un solo dueño**. Los demás specs lo referencian, no lo repiten
 | FR-007 | 002 | CRUD de usuarios solo gestión |
 | FR-008 | 002 | Validación de formato de correo |
 | FR-008a | 001 | Contraseña temporal: generación, entrega, cambio obligatorio y reseteo |
+| FR-008b | 002 | Elección manual/automática de la contraseña en el alta y reseteo, y visualización en pantalla de las credenciales |
 | FR-009 | 003 | CRUD de productos y formato de SKU/código |
 | FR-010 | 003 | Categorías planas |
 | FR-011 | 004 | Búsqueda y filtrado de productos |
@@ -250,5 +251,9 @@ Se reevalúan solo si aparece un requisito concreto (Principio I: YAGNI).
   no un cambio de requisito.
 - **FR-008a** queda entera en 001 porque describe el ciclo de vida de la contraseña temporal;
   002 la referencia para el alta.
+- **FR-008b** nació del ajuste 2026-11 de 002 (elección manual/automática + visualización en
+  pantalla): se le asignó subíndice `b` porque `FR-008a` ya estaba registrada a 001 y cada FR
+  tiene un solo dueño. 001 puede repetir el texto como contexto de su FR-008a, pero el dueño
+  del requisito de operativa de alta es 002.
 - **Auditoría**: el spec original solo la menciona en US6 y en Supuestos; 006 la formaliza
   como FR-019 (derivado), sin ampliar alcance.
