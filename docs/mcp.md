@@ -65,6 +65,24 @@ npx -y @bytebase/dbhub@latest --config dbhub.toml
 
 El servidor queda escuchando por stdio; OpenCode lo levanta solo al iniciar la sesión.
 
+## Playwright - incluido (000)
+
+**Para que**: validacion visual y pruebas E2E autonomas sobre la aplicacion frontend servida por Vite (http://localhost:5173).
+
+**Requisitos**
+
+- Node.js 20+ y npx.
+- Frontend corriendo: `cd frontend && npm run dev` (Vite en `http://localhost:5173`).
+
+**Configuracion** (`opencode.json`):
+
+```json
+"playwright": {
+  "type": "local",
+  "command": ["npx", "-y", "@modelcontextprotocol/server-playwright"]
+}
+```
+
 ## Context7 — ya disponible globalmente
 
 El entorno del usuario ya expone Context7 (documentación de librerías). **No se duplica** en
