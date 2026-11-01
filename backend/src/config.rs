@@ -14,6 +14,12 @@ pub struct AppConfig {
     pub app_env: String,
     /// Swagger UI + OpenAPI (000). Default: encendido fuera de producción.
     pub docs_enabled: bool,
+    /// Credenciales SSO (Google/Microsoft). Vacías = proveedor no disponible.
+    pub google_client_id: String,
+    pub google_client_secret: String,
+    pub microsoft_client_id: String,
+    pub microsoft_client_secret: String,
+    pub sso_redirect_base: String,
 }
 
 impl AppConfig {
@@ -44,6 +50,16 @@ impl AppConfig {
     /// producción. Un valor explícito siempre gana.
     pub fn docs_por_defecto(app_env: &str) -> bool {
         !Self::es_entorno_produccion(app_env)
+    }
+
+    /// Indica si Google OAuth está configurado (client_id y secret presentes).
+    pub fn google_disponible(&self) -> bool {
+        !self.google_client_id.trim().is_empty() && !self.google_client_secret.trim().is_empty()
+    }
+
+    /// Indica si Microsoft OAuth está configurado (client_id y secret presentes).
+    pub fn microsoft_disponible(&self) -> bool {
+        !self.microsoft_client_id.trim().is_empty() && !self.microsoft_client_secret.trim().is_empty()
     }
 
     /// Fail-closed de producción (T029): sin `SMTP_URL` no hay forma de entregar
@@ -101,6 +117,12 @@ impl AppConfig {
             smtp_url,
             app_env,
             docs_enabled,
+            google_client_id: std::env::var("GOOGLE_CLIENT_ID").unwrap_or_default(),
+            google_client_secret: std::env::var("GOOGLE_CLIENT_SECRET").unwrap_or_default(),
+            microsoft_client_id: std::env::var("MICROSOFT_CLIENT_ID").unwrap_or_default(),
+            microsoft_client_secret: std::env::var("MICROSOFT_CLIENT_SECRET").unwrap_or_default(),
+            sso_redirect_base: std::env::var("SSO_REDIRECT_BASE")
+                .unwrap_or_else(|_| "http://localhost:3000".into()),
         })
     }
 }

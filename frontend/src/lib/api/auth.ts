@@ -7,8 +7,11 @@ import {
   SesionResponseSchema,
   type CambioPasswordInput,
   type LoginInput,
+  type RegistroInput,
+  type SsoConfig,
   type UsuarioSesion
 } from '../schemas/auth';
+import { SsoConfigSchema } from '../schemas/auth';
 
 export async function login(datos: LoginInput): Promise<void> {
   await api('/api/auth/login', {
@@ -34,9 +37,15 @@ export async function cambiarPassword(datos: CambioPasswordInput): Promise<void>
 	});
 }
 
-export async function registro(datos: { nombre: string; email: string; password: string }): Promise<void> {
+export async function registro(datos: RegistroInput): Promise<void> {
 	await api('/api/auth/registro', {
 		method: 'POST',
 		body: JSON.stringify(datos)
 	});
+}
+
+/** Disponibilidad de proveedores SSO para mostrar/ocultar botones. */
+export async function obtenerSsoConfig(): Promise<SsoConfig> {
+  const body = await api<unknown>('/api/auth/sso/config');
+  return SsoConfigSchema.parse(body);
 }

@@ -1,12 +1,13 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
 	import { ApiError } from '#lib/api/client';
-	import { cambiarPassword, login } from '#lib/api/auth';
+	import { cambiarPassword, login, obtenerSsoConfig } from '#lib/api/auth';
 	import {
 		CambioPasswordSchema,
 		LoginSchema
 	} from '#lib/schemas/auth';
 	import { refrescarSesion, sesion } from '#lib/stores/sesion';
+	type SsoConfig = Awaited<ReturnType<typeof obtenerSsoConfig>>;
 
 	let modo = $state<'login' | 'cambio'>('login');
 	let email = $state('');
@@ -16,6 +17,7 @@
 	let repetir = $state('');
 	let error = $state<string | null>(null);
 	let enviando = $state(false);
+	let ssoConfig = $state<SsoConfig | null>(null);
 
 	// Si llegamos con sesión activa y password temporal, directo al cambio.
 	$effect(() => {
@@ -25,6 +27,18 @@
 		} else if (estado.estado === 'activa' && modo === 'login') {
 			void goto('/');
 		}
+	});
+
+	// Cargar disponibilidad de SSO para mostrar/ocultar botones.
+	$effect(() => {
+		obtenerSsoConfig()
+			.then((cfg) => {
+				ssoConfig = cfg;
+			})
+			.catch(() => {
+				// Si falla, ocultamos SSO por seguridad
+				ssoConfig = { google_disponible: false, microsoft_disponible: false };
+			});
 	});
 
 	function mensajeError(e: unknown, fallback: string): string {
@@ -141,18 +155,25 @@
 			</form>
 
 			<div class="mt-4 flex flex-col gap-2">
-				<a
-					class="rounded border border-slate-300 px-4 py-2 text-center text-sm hover:bg-slate-100"
-					href="/api/auth/sso/google/iniciar"
-				>
-					Continuar con Google
-				</a>
-				<a
-					class="rounded border border-slate-300 px-4 py-2 text-center text-sm hover:bg-slate-100"
-					href="/api/auth/sso/microsoft/iniciar"
-				>
-					Continuar con Microsoft
-				</a>
+				{#if ssoConfig?.google_disponible}
+					<a
+						class="rounded border border-slate-300 px-4 py-2 text-center text-sm hover:bg-slate-100"
+						href="/api/auth/sso/google/iniciar"
+					>
+						Continuar con Google
+					</a>
+				{/if}
+				{#if ssoConfig?.microsoft_disponible}
+					<a
+						class="rounded border border-slate-300 px-4 py-2 text-center text-sm hover:bg-slate-100"
+						href="/api/auth/sso/microsoft/iniciar"
+					>
+						Continuar con Microsoft
+					</a>
+				{/if}
+				{#if ssoConfig === null || (!ssoConfig.google_disponible && !ssoConfig.microsoft_disponible)}
+					<p class="text-xs text-slate-400">Sin proveedores SSO configurados</p>
+				{/if}
 				<p class="text-center text-sm text-slate-500">
 					¿No tenés cuenta? <a class="text-blue-600 underline" href="/registro">Registrate</a>
 				</p>

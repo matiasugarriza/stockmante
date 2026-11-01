@@ -11,6 +11,11 @@ fn config_base() -> AppConfig {
         smtp_url: None,
         app_env: "development".into(),
         docs_enabled: true,
+        google_client_id: String::new(),
+        google_client_secret: String::new(),
+        microsoft_client_id: String::new(),
+        microsoft_client_secret: String::new(),
+        sso_redirect_base: "http://localhost:3000".into(),
     }
 }
 

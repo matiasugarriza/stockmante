@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { ApiError } from '#lib/api/client';
 	import { registro } from '#lib/api/auth';
-	import { z } from 'zod';
+	import { RegistroSchema } from '#lib/schemas/auth';
 
 	let nombre = $state('');
 	let email = $state('');
@@ -10,20 +10,10 @@
 	let exito = $state<string | null>(null);
 	let enviando = $state(false);
 
-	const Schema = z.object({
-		nombre: z.string().min(1, 'El nombre es obligatorio'),
-		email: z.string().email('Email inválido'),
-		password: z
-			.string()
-			.min(8, 'Mínimo 8 caracteres')
-			.refine((v) => /[A-Z]/.test(v), 'Al menos una mayúscula')
-			.refine((v) => /\d/.test(v), 'Al menos un dígito')
-	});
-
 	async function enviar() {
 		error = null;
 		exito = null;
-		const datos = Schema.safeParse({ nombre, email, password });
+		const datos = RegistroSchema.safeParse({ nombre, email, password });
 		if (!datos.success) {
 			error = datos.error.issues[0]?.message ?? 'Datos inválidos';
 			return;

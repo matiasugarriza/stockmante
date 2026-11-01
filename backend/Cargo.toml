@@ -85,6 +85,18 @@ name = "test_ultimo_admin"
 path = "tests/unit/test_ultimo_admin.rs"
 
 [[test]]
+name = "test_registro"
+path = "tests/unit/test_registro.rs"
+
+[[test]]
+name = "test_sso_config"
+path = "tests/unit/test_sso_config.rs"
+
+[[test]]
+name = "test_sso_no_configurado"
+path = "tests/unit/test_sso_no_configurado.rs"
+
+[[test]]
 name = "test_auth_http"
 path = "tests/integration/test_auth_http.rs"
 

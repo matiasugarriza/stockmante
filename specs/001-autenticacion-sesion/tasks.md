@@ -195,7 +195,7 @@ cada caso de uso tiene su propia spec y **reinicia la numeración en `T001`**:
 
 ### Estado
 
-Base y US1 **implementadas**; T026–T032 cerradas con evidencia (2026-10-25). La gobernanza quedó regularizada en la constitución **1.2.0** (excepción acotada de P-III + waiver W-001) y 001 se declara **cerrada**. El Módulo 1 continúa en [003-catalogo-productos](../003-catalogo-productos/tasks.md) (US3, T004).
+Base y US1 **implementadas**; T026–T032 cerradas con evidencia (2026-10-25). Phase 4 (T033–T045) **implementada y verificada** (2026-10-31): registro con anti-enumeración, `sso/config`, flujo SSO Google/Microsoft, y contraseña temporal con popup. La gobernanza quedó regularizada en la constitución **1.2.0** (excepción acotada de P-III + waiver W-001) y 001 se declara **cerrada**. El Módulo 1 continúa en [003-catalogo-productos](../003-catalogo-productos/tasks.md) (US3, T004).
 
 ---
 
@@ -214,21 +214,21 @@ Base y US1 **implementadas**; T026–T032 cerradas con evidencia (2026-10-25). L
 
 ### Tests FIRST (RED) para Phase 4
 
-- [ ] T033 [US1] Unit test: `POST /api/auth/registro` con correo válido → 202; mismo correo repetido → 202 (anti-enumeración, mensaje genérico); contraseña corta → 422. **Archivos**: `backend/tests/unit/test_registro.rs`. **Aceptación**: RED inicial.
-- [ ] T034 [US1] Unit test: `GET /api/auth/sso/config` sin credenciales de Google → `google_disponible: false`; con credenciales → `true`. **Archivos**: `backend/tests/unit/test_sso_config.rs`. **Aceptación**: RED inicial.
-- [ ] T035 [US1] Unit test: `GET /api/auth/sso/google/iniciar` sin `GOOGLE_CLIENT_ID` → 422/503 `sso_no_configurado`. **Archivos**: `backend/tests/unit/test_sso_no_configurado.rs`. **Aceptación**: RED inicial.
+- [X] T033 [US1] Unit test: `POST /api/auth/registro` con correo válido → 202; mismo correo repetido → 202 (anti-enumeración, mensaje genérico); contraseña corta → 422. **Archivos**: `backend/tests/unit/test_registro.rs`. **Aceptación**: RED inicial.
+- [X] T034 [US1] Unit test: `GET /api/auth/sso/config` sin credenciales de Google → `google_disponible: false`; con credenciales → `true`. **Archivos**: `backend/tests/unit/test_sso_config.rs`. **Aceptación**: RED inicial.
+- [X] T035 [US1] Unit test: `GET /api/auth/sso/google/iniciar` sin `GOOGLE_CLIENT_ID` → 422/503 `sso_no_configurado`. **Archivos**: `backend/tests/unit/test_sso_no_configurado.rs`. **Aceptación**: RED inicial.
 
 ### Implementación para Phase 4
 
-- [ ] T036 [US1] Migración `migrations/0012_registro_sso.sql`: tablas `identidades_externas` (usuario_id, proveedor, subject, email, creado_en; PK compuesta proveedor+subject), `tokens_verificacion` (id, usuario_id, token_hash, expira_en, usado, creado_en); columna `usuarios.email_verificado`. **Aceptación**: `sqlx migrate run` aplica sin error; `sqlx describe` coincide con data-model.
-- [ ] T037 [US1] Servicio `backend/src/services/registro.rs`: `registrar_usuario` (validar política de contraseña ≥8, ≥1 mayúscula, ≥1 dígito; unicidad de correo con anti-enumeración; crear usuario inactivo; generar token de verificación; enviar correo). **Aceptación**: T033 en verde; `cargo test` completo en verde.
-- [ ] T038 [US1] Servicio `backend/src/services/sso.rs`: `sso_config` (leer env de credenciales y devolver disponibilidad); `sso_iniciar` (redirigir al proveedor o 422/503 si no configurado); `sso_callback` (intercambiar code, validar ID token, crear/vincular cuenta, crear sesión). **Aceptación**: T034/T035 en verde.
-- [ ] T039 [US1] Servicio `backend/src/services/identidades.rs`: `vincular_identidad`, `desvincular_identidad` (falla si es la última y no hay password local → 409 `ultima_identidad`). **Aceptación**: unit tests de vinculación/desvinculación en verde.
-- [ ] T040 [US1] Handlers `backend/src/handlers/auth.rs`: agregar `POST /api/auth/registro`, `GET /api/auth/sso/config`, `GET /api/auth/sso/{proveedor}/iniciar`, `GET /api/auth/sso/{proveedor}/callback`. Registrar en router. **Aceptación**: integration tests de cada endpoint contra BD de test; contrato de contracts/api.md.
-- [ ] T041 [US1] Errores `backend/src/error.rs`: agregar variantes `CorreoYaRegistrado`, `SsoNoConfigurado`, `IdentidadYaVinculada`, `UltimaIdentidad` con status/codigo. **Aceptación**: unit test de mapeo de status/codigo para cada variante en verde.
-- [ ] T042 [P] Frontend: schema Zod `RegistroSchema` en `frontend/src/lib/schemas/auth.ts` (email, password con política); cliente `frontend/src/lib/api/auth.ts` para registro y sso/config. **Aceptación**: vitest de schemas + cliente mock.
-- [ ] T043 [US1] Frontend: ruta `frontend/src/routes/registro/+page.svelte` (formulario de registro con validación, mensaje genérico de éxito/fallo). **Aceptación**: manual V1 de quickstart; sin menú de admin si no hay sesión.
-- [ ] T044 [US1] Frontend: `frontend/src/routes/login/+page.svelte` — botones SSO ocultos si `sso/config` responde `false` para ese proveedor; visibles y funcionales si `true`. **Aceptación**: manual de quickstart; SSO oculto sin credenciales.
-- [ ] T045 [US1] Frontend: alerta/mensaje emergente en pantalla al crear usuario desde admin con correo + contraseña temporal (popup de entrega inmediata). **Aceptación**: manual de quickstart; `password_temporal = true` bloquea primer ingreso.
+- [X] T036 [US1] Migración `migrations/0012_registro_sso.sql`: tablas `identidades_externas` (usuario_id, proveedor, subject, email, creado_en; PK compuesta proveedor+subject), `tokens_verificacion` (id, usuario_id, token_hash, expira_en, usado, creado_en); columna `usuarios.email_verificado`. **Aceptación**: `sqlx migrate run` aplica sin error; `sqlx describe` coincide con data-model.
+- [X] T037 [US1] Servicio `backend/src/services/registro.rs`: `registrar_usuario` (validar política de contraseña ≥8, ≥1 mayúscula, ≥1 dígito; unicidad de correo con anti-enumeración; crear usuario inactivo; generar token de verificación; enviar correo). **Aceptación**: T033 en verde; `cargo test` completo en verde.
+- [X] T038 [US1] Servicio `backend/src/services/sso.rs`: `sso_config` (leer env de credenciales y devolver disponibilidad); `sso_iniciar` (redirigir al proveedor o 422/503 si no configurado); `sso_callback` (intercambiar code, validar ID token, crear/vincular cuenta, crear sesión). **Aceptación**: T034/T035 en verde.
+- [X] T039 [US1] Servicio `backend/src/services/identidades.rs`: `vincular_identidad`, `desvincular_identidad` (falla si es la última y no hay password local → 409 `ultima_identidad`). **Aceptación**: unit tests de vinculación/desvinculación en verde.
+- [X] T040 [US1] Handlers `backend/src/handlers/auth.rs`: agregar `POST /api/auth/registro`, `GET /api/auth/sso/config`, `GET /api/auth/sso/{proveedor}/iniciar`, `GET /api/auth/sso/{proveedor}/callback`. Registrar en router. **Aceptación**: integration tests de cada endpoint contra BD de test; contrato de contracts/api.md.
+- [X] T041 [US1] Errores `backend/src/error.rs`: agregar variantes `CorreoYaRegistrado`, `SsoNoConfigurado`, `IdentidadYaVinculada`, `UltimaIdentidad` con status/codigo. **Aceptación**: unit test de mapeo de status/codigo para cada variante en verde.
+- [X] T042 [P] Frontend: schema Zod `RegistroSchema` en `frontend/src/lib/schemas/auth.ts` (email, password con política); cliente `frontend/src/lib/api/auth.ts` para registro y sso/config. **Aceptación**: vitest de schemas + cliente mock.
+- [X] T043 [US1] Frontend: ruta `frontend/src/routes/registro/+page.svelte` (formulario de registro con validación, mensaje genérico de éxito/fallo). **Aceptación**: manual V1 de quickstart; sin menú de admin si no hay sesión.
+- [X] T044 [US1] Frontend: `frontend/src/routes/login/+page.svelte` — botones SSO ocultos si `sso/config` responde `false` para ese proveedor; visibles y funcionales si `true`. **Aceptación**: manual de quickstart; SSO oculto sin credenciales.
+- [X] T045 [US1] Frontend: alerta/mensaje emergente en pantalla al crear usuario desde admin con correo + contraseña temporal (popup de entrega inmediata). **Aceptación**: manual de quickstart; `password_temporal = true` bloquea primer ingreso.
 
 **Checkpoint**: Registro, SSO config, flujo OAuth y contraseña temporal verificables end-to-end.

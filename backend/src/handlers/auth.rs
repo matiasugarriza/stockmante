@@ -7,6 +7,7 @@ use crate::error::AppError;
 use crate::extractores::JsonValido;
 use crate::extractores::{PathValido, QueryValida};
 use crate::services;
+use crate::services::sso::SsoConfig;
 use axum::{
     extract::{Json, State},
     http::StatusCode,
@@ -28,6 +29,7 @@ pub fn router() -> Router<AppEstado> {
         .route("/cambiar-password", post(cambiar_password))
         .route("/registro", post(registro))
         .route("/verificar-correo", get(verificar_correo))
+        .route("/sso/config", get(sso_config))
         .route("/sso/{proveedor}/iniciar", get(sso_iniciar))
         .route("/sso/{proveedor}/callback", get(sso_callback))
         .route("/identidades", get(listar_identidades))
@@ -277,6 +279,22 @@ pub async fn verificar_correo(
     Ok(StatusCode::OK)
 }
 
+/// GET /api/auth/sso/config → disponibilidad de proveedores SSO.
+#[utoipa::path(
+    get,
+    path = "/api/auth/sso/config",
+    tag = "auth",
+    summary = "Disponibilidad de proveedores SSO",
+    description = "Indica si Google y/o Microsoft están configurados para que el frontend oculte/muestre los botones de SSO.",
+    responses(
+        (status = 200, description = "Estado de disponibilidad", body = SsoConfig)
+    ),
+    security(())
+)]
+pub async fn sso_config(State(estado): State<AppEstado>) -> axum::Json<SsoConfig> {
+    axum::Json(services::sso::sso_config(&estado.config))
+}
+
 /// GET /api/auth/sso/{proveedor}/iniciar → 302.
 #[utoipa::path(
     get,
@@ -297,14 +315,17 @@ pub async fn sso_iniciar(
     PathValido(proveedor): PathValido<String>,
 ) -> Result<(CookieJar, axum::response::Redirect), AppError> {
     let state = Uuid::new_v4().to_string();
-    let backend_base = std::env::var("SSO_REDIRECT_BASE")
-        .unwrap_or_else(|_| "http://localhost:3000".to_string());
     let redirect_uri = format!(
         "{}/api/auth/sso/{}/callback",
-        backend_base.trim_end_matches('/'),
+        estado.config.sso_redirect_base.trim_end_matches('/'),
         proveedor
     );
-    let url = services::sso::url_autorizacion(&proveedor, &state, &redirect_uri)?;
+    let url = services::sso::url_autorizacion(
+        &proveedor,
+        &estado.config.google_client_id,
+        &state,
+        &redirect_uri,
+    )?;
     let jar = jar.add(
         Cookie::build(("sso_state", state.clone()))
             .http_only(true)
@@ -348,10 +369,25 @@ pub async fn sso_callback(
         return Err(AppError::Validacion("State inválido.".into()));
     }
 
+    let (client_id, client_secret) = match proveedor.as_str() {
+        "google" => (
+            &estado.config.google_client_id,
+            &estado.config.google_client_secret,
+        ),
+        "microsoft" => (
+            &estado.config.microsoft_client_id,
+            &estado.config.microsoft_client_secret,
+        ),
+        _ => return Err(AppError::ProveedorNoSoportado),
+    };
+
     let usuario = services::sso::procesar_callback(
         &estado.pool,
         &proveedor,
         &q.code,
+        client_id,
+        client_secret,
+        &estado.config.sso_redirect_base,
         estado.correo.as_ref(),
         &estado.config.app_url,
     )
@@ -444,11 +480,25 @@ pub async fn vincular_identidad(
     // (state se valida en el frontend/cookie; aquí confiamos en el dto)
     let _ = dto;
     // Intercambiar code y vincular al usuario actual.
+    let (client_id, client_secret) = match proveedor.as_str() {
+        "google" => (
+            &estado.config.google_client_id,
+            &estado.config.google_client_secret,
+        ),
+        "microsoft" => (
+            &estado.config.microsoft_client_id,
+            &estado.config.microsoft_client_secret,
+        ),
+        _ => return Err(AppError::ProveedorNoSoportado),
+    };
     let _ = services::sso::vincular(
         &estado.pool,
         usuario.id,
         &proveedor,
         &dto.code,
+        client_id,
+        client_secret,
+        &estado.config.sso_redirect_base,
         estado.correo.as_ref(),
         &estado.config.app_url,
     )

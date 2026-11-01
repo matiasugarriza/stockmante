@@ -1,41 +1,59 @@
 //! SSO con Google y Microsoft (OAuth 2.0 / OIDC) — 001 enmienda.
 
+use crate::config::AppConfig;
 use crate::error::AppError;
 use crate::models::usuario::Usuario;
 use crate::services::auditoria;
 use chrono::Utc;
 use serde::Deserialize;
+use serde::Serialize;
 use sqlx::PgPool;
 use std::env;
+
+/// Estado de disponibilidad de proveedores SSO para el frontend.
+#[derive(Debug, serde::Serialize, utoipa::ToSchema)]
+pub struct SsoConfig {
+    pub google_disponible: bool,
+    pub microsoft_disponible: bool,
+}
+
+pub fn sso_config(config: &AppConfig) -> SsoConfig {
+    SsoConfig {
+        google_disponible: config.google_disponible(),
+        microsoft_disponible: config.microsoft_disponible(),
+    }
+}
 
 fn proveedor_valido(proveedor: &str) -> bool {
     proveedor == "google" || proveedor == "microsoft"
 }
 
-pub fn url_autorizacion(proveedor: &str, state: &str, redirect_uri: &str) -> Result<String, AppError> {
+pub fn url_autorizacion(
+    proveedor: &str,
+    client_id: &str,
+    state: &str,
+    redirect_uri: &str,
+) -> Result<String, AppError> {
     if !proveedor_valido(proveedor) {
         return Err(AppError::ProveedorNoSoportado);
     }
-    let (auth_url, client_id, scope) = match proveedor {
-        "google" => (
-            "https://accounts.google.com/o/oauth2/v2/auth",
-            env::var("GOOGLE_CLIENT_ID").unwrap_or_default(),
-            "openid email profile",
-        ),
-        "microsoft" => (
-            "https://login.microsoftonline.com/common/oauth2/v2.0/authorize",
-            env::var("MICROSOFT_CLIENT_ID").unwrap_or_default(),
-            "openid email profile",
-        ),
+    if client_id.is_empty() {
+        return Err(AppError::SsoNoConfigurado);
+    }
+    let scope = match proveedor {
+        "google" => "openid email profile",
+        "microsoft" => "openid email profile",
         _ => return Err(AppError::ProveedorNoSoportado),
     };
-    if client_id.is_empty() {
-        return Err(AppError::ProveedorNoDisponible);
-    }
+    let auth_url = match proveedor {
+        "google" => "https://accounts.google.com/o/oauth2/v2/auth",
+        "microsoft" => "https://login.microsoftonline.com/common/oauth2/v2.0/authorize",
+        _ => return Err(AppError::ProveedorNoSoportado),
+    };
     Ok(format!(
         "{auth_url}?client_id={client_id}&redirect_uri={redirect_uri}&response_type=code&scope={scope}&state={state}",
         auth_url = auth_url,
-        client_id = urlencoding(&client_id),
+        client_id = urlencoding(client_id),
         redirect_uri = urlencoding(redirect_uri),
         scope = urlencoding(scope),
         state = urlencoding(state),
@@ -80,43 +98,43 @@ pub async fn procesar_callback(
     pool: &PgPool,
     proveedor: &str,
     code: &str,
-    _correo: &dyn crate::mail::envio::EnvioCorreo,
-    _base_url: &str,
+    client_id: &str,
+    client_secret: &str,
+    redirect_base: &str,
+    correo: &dyn crate::mail::envio::EnvioCorreo,
+    base_url: &str,
 ) -> Result<Usuario, AppError> {
     if !proveedor_valido(proveedor) {
         return Err(AppError::ProveedorNoSoportado);
     }
 
-    let (client_id, client_secret, token_url, userinfo_url) = match proveedor {
-        "google" => (
-            env::var("GOOGLE_CLIENT_ID").unwrap_or_default(),
-            env::var("GOOGLE_CLIENT_SECRET").unwrap_or_default(),
-            "https://oauth2.googleapis.com/token",
-            "https://www.googleapis.com/oauth2/v3/userinfo",
-        ),
-        "microsoft" => (
-            env::var("MICROSOFT_CLIENT_ID").unwrap_or_default(),
-            env::var("MICROSOFT_CLIENT_SECRET").unwrap_or_default(),
-            "https://login.microsoftonline.com/common/oauth2/v2.0/token",
-            "https://graph.microsoft.com/v1.0/me",
-        ),
+    if client_id.is_empty() || client_secret.is_empty() {
+        return Err(AppError::SsoNoConfigurado);
+    }
+
+    let token_url = match proveedor {
+        "google" => "https://oauth2.googleapis.com/token",
+        "microsoft" => "https://login.microsoftonline.com/common/oauth2/v2.0/token",
+        _ => return Err(AppError::ProveedorNoSoportado),
+    };
+    let userinfo_url = match proveedor {
+        "google" => "https://www.googleapis.com/oauth2/v3/userinfo",
+        "microsoft" => "https://graph.microsoft.com/v1.0/me",
         _ => return Err(AppError::ProveedorNoSoportado),
     };
 
-    if client_id.is_empty() || client_secret.is_empty() {
-        return Err(AppError::ProveedorNoDisponible);
-    }
-
-    let redirect_uri = env::var("SSO_REDIRECT_BASE")
-        .unwrap_or_else(|_| "http://localhost:3000".to_string())
-        + &format!("/api/auth/sso/{}/callback", proveedor);
+    let redirect_uri = format!(
+        "{}/api/auth/sso/{}/callback",
+        redirect_base.trim_end_matches('/'),
+        proveedor
+    );
 
     let client = reqwest::Client::new();
     let resp = client
         .post(token_url)
         .form(&[
-            ("client_id", client_id.as_str()),
-            ("client_secret", client_secret.as_str()),
+            ("client_id", client_id),
+            ("client_secret", client_secret),
             ("code", code),
             ("redirect_uri", redirect_uri.as_str()),
             ("grant_type", "authorization_code"),
@@ -286,40 +304,40 @@ pub async fn vincular(
     usuario_id: i32,
     proveedor: &str,
     code: &str,
+    client_id: &str,
+    client_secret: &str,
+    redirect_base: &str,
     _correo: &dyn crate::mail::envio::EnvioCorreo,
     _base_url: &str,
 ) -> Result<(), AppError> {
     if !proveedor_valido(proveedor) {
         return Err(AppError::ProveedorNoSoportado);
     }
-    let (client_id, client_secret, token_url, userinfo_url) = match proveedor {
-        "google" => (
-            env::var("GOOGLE_CLIENT_ID").unwrap_or_default(),
-            env::var("GOOGLE_CLIENT_SECRET").unwrap_or_default(),
-            "https://oauth2.googleapis.com/token",
-            "https://www.googleapis.com/oauth2/v3/userinfo",
-        ),
-        "microsoft" => (
-            env::var("MICROSOFT_CLIENT_ID").unwrap_or_default(),
-            env::var("MICROSOFT_CLIENT_SECRET").unwrap_or_default(),
-            "https://login.microsoftonline.com/common/oauth2/v2.0/token",
-            "https://graph.microsoft.com/v1.0/me",
-        ),
+    if client_id.is_empty() || client_secret.is_empty() {
+        return Err(AppError::SsoNoConfigurado);
+    }
+    let token_url = match proveedor {
+        "google" => "https://oauth2.googleapis.com/token",
+        "microsoft" => "https://login.microsoftonline.com/common/oauth2/v2.0/token",
         _ => return Err(AppError::ProveedorNoSoportado),
     };
-    if client_id.is_empty() || client_secret.is_empty() {
-        return Err(AppError::ProveedorNoDisponible);
-    }
-    let redirect_uri = env::var("SSO_REDIRECT_BASE")
-        .unwrap_or_else(|_| "http://localhost:3000".to_string())
-        + &format!("/api/auth/identidades/{}/vincular", proveedor);
+    let userinfo_url = match proveedor {
+        "google" => "https://www.googleapis.com/oauth2/v3/userinfo",
+        "microsoft" => "https://graph.microsoft.com/v1.0/me",
+        _ => return Err(AppError::ProveedorNoSoportado),
+    };
+    let redirect_uri = format!(
+        "{}/api/auth/identidades/{}/vincular",
+        redirect_base.trim_end_matches('/'),
+        proveedor
+    );
 
     let client = reqwest::Client::new();
     let resp = client
         .post(token_url)
         .form(&[
-            ("client_id", client_id.as_str()),
-            ("client_secret", client_secret.as_str()),
+            ("client_id", client_id),
+            ("client_secret", client_secret),
             ("code", code),
             ("redirect_uri", redirect_uri.as_str()),
             ("grant_type", "authorization_code"),

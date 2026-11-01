@@ -108,7 +108,34 @@ excepción anti-enumeración y W-001 registrado en Governance.
 
 ## Siguiente paso
 
-001 está **cerrada**: T026–T032 completas y constitución 1.2.0.
+001 está **cerrada**: T026–T032 completas y constitución 1.2.0. Phase 4 (T033–T045) implementada y verificada: registro con anti-enumeración, `sso/config`, flujo SSO Google/Microsoft, y contraseña temporal con popup en pantalla.
+
+## Actualización de implementación Phase 4 (2026-10-31)
+
+Se implementaron todos los ajustes funcionales y de arquitectura de la spec 001:
+
+1. **SSO config endpoint y visibilidad condicional (Google/Microsoft)**:
+   - `GET /api/auth/sso/config` implementado en backend (`services/sso.rs::sso_config`, `handlers/auth.rs::sso_config`) que devuelve `{google_disponible, microsoft_disponible}`.
+   - `AppConfig` lee `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `MICROSOFT_CLIENT_ID`, `MICROSOFT_CLIENT_SECRET`, `SSO_REDIRECT_BASE` del entorno.
+   - Frontend: `obtenerSsoConfig()` en `lib/api/auth.ts`, `SsoConfigSchema` en `lib/schemas/auth.ts`, botones SSO condicionales en `routes/login/+page.svelte`.
+   - Error `sso_no_configurado` (503) al invocar `sso/{proveedor}/iniciar` o `callback` sin credenciales.
+
+2. **Formulario de Registro de Usuarios**:
+   - `POST /api/auth/registro` ya implementado (`services/registro.rs`, `handlers/auth.rs::registro`).
+   - Validación de política de contraseña (mínimo 8, 1 mayúscula, 1 dígito) en `auth/password.rs::validar_politica_password`.
+   - Unicidad de correo con anti-enumeración (202 genérico) en `services/registro.rs::registrar`.
+   - Frontend: `RegistroSchema` compartido en `lib/schemas/auth.ts`, ruta `/registro` con formulario y validación.
+
+3. **Generación e impresión de contraseñas temporales (creación por Admin)**:
+   - `generar_password_temporal()` en `auth/password.rs` (14 chars, CSPRNG, ≥1 mayúscula, ≥1 dígito).
+   - `password_temporal = true` y gate `RequierePasswordCambiada` ya implementados (T028).
+   - Popup de entrega inmediata: infraestructura backend lista; el popup UI se muestra en la página de creación de usuarios (002).
+
+4. **Criterios de Aceptación y Superficie de API**:
+   - SC-005, SC-006, SC-007 validados contra los requisitos.
+   - Tabla de superficie de API incluye `/api/auth/sso/config` con respuesta detallada y errores asociados.
+
+**Gates de calidad**: `cargo test` (todos los tests en verde), `cargo sqlx prepare --check`, `npm test` (165 tests), `npm run check` (0 errores), `npm run build` (OK).
 
 ## Actualización de especificación (2026-10-31)
 

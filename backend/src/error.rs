@@ -77,6 +77,8 @@ pub enum AppError {
     TokenVerificacionInvalido,
     #[error("El proveedor SSO no está disponible.")]
     ProveedorNoDisponible,
+    #[error("El proveedor SSO no está configurado en este entorno.")]
+    SsoNoConfigurado,
     #[error("La identidad ya está vinculada a otra cuenta.")]
     IdentidadYaVinculada,
     #[error("No se puede desvincular la última identidad disponible.")]
@@ -125,6 +127,7 @@ impl AppError {
             | AppError::ProveedorNoSoportado => StatusCode::UNPROCESSABLE_ENTITY,
             AppError::Interno(_) => StatusCode::INTERNAL_SERVER_ERROR,
             AppError::ProveedorNoDisponible | AppError::AsistenteNoDisponible => StatusCode::SERVICE_UNAVAILABLE,
+            AppError::SsoNoConfigurado => StatusCode::SERVICE_UNAVAILABLE,
         }
     }
 
@@ -159,6 +162,7 @@ impl AppError {
             AppError::CorreoYaRegistrado => "correo_ya_registrado",
             AppError::TokenVerificacionInvalido => "token_verificacion_invalido",
             AppError::ProveedorNoDisponible => "proveedor_no_disponible",
+            AppError::SsoNoConfigurado => "sso_no_configurado",
             AppError::AsistenteNoDisponible => "asistente_no_disponible",
             AppError::IdentidadYaVinculada => "identidad_ya_vinculada",
             AppError::UltimaIdentidad => "ultima_identidad",
