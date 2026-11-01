@@ -79,7 +79,7 @@ El servidor queda escuchando por stdio; OpenCode lo levanta solo al iniciar la s
 ```json
 "playwright": {
   "type": "local",
-  "command": ["npx", "-y", "@modelcontextprotocol/server-playwright"]
+          "command": ["npx", "-y", "@playwright/mcp"]
 }
 ```
 
