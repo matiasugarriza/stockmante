@@ -329,9 +329,9 @@ dbhub.toml      Configuración de DBHub (DSN desde DATABASE_URL)
 
 ## Entrega
 
-El proyecto se entrega desde `main`. La rama de trabajo contiene todos los cambios; en el cierre
-se hace fast-forward a `main` y se verifica que el repositorio público tenga el código y la
-documentación. Si clonás el repo, seguí los pasos de «Puesta en marcha».
+El proyecto se entrega desde **`main`**, actualizado con el código y la documentación
+(commit `164f0b1`). La rama de trabajo `004-ampliacion-y-specs-2026-11-07` quedó sincronizada con
+`main`. Si clonás el repo, seguí los pasos de «Puesta en marcha».
 
 ## Licencia
 
