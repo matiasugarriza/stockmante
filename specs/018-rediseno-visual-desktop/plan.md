@@ -114,6 +114,7 @@ frontend/
 │       │   ├── ui/                               # Primitivas reutilizables
 │       │   │   ├── Boton.svelte
 │       │   │   ├── Campo.svelte
+│       │   │   ├── EncabezadoPagina.svelte
 │       │   │   ├── Tarjeta.svelte
 │       │   │   ├── EtiquetaEstado.svelte
 │       │   │   ├── TablaDatos.svelte
@@ -127,13 +128,16 @@ frontend/
 │       │   │   ├── GraficoBarras.svelte
 │       │   │   ├── GraficoDona.svelte
 │       │   │   └── BotonTema.svelte
-│       │   └── marco/
-│       │       ├── MarcoApp.svelte
-│       │       ├── BarraLateral.svelte
-│       │       ├── BarraSuperior.svelte
-│       │       ├── ItemNavegacion.svelte
-│       │       ├── MenuUsuario.svelte
-│       │       └── LienzoAcceso.svelte
+│       │   ├── marco/
+│       │   │   ├── MarcoApp.svelte
+│       │   │   ├── BarraLateral.svelte
+│       │   │   ├── BarraSuperior.svelte
+│       │   │   ├── ItemNavegacion.svelte
+│       │   │   ├── MenuUsuario.svelte
+│       │   │   └── LienzoAcceso.svelte
+│       │   └── inicio/
+│       │       ├── PanelActividad.svelte
+│       │       └── AccesosRapidos.svelte
 │       ├── navegacion/
 │       │   ├── navegacion.ts                     # Modelo puro de grupos/ítems/roles
 │       │   └── navegacion.test.ts

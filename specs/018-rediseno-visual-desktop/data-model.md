@@ -103,6 +103,7 @@ Contrato completo en [contracts/tokens.md](./contracts/tokens.md). Nombres semá
 |---|---|---|---|
 | `Boton` | Acción | primario, secundario, fantasma, peligro; cargando, deshabilitado | Todas |
 | `Campo` | Label + input/select/textarea + ayuda + error | texto, email, password, número, select, textarea | Acceso, operación, administración |
+| `EncabezadoPagina` | Título, descripción y acción principal | con/sin acción, con migaja | Todas las privadas |
 | `Tarjeta` | Superficie con encabezado y acciones | simple, con encabezado, con pie | Todas |
 | `EtiquetaEstado` | Badge de estado | éxito, aviso, peligro, info, neutro | Movimientos, conteos, compras, stock, usuarios |
 | `TablaDatos` | Shell de tabla | cargando, vacío, con filas, compacta | Caja, movimientos, administración |
@@ -116,6 +117,8 @@ Contrato completo en [contracts/tokens.md](./contracts/tokens.md). Nombres semá
 | `GraficoBarras` | Serie por categoría | vacío, con datos, con leyenda | Inicio |
 | `GraficoDona` | Proporción | vacío, con datos, con leyenda | Inicio |
 | `BotonTema` | Selector Light/Dark/System | tres estados | Marco y acceso |
+| `PanelActividad` | Últimos movimientos | lista, vacío, error | Inicio |
+| `AccesosRapidos` | Enlaces por rol | 2–4 acciones | Inicio |
 | `MarcoApp` | Shell privado | expandido, colapsado, off-canvas | Rutas privadas |
 | `BarraLateral` | Navegación | expandida, colapsada, superpuesta | Marco |
 | `BarraSuperior` | Contexto y usuario | título, acciones, menú | Marco |

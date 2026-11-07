@@ -352,8 +352,9 @@ El detalle de estas entidades vive en `data-model.md` del plan.
   familia visual en el 100 % de las páginas.
 - **SC-036** Cada página rediseñada se entrega con sus dos capturas (claro y oscuro), su chequeo a
   320 px y cero regresiones en sus flujos existentes.
-- **SC-037** Las 17 capturas de `captures/` tienen su página rediseñada y alcanzable desde el marco;
-  ningún ítem de navegación queda sin página y ninguna página queda fuera de la navegación.
+- **SC-037** Las 17 capturas de `captures/` tienen su página rediseñada: las 14 rutas privadas son
+  alcanzables desde el marco, las 3 rutas públicas se enlazan desde el acceso y ningún ítem de
+  navegación queda sin página ni página privada queda fuera de la navegación.
 
 ## Supuestos
 
