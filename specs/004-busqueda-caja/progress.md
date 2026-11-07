@@ -13,6 +13,15 @@
 | 4. Frontend | T009–T013 | Completa | schemas/cliente + 6 tests nuevos; `/caja`; navegación por rol |
 | 5. Cierre | T014–T016 | Completa | gates abajo; `EXPLAIN ANALYZE`; estado de specs |
 
+## Verificación de esquema (2026-11-07)
+
+| Base | Consulta | Resultado |
+|---|---|---|
+| `stockmante` | `information_schema.columns` (`productos`, `categorias`) | 17 columnas; `productos.codigo_barras` y `categorias.descripcion` nullable; resto NOT NULL. Coincide con `data-model.md`. |
+| `stockmante` | `pg_indexes` | `idx_productos_nombre_trgm` = `GIN (nombre gin_trgm_ops)` |
+| `stockmante` | `pg_extension` | `pg_trgm` presente |
+| `stockmante_test` | `test_busqueda_http` (T006) | Suite verde contra esa base; migración 0007 aplicada |
+
 ## Evidencia observada (2026-10-26)
 
 ### Gates
@@ -20,7 +29,7 @@
 | Comando | Resultado |
 |---|---|
 | `cd backend && cargo test` | **100 tests, 0 fallos** (exit 0) |
-| `cd backend && cargo sqlx prepare --check` | pendiente de repetir tras 004 (sin macros nuevas) |
+| `cd backend && cargo sqlx prepare --check` | **OK** (sin diferencias; verificado 2026-11-07; 004 no agrega macros nuevas) |
 | `cd frontend && npm test` | **11 archivos, 110 tests, 0 fallos** |
 | `cd frontend && npm run check` | 0 errores, 0 warnings |
 | `cd frontend && npm run build` | OK |
@@ -35,6 +44,9 @@ consulta por nombre con `%` + `ILIKE` y orden por similitud:
   `idx_productos_nombre_trgm` existe y queda disponible al crecer el catálogo.
 
 Muy por debajo del objetivo de 1 s (SC-002).
+
+La consulta por nombre/categoría se toma como peor caso: usa similitud y orden, mientras que
+SKU/código usan igualdad exacta sobre btree. La meta de 1 s de SC-002 aplica a ambas.
 
 ### Comportamiento cubierto por `test_busqueda_http`
 

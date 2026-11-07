@@ -2,7 +2,7 @@
 
 **Spec**: `004-busqueda-caja` | **Caso de uso**: US4 | **Prioridad**: P2
 
-**Creado**: 2026-10-25 | **Estado**: Especificado (sin `plan.md` ni `tasks.md`; se generan al arrancar)
+**Creado**: 2026-10-25 | **Estado**: Implementada y verificada (plan, tasks y progress en esta carpeta)
 
 **Origen**: dividida de la spec original del Módulo 1 (`001-user-auth-catalog`, 2026-10-12).
 Los textos de escenarios, requisitos y criterios se conservan **verbatim**.
@@ -55,12 +55,13 @@ Como **Operario/Cajero**, quiero buscar productos por SKU, código de barras, no
 
 ## Criterios de Éxito
 
-- **SC-002**: El 95% de las búsquedas de producto por SKU o código de barras completo en interfaz de caja muestran el resultado en 1 segundo o menos.
+- **SC-002**: El 95% de las búsquedas de producto por SKU o código de barras completo en interfaz de caja muestran el resultado en 1 segundo o menos. La misma meta de 1 s aplica a la búsqueda por nombre/categoría, medida sobre el catálogo de referencia como peor caso (la similitud es más costosa que la igualdad exacta).
 
 ## Supuestos
 
 - **Búsqueda**: se resuelve en PostgreSQL con `pg_trgm` + índice GIN sobre el nombre y consultas
-  exactas para SKU/código; la migración `0005` está reservada para esta spec en el ledger.
+  exactas para SKU/código; la migración es `0007_busqueda_trgm.sql` (la reserva `0005` quedó
+  inválida cuando 001 la usó).
 - **Inactivos**: la búsqueda de caja excluye `activo = FALSE` por defecto; la gestión puede
   incluirlos con `incluir_inactivos=true`.
 - **Idioma de UI**: español (es-AR por defecto).

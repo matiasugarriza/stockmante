@@ -23,11 +23,11 @@ categoría y acceso para ambas familias de rol.
 
 | Principio | Cumplimiento |
 |---|---|
-| I. Especificación primero | spec 004 + este plan + tasks antes de escribir código |
-| II. Tipado y centralización | `BusquedaProductos`/`CampoBusqueda` en el servicio; `fetch` solo en `#lib/api` |
-| III. Mensajes accionables en español | 422/403 con mensajes del contrato |
-| IV. Seguridad y RBAC | sesión válida; `incluir_inactivos=true` solo GESTION (403) |
-| V. Pruebas | TDD para parsing/validación y casos HTTP; sin `unwrap`/`panic!`/`expect` en producción |
+| I. Simplicidad y anti-sobreingeniería | spec 004 + este plan + tasks; SQL estático sin QueryBuilder; sin dependencias nuevas |
+| II. Mantenibilidad | `BusquedaProductos`/`CampoBusqueda` en el servicio; `fetch` solo en `#lib/api`; nombres de negocio en español |
+| III. Claridad en mensajes | 422/403 con mensajes accionables del contrato |
+| IV. Testabilidad primero | TDD para parsing/validación y casos HTTP; tests de schema/cliente; sin `unwrap`/`panic!`/`expect` en producción |
+| V. Integridad de datos | T000 verifica el esquema real antes de la migración/SQL; 004 es solo lectura, no mueve stock |
 
 ## Project Structure
 
@@ -97,7 +97,8 @@ Sin cambios de columnas ni de datos. Reversible con `DROP INDEX`; la extensión 
   categoría esté activa (los productos activos de una categoría dada de baja siguen siendo
   vendibles hasta que se los dé de baja).
 - **Sin paginación**: el contrato devuelve `items`; el límite acota el costo. El frontend muestra
-  el total encontrado y el tiempo de la consulta.
+  la cantidad de resultados devueltos (`items.length`) y el tiempo de la consulta; si
+  `items.length == limite`, lo rotula como "resultados truncados" y no como total absoluto.
 
 ## Estrategia de pruebas
 
@@ -108,7 +109,9 @@ Sin cambios de columnas ni de datos. Reversible con `DROP INDEX`; la extensión 
   GESTION/OPERACION, límite y 401.
 - Frontend: schema de respuesta y serialización de query params; test del cliente con `fetch`
   mockeado. Verificación manual de `/caja`.
-- SC-002: medir con `EXPLAIN ANALYZE` sobre datos de prueba y registrar el tiempo observado.
+- SC-002: medir con `EXPLAIN ANALYZE` las consultas representativas (SKU exacto, código exacto y
+  nombre/categoría) sobre el catálogo de referencia y registrar el tiempo observado; nombre/categoría
+  es el peor caso.
 
 ## Riesgos y mitigaciones
 
