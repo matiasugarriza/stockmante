@@ -69,3 +69,6 @@ schema/cliente en el frontend.
 | FR-011 | T001–T012 |
 | FR-013 | T005, T006, T011 |
 | SC-002 | T001, T005, T015 |
+| Soporte UX (home por rol) | T013 |
+| Quality gates | T014 |
+| Documentación y cierre | T016 |

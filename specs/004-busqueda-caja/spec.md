@@ -28,8 +28,8 @@ Como **Operario/Cajero**, quiero buscar productos por SKU, código de barras, no
 
 1. **Dado** el catálogo con productos, **Cuando** el Operario escribe un SKU completo, **Entonces** se muestra el producto exacto (o lista mínima).
 2. **Dado** un producto con código de barras, **Cuando** se escanea o pega el código completo, **Entonces** se localiza el producto asociado.
-3. **Dado** el Operario escribe un fragmento de nombre, **Cuando** hay coincidencias, **Entonces** se listan ordenadas de forma predecible (por relevancia o nombre).
-4. **Dado** un Administrador, **Cuando** filtra por categoría, **Entonces** ve solo productos de esa categoría; el Operario en caja puede filtrar o buscar sin necesitar la pantalla completa de administración del catálogo.
+3. **Dado** el Operario escribe un fragmento de nombre, **Cuando** hay coincidencias, **Entonces** se listan con el orden determinista del contrato: `similarity(nombre, q) DESC`, `nombre ASC`, `id ASC`.
+4. **Dado** un usuario de caja o administración, **Cuando** filtra por categoría, **Entonces** ve solo productos de esa categoría; el Operario puede filtrar o buscar sin necesitar la pantalla completa de administración del catálogo.
 
 > El escenario 6 de US3 en la spec original ("el Operario busca por SKU o código completo y el
 > resultado aparece en ≤1 s") se ejecuta en esta spec.
@@ -65,6 +65,8 @@ Como **Operario/Cajero**, quiero buscar productos por SKU, código de barras, no
 - **Inactivos**: la búsqueda de caja excluye `activo = FALSE` por defecto; la gestión puede
   incluirlos con `incluir_inactivos=true`.
 - **Idioma de UI**: español (es-AR por defecto).
+- **Superficie de UI**: `/caja` es la pantalla compartida para caja y almacén; no se agrega una ruta
+  `/almacen` separada. El enlace de navegación se rotula "Caja".
 
 ## Contrato preliminar
 
