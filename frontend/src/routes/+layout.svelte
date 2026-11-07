@@ -52,6 +52,7 @@
 				<a class="rounded px-2 py-1 hover:bg-slate-100" href="/caja">Caja</a>
 				<a class="rounded px-2 py-1 hover:bg-slate-100" href="/movimientos">Movimientos</a>
 				<a class="rounded px-2 py-1 hover:bg-slate-100" href="/transferencias">Transferencias</a>
+				<a class="rounded px-2 py-1 hover:bg-slate-100" href="/asistente">Asistente</a>
 				{#if $sesion.usuario.familia_rol === 'GESTION'}
 					<a class="rounded px-2 py-1 hover:bg-slate-100" href="/conteos">Conteos</a>
 					<a class="rounded px-2 py-1 hover:bg-slate-100" href="/admin/usuarios">Usuarios</a>

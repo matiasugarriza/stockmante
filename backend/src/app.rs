@@ -4,6 +4,7 @@ use crate::auth::reloj::Reloj;
 use crate::config::AppConfig;
 use crate::handlers;
 use crate::mail::envio::EnvioCorreo;
+use crate::services::asistente::Asistente;
 use crate::services::sso::SondaSso;
 use axum::{
     http::{header, Method},
@@ -24,6 +25,8 @@ pub struct AppEstado {
     pub correo: Arc<dyn EnvioCorreo>,
     /// Salud de los proveedores SSO para `GET /auth/sso/config` (FR-071).
     pub salud_sso: Arc<SondaSso>,
+    /// Asistente de inventario (017): deshabilitado sin `ASISTENTE_URL`.
+    pub asistente: Arc<Asistente>,
 }
 
 /// Router completo bajo `/api` con CORS y rutas del Módulo 1.

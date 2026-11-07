@@ -14,6 +14,7 @@ depósitos con ubicaciones jerárquicas, RBAC de dos familias y auditoría bási
 ```text
 backend/        API Axum, servicios, modelos, tests unitarios e integración
 frontend/       SPA SvelteKit (rutas /login, /caja, /admin/*)
+asistente/      Servicio del asistente (Node + LangChain.js, spec 017)
 migrations/     Migraciones SQLx (numeración global, no se reutiliza)
 specs/          Spec-Driven Development: una spec por caso de uso
 docs/           API, arquitectura y servidores MCP
@@ -75,6 +76,15 @@ dbhub.toml      Configuración de DBHub (DSN desde DATABASE_URL)
 
    El frontend usa `PUBLIC_API_URL` (default `http://localhost:3000`).
 
+7. (Opcional) Levantar el asistente de inventario (spec 017). Necesita `LLM_API_KEY` en `.env` y
+   `ASISTENTE_URL=http://127.0.0.1:3100` en el backend; sin eso `/api/asistente/consulta` responde 503:
+
+   ```bash
+   cd asistente
+   npm install
+   npm start
+   ```
+
 ## Documentación
 
 - **Swagger UI**: <http://localhost:3000/docs>
@@ -100,6 +110,11 @@ cd frontend
 npm test
 npm run check
 npm run build
+
+# Asistente (spec 017)
+cd asistente
+npm test
+npm run check
 ```
 
 Reglas del proyecto: sin `unwrap()`, `expect()` ni `panic!` en rutas de producción; todo movimiento

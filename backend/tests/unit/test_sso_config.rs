@@ -41,6 +41,7 @@ async fn app_con(google_id: &str, google_secret: &str, ms_id: &str, ms_secret: &
         reloj: Arc::new(RelojSistema),
         correo: Arc::new(CorreoDev::new()),
         salud_sso: Arc::new(sonda),
+        asistente: Arc::new(stockmante_backend::services::asistente::Asistente::deshabilitado()),
     };
     (construir_router(estado), pool)
 }

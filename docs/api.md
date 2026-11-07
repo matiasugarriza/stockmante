@@ -193,6 +193,27 @@ veces responde `409 compra_ya_confirmada` sin duplicar stock. Editar/eliminar un
 está en `BORRADOR` responde `409 compra_no_editable`. Anular revierte el stock con un movimiento
 `SALIDA` (motivo `DEVOLUCION`) y falla con `409 stock_insuficiente` si ya no alcanza.
 
+### Asistente de inventario (Módulo 4, spec 017)
+
+| Método | Ruta | Auth | Éxito |
+|---|---|---|---|
+| POST | `/api/asistente/consulta` | sesión | 200 `{ respuesta, accion_propuesta }` |
+
+Body: `{ mensaje, historial? }`. `mensaje` 1–2000 caracteres; `historial` es
+`[{ rol: "usuario" | "asistente", texto }]` y se reenvían solo los 10 más recientes. El backend
+reenvía la consulta al servicio LangChain (`asistente/`, `ASISTENTE_URL`) junto con la cookie de
+sesión del usuario: las tools leen esta misma API con sus permisos.
+
+El asistente **nunca escribe**. Para un movimiento devuelve `accion_propuesta`
+(`{ tipo, deposito_id, deposito_nombre, producto_id, producto_nombre, sku, cantidad_delta, motivo,
+observacion }`); si el usuario la confirma, el frontend la manda a `POST /api/movimientos`, que
+valida permisos, ejecuta la transacción y audita con el usuario real. `AJUSTE` solo se propone a
+GESTION. Las conversaciones no se persisten y el log guarda solo metadatos.
+
+Errores: `422 validacion` (mensaje vacío o largo), `429 asistente_limite_excedido` (más de 20
+consultas por minuto por usuario), `503 asistente_no_disponible` (sin `ASISTENTE_URL`, sin LLM
+configurado en el servicio, o servicio caído) y `504 asistente_tiempo_agotado` (más de 30 s).
+
 ### Salud y documentación
 
 | Método | Ruta | Auth | Éxito |

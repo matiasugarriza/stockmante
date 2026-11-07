@@ -41,6 +41,12 @@ pub enum AppError {
     VentaYaAnulada,
     #[error("El asistente no está configurado en este entorno.")]
     AsistenteNoDisponible,
+    #[error("El asistente no responde en este momento. Probá de nuevo en unos minutos.")]
+    AsistenteCaido,
+    #[error("Superaste el límite de 20 consultas por minuto. Esperá unos segundos y volvé a intentar.")]
+    AsistenteLimiteExcedido,
+    #[error("El asistente tardó demasiado en responder. Probá con una pregunta más concreta.")]
+    AsistenteTiempoAgotado,
     #[error("El depósito tiene ubicaciones o movimientos; desactívalo en lugar de borrarlo")]
     DepositoConDependencias,
     #[error("Ya existe un depósito con ese nombre")]
@@ -129,7 +135,11 @@ impl AppError {
             | AppError::TokenVerificacionInvalido
             | AppError::ProveedorNoSoportado => StatusCode::UNPROCESSABLE_ENTITY,
             AppError::Interno(_) => StatusCode::INTERNAL_SERVER_ERROR,
-            AppError::ProveedorNoDisponible | AppError::AsistenteNoDisponible => StatusCode::SERVICE_UNAVAILABLE,
+            AppError::ProveedorNoDisponible
+            | AppError::AsistenteNoDisponible
+            | AppError::AsistenteCaido => StatusCode::SERVICE_UNAVAILABLE,
+            AppError::AsistenteLimiteExcedido => StatusCode::TOO_MANY_REQUESTS,
+            AppError::AsistenteTiempoAgotado => StatusCode::GATEWAY_TIMEOUT,
             AppError::SsoNoConfigurado => StatusCode::SERVICE_UNAVAILABLE,
         }
     }
@@ -167,7 +177,9 @@ impl AppError {
             AppError::TokenVerificacionInvalido => "token_verificacion_invalido",
             AppError::ProveedorNoDisponible => "proveedor_no_disponible",
             AppError::SsoNoConfigurado => "sso_no_configurado",
-            AppError::AsistenteNoDisponible => "asistente_no_disponible",
+            AppError::AsistenteNoDisponible | AppError::AsistenteCaido => "asistente_no_disponible",
+            AppError::AsistenteLimiteExcedido => "asistente_limite_excedido",
+            AppError::AsistenteTiempoAgotado => "asistente_tiempo_agotado",
             AppError::IdentidadYaVinculada => "identidad_ya_vinculada",
             AppError::UltimaIdentidad => "ultima_identidad",
             AppError::ProveedorNoSoportado => "proveedor_no_soportado",

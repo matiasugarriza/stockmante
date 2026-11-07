@@ -28,6 +28,7 @@ async fn app_de_test() -> (axum::Router, sqlx::PgPool, Arc<CorreoDev>) {
         salud_sso: Arc::new(
             stockmante_backend::services::sso::SondaSso::fija(true, true),
         ),
+        asistente: Arc::new(stockmante_backend::services::asistente::Asistente::deshabilitado()),
     };
     (construir_router(estado), pool, correo)
 }

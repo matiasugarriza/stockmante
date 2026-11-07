@@ -33,6 +33,7 @@ async fn app_con_config(ajustar: impl FnOnce(&mut AppConfig)) -> (axum::Router, 
         salud_sso: Arc::new(
             stockmante_backend::services::sso::SondaSso::fija(true, true),
         ),
+        asistente: Arc::new(stockmante_backend::services::asistente::Asistente::deshabilitado()),
     };
     (construir_router(estado), pool)
 }

@@ -160,6 +160,18 @@ path = "tests/integration/test_movimientos_http.rs"
 name = "test_compras_http"
 path = "tests/integration/test_compras_http.rs"
 
+[[test]]
+name = "test_asistente_limite"
+path = "tests/unit/test_asistente_limite.rs"
+
+[[test]]
+name = "test_asistente_http"
+path = "tests/integration/test_asistente_http.rs"
+
+[[test]]
+name = "test_asistente_log"
+path = "tests/integration/test_asistente_log.rs"
+
 [dev-dependencies]
 tower = { version = "0.5", features = ["util"] }
 http-body-util = "0.1"

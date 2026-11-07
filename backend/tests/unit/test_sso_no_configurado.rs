@@ -43,6 +43,7 @@ async fn app_con(google_id: &str, microsoft_id: &str) -> (axum::Router, sqlx::Pg
         reloj: Arc::new(RelojSistema),
         correo: Arc::new(CorreoDev::new()),
         salud_sso: Arc::new(SondaSso::fija(true, true)),
+        asistente: Arc::new(stockmante_backend::services::asistente::Asistente::deshabilitado()),
     };
     (construir_router(estado), pool)
 }

@@ -29,7 +29,7 @@ conservan **verbatim**; solo se distribuyeron por caso de uso.
 | [014-reportes-kardex](./014-reportes-kardex/spec.md) | Kardex, valorización, rotación, ventas y CSV | FR-056 … FR-059 | SC-022 | Especificado | 007, 012, 013 |
 | [015-auditoria-consultable](./015-auditoria-consultable/spec.md) | Consulta de auditoría y cobertura ampliada | FR-060 … FR-062 | SC-023 | Especificado | 006, 007, 012, 013 |
 | [016-importacion-masiva](./016-importacion-masiva/spec.md) | Importación CSV de productos y stock inicial | FR-063 … FR-065 | SC-024 | Especificado | 003, 007 |
-| [017-asistente-inventario](./017-asistente-inventario/spec.md) | Asistente con tools de lectura y escrituras vía API | FR-066 … FR-069 | SC-025 | Especificado | 007, 010, 013, 014 |
+| [017-asistente-inventario](./017-asistente-inventario/spec.md) | Asistente con tools de lectura y escrituras vía API | FR-066 … FR-069, FR-076 … FR-078 | SC-025 | Implementado y verificado (2026-11-07) | 007, 010, 013, 014 |
 
 ## Partición de requisitos funcionales
 
@@ -114,6 +114,9 @@ Cada FR tiene **un solo dueño**. Los demás specs lo referencian, no lo repiten
 | FR-073 | 001 | Provisión de familia `OPERACION` por defecto en cuentas SSO |
 | FR-074 | 003 | Ubicaciones permitidas visibles en la vista de productos (solo lectura) |
 | FR-075 | 005 | Lectura masiva de ubicaciones asignadas por producto |
+| FR-076 | 017 | Resultado visible tras confirmar una propuesta del asistente |
+| FR-077 | 017 | Contexto de conversación: últimos 10 mensajes, solo en memoria |
+| FR-078 | 017 | Logs del asistente solo con metadatos, sin contenido |
 
 ## Partición de criterios de éxito
 

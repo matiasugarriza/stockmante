@@ -136,6 +136,7 @@ impl Modify for AgregarSeguridadCookie {
         crate::handlers::reportes::stock_valorizado,
         crate::handlers::reportes::rotacion,
         crate::handlers::reportes::ventas,
+        crate::handlers::asistente::consulta,
     ),
     components(schemas(
         ErrorRespuesta,
@@ -206,7 +207,12 @@ impl Modify for AgregarSeguridadCookie {
         crate::handlers::ubicaciones::CrearUbicacionDto,
         crate::handlers::ubicaciones::ActualizarUbicacionDto,
         crate::handlers::movimientos::CrearMovimientoDto,
-        crate::handlers::movimientos::LineaMovimientoDto
+        crate::handlers::movimientos::LineaMovimientoDto,
+        crate::handlers::asistente::ConsultaDto,
+        crate::services::asistente::MensajeHistorial,
+        crate::services::asistente::RolMensaje,
+        crate::services::asistente::AccionPropuesta,
+        crate::services::asistente::RespuestaAsistente
     )),
     modifiers(&AgregarSeguridadCookie),
     security(("cookieAuth" = [])),
@@ -218,7 +224,8 @@ impl Modify for AgregarSeguridadCookie {
         (name = "depositos", description = "Depósitos y sus ubicaciones (GESTION)"),
         (name = "ubicaciones", description = "Ubicaciones jerárquicas (GESTION)"),
         (name = "movimientos", description = "Entradas, salidas, mermas y ajustes"),
-        (name = "stock", description = "Consulta de stock y desglose por depósito")
+        (name = "stock", description = "Consulta de stock y desglose por depósito"),
+        (name = "asistente", description = "Asistente de inventario en lenguaje natural (017)")
     )
 )]
 pub struct ApiDoc;
