@@ -30,8 +30,9 @@
 ## Relaciones
 
 ```
-transferencias ──1──N── movimientos (salida)
-transferencias ──1──N── movimientos (entrada)
+transferencias ──1──1── movimientos (salida, UNIQUE movimiento_salida_id)
+transferencias ──1──1── movimientos (entrada, UNIQUE movimiento_entrada_id)
+movimientos.transferencia_id ──N──1── transferencias (exactamente 2 filas por transferencia)
 transferencias ──N──1── productos
 transferencias ──N──1── depositos (origen)
 transferencias ──N──1── depositos (destino)
@@ -47,7 +48,8 @@ transferencias ──N──1── usuarios
 | Producto existe y está activo | `producto_inactivo` | 409 |
 | Depósito origen activo | `validacion` | 422 |
 | Depósito destino activo | `validacion` | 422 |
-| Stock suficiente en origen | `stock_insuficiente` | 409 |
+| Stock suficiente en la fila de origen (producto, depósito, ubicación; sin ubicación = fila `ubicacion_id IS NULL`) | `stock_insuficiente` | 409 |
+| Stock de destino + cantidad no desborda `INT` (`checked_add`) | `validacion` | 422 |
 | Ubicación origen pertenece al depósito origen y está permitida | `validacion` | 422 |
 | Ubicación destino pertenece al depósito destino y está permitida | `validacion` | 422 |
 
@@ -66,12 +68,12 @@ BEGIN;
   -- 2. Bloquear productos por id ASC
   SELECT * FROM productos WHERE id = $producto FOR UPDATE;
 
-  -- 3. Bloquear stock origen y destino
-  SELECT * FROM stock_por_deposito
-   WHERE producto_id = $producto AND deposito_id IN ($origen, $destino)
-   ORDER BY deposito_id FOR UPDATE;
+  -- 3. Asegurar las dos filas de stock (INSERT ... cantidad 0 ON CONFLICT DO NOTHING) y
+  --    bloquearlas: primero la de origen, después la de destino, cada una por
+  --    (producto, depósito, ubicacion_id IS NOT DISTINCT FROM $ubicacion) FOR UPDATE.
+  --    No hay deadlock posible: el paso 1 ya serializa toda operación sobre ese par de depósitos.
 
-  -- 4. Validar stock suficiente en origen
+  -- 4. Validar stock suficiente en la fila de origen
   -- 5. Actualizar stock origen (descuento)
   -- 6. Actualizar stock destino (incremento)
 

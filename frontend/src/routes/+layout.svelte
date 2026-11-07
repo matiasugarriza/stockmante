@@ -13,6 +13,10 @@
 
 	let alertasBajoMinimo = $state(0);
 
+	// El login pinta su propio lienzo a pantalla completa (spec 018, FR-084); el resto de las
+	// rutas conserva el marco slate actual.
+	const enLogin = $derived(page.url.pathname === '/login' || page.url.pathname === '/login/');
+
 	onMount(() => {
 		void refrescarSesion();
 		void cargarAlertas();
@@ -44,7 +48,7 @@
 	<link rel="icon" href={favicon} />
 </svelte:head>
 
-<div class="min-h-screen bg-slate-50 text-slate-800">
+<div class={enLogin ? 'login-fondo' : 'min-h-screen bg-slate-50 text-slate-800'}>
 	{#if $sesion.estado === 'activa' && page.url.pathname !== '/login'}
 		<header class="flex items-center justify-between border-b border-slate-200 bg-white px-4 py-2">
 			<span class="text-sm font-semibold">Stockmante</span>
@@ -84,7 +88,7 @@
 		</header>
 	{/if}
 
-	<main class="mx-auto max-w-5xl p-4">
+	<main class={enLogin ? '' : 'mx-auto max-w-5xl p-4'}>
 		{@render children()}
 	</main>
 </div>

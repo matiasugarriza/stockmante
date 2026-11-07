@@ -99,6 +99,12 @@ No existe `DELETE`: la baja es lógica (`activo = false`).
 La búsqueda de caja (`/buscar`) excluye inactivos por defecto; `incluir_inactivos=true` exige
 GESTION. `campo=nombre|categoria` exige `q` de al menos 2 caracteres; `sku|codigo` buscan desde el
 primer carácter. `campo` ausente equivale a `todos` (SKU/código exactos primero, luego nombre).
+`nombre` y `categoria` comparan igual: trigramas (`%`) o subcadena (`ILIKE '%q%'`) sobre
+`productos.nombre` y `categorias.nombre`, ordenado por similitud. En `todos` el SKU se compara
+normalizado (trim + mayúsculas), igual que en `campo=sku`. La respuesta no informa si hubo más
+coincidencias que `limite`: el cliente lo infiere cuando `items.length == limite` (en `/caja`, aviso
+«Se muestran los primeros N resultados…»). Contrato completo en
+[`specs/004-busqueda-caja/contracts/api.md`](../specs/004-busqueda-caja/contracts/api.md).
 
 ### Depósitos y ubicaciones (GESTION)
 

@@ -10,6 +10,8 @@
 
 **Alcance de esta spec**: solo autenticación, sesión y el modelo de identidad/RBAC. Los demás casos de uso se dividieron en `002`–`006` (ver [specs/README.md](../README.md)).
 
+**Presentación**: el rediseño visual de la pantalla de acceso (tema claro/oscuro y estética) vive en [018-rediseno-visual-desktop](../018-rediseno-visual-desktop/spec.md) (FR-079 … FR-087); esta spec conserva el comportamiento y los mensajes.
+
 ---
 
 ## Clarifications

@@ -14,7 +14,8 @@ cargo test --test test_rbac_matriz
 cargo test
 ```
 
-Resultado esperado: `test_rbac_matriz` 4/4 y la suite completa en verde.
+Resultado esperado: `test_rbac_matriz` con la matriz completa (incluida la ampliación de auditoría)
+y la suite completa en verde.
 
 ## Verificación manual de RBAC
 
@@ -28,9 +29,10 @@ Con una sesión OPERACION (`-c cookies-op.txt`):
 6. `GET /api/productos/buscar?q=yerba` → **200** (lectura de caja permitida).
 7. `GET /api/productos/1` → **200/404** (lectura de caja permitida).
 8. `DELETE /api/depositos/1` → **403**.
+9. `GET /api/productos/ubicaciones?producto_ids=1` → **403** (lectura de gestión).
 
 Con una sesión GESTION (`-c cookies-ge.txt`): repetir 1–5 y 8 → nunca 401/403; se obtiene la
-respuesta de negocio (201/200/404/422).
+respuesta de negocio (201/200/404/422). Repetir 6–7 y 9 → **200** (lecturas permitidas).
 
 ## Verificación manual de auditoría
 
@@ -54,6 +56,16 @@ gestor y `cuando` no nulo.
 
 6. Repetir con un usuario: alta, `PUT`, desactivar, reactivar y `password-temporal`. La consulta
    debe devolver `CREAR`, `ACTUALIZAR`, `DESACTIVAR`, `REACTIVAR`, `PASSWORD_TEMPORAL`.
+7. Categoría: alta, `PUT`, desactivar y reactivar → `CREAR`, `ACTUALIZAR`, `DESACTIVAR`,
+   `REACTIVAR` en `categorias`.
+8. Depósito: alta, `PUT`, `DELETE` sin dependencias, desactivar y reactivar → `CREAR`,
+   `ACTUALIZAR`, `ELIMINAR`, `DESACTIVAR`, `REACTIVAR` en `depositos`.
+9. Ubicación: alta, `PUT`, `DELETE` sin hijos/asignaciones, desactivar y reactivar → las mismas
+   acciones en `ubicaciones`.
+10. Asignación: `PUT /api/productos/{id}/ubicaciones` con una ubicación y luego con `[]` → dos
+    filas `ASIGNAR_UBICACIONES` en `productos` con el `registro_id` del producto.
+11. Rechazos: `DELETE` con dependencias → 409; `DELETE` de ubicación con hijos → 409; un 403 de
+    OPERACION. El conteo de `auditoria` no debe cambiar en ninguno.
 
 ## Verificación del 403 sin auditoría
 

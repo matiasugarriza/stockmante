@@ -1,15 +1,36 @@
 # Plan de implementación: Transferencias entre depósitos (008)
 
-**Spec**: `spec.md` · **Rama**: `feat/modulo-2-stock` · **Migración**: `0010_transferencias.sql`
+**Spec**: `spec.md` · **Rama histórica**: `feat/modulo-2-stock` (implementado en `928aa8a`) ·
+**Migración**: `0010_transferencias.sql`
+
+**Revisado**: 2026-11-07. La implementación original (T001–T024) sigue vigente salvo lo que
+corrige la sección «Ampliación 2026-11-07», que remedia los hallazgos de `/speckit analyze`
+(tests de integración ausentes, `expect()` en producción, semántica de stock por ubicación,
+detalle de movimientos, auditoría sin test). Sin migración nueva.
 
 ## Contexto técnico
 
 - `stock_por_deposito`, `movimientos` y `movimiento_lineas` existen desde `0009` (007).
-- `depositos` y `ubicaciones` existen desde `0003`; `producto_ubicacion_permitida` desde `0005`.
+- `depositos`, `ubicaciones` y `producto_ubicacion_permitida` existen desde `0003`.
+- Las migraciones viven en `migrations/` (raíz del repo), no en `backend/migrations/`.
+- Las consultas usan `sqlx::query*` sin macro, igual que 007 (ver decisión 13).
 - Patrón de capas vigente: `models` (reglas puras) → `services` (SQLx y transacciones) →
   `handlers` (HTTP, DTOs, autorización por extractor) → `app.rs` (router).
 - La auditoría se escribe con `services::auditoria::registrar` dentro de la misma transacción.
 - Los errores de dominio viven en `AppError` con `status()` y `codigo()` estables.
+
+## Constitution Check
+
+| Principio | Cumplimiento |
+|---|---|
+| I. Simplicidad | una tabla cabecera y un servicio dedicado; sin abstracciones nuevas; el detalle no embebe movimientos completos (decisión 11) |
+| II. Mantenibilidad | **Violación detectada**: `expect()` en `services/transferencias.rs:93,96`. Se corrige en T029 |
+| III. Claridad en mensajes | mensajes literales de la spec; stock resultante en origen y destino; el 404 se alinea al contrato y agrega qué hacer (T033) |
+| IV. Testabilidad primero | **Violación detectada**: faltan los tests de integración (T007–T009) y no hay evidencia de RED. Se escriben en la Fase 5 y se propone el waiver W-004 (T025) |
+| V. Integridad de datos | transacción única, `CHECK (cantidad >= 0)`, cache recalculado; se agrega suma con `checked_add` en destino (T029) y SC-016 en fallos (T031) |
+
+Gate: la feature **no se considera cerrada** hasta que T025–T036 estén completas y los quality
+gates en verde.
 
 ## Decisiones de diseño
 
@@ -134,6 +155,70 @@
 4. Tests de backend en verde.
 5. Cliente y pantalla de frontend.
 6. `cargo test`, `npm test`, `npm run check`, `npm run build`, `cargo sqlx prepare --check`.
+
+## Ampliación 2026-11-07
+
+Remediación de `/speckit analyze` (hallazgos C1–C3, H1–H4, M1–M6, L1–L3). Las decisiones 9 y 11
+fijan semántica que la spec dejaba abierta; `/speckit clarify` las confirmó sin cambios el
+2026-11-07 (spec.md, Clarifications; T034).
+
+**Decisiones**
+
+9. **Stock por fila de ubicación, igual que 007** (H1). "Stock en origen" es la fila
+   `stock_por_deposito (producto, depósito, ubicación)` indicada; sin `ubicacion_origen_id` es la
+   fila sin ubicación (`ubicacion_id IS NULL`), no el total del depósito. Así se comportan las
+   salidas de 007, y una transferencia es una salida más una entrada. `stock_origen_resultante` y
+   `stock_destino_resultante` son el saldo de esas filas, el mismo valor que guarda
+   `movimiento_lineas.stock_resultante`. El mensaje de 409 se mantiene literal (8.2).
+10. **Sin `expect()` ni suma sin control** (C2). Los depósitos bloqueados se toman con
+    `ok_or_else(|| AppError::Validacion(...))?`, y el incremento en destino usa `checked_add`,
+    como 007, para devolver 422 en vez de un desborde.
+11. **El detalle referencia los movimientos por id** (M5). `GET /api/transferencias/{id}` expone
+    `movimiento_salida_id` y `movimiento_entrada_id`; el tipo, el depósito y el motivo de cada uno se
+    consultan con `GET /api/movimientos/{id}`. Embeber los movimientos duplicaría el shape de 007
+    sin un consumidor que lo necesite (Principio I).
+12. **Orden de bloqueo real** (M1). Primero los depósitos `FOR UPDATE` por id ascendente; esa
+    fila serializa cualquier operación sobre el mismo par de depósitos, así que el bloqueo de las
+    filas de stock (origen y luego destino) no puede generar deadlock. Se documenta así en
+    `data-model.md`, en lugar de cambiar el código.
+13. **Consultas sin macro** (M6). Se mantiene `sqlx::query*` sin macro, por coherencia con 007.
+    La verificación contra el esquema la dan los tests de integración sobre `stockmante_test`, que
+    ejecutan todas las consultas del servicio. Migrar a `query!` es una decisión de todo el
+    proyecto, fuera de 008.
+14. **Sin idempotencia** (L1). Ya figuraba en la decisión 7; se agrega a los supuestos de la spec.
+15. **Permiso** (L2). `OPERACION` y `GESTION` son las únicas familias de rol, así que el handler
+    exige solo sesión vigente. Si aparece una familia nueva, esta regla se revisa.
+
+**Archivos**
+
+| Archivo | Cambio |
+|---|---|
+| `backend/src/services/transferencias.rs` | quitar `expect()`; `checked_add` en destino; mensaje del 404 |
+| `backend/Cargo.toml` | `[[test]]` para `test_transferencia_validacion` y `test_transferencias_http` |
+| `backend/tests/unit/common/mod.rs` | helper `crear_transferencia_de_prueba` |
+| `backend/tests/unit/test_transferencia_validacion.rs` | reglas puras vía la API pública del crate |
+| `backend/tests/integration/test_transferencias_http.rs` | 8.1–8.5, ubicaciones, SC-016 en fallo, auditoría, 404 |
+| `backend/tests/unit/test_openapi.rs` | las tres rutas y los dos schemas |
+| `specs/008-transferencias-depositos/progress.md` | evidencia de RED y waiver W-004 propuesto |
+| `specs/008-transferencias-depositos/data-model.md` | relaciones 1:1 y orden de bloqueo real |
+| `specs/008-transferencias-depositos/contracts/api.md` | semántica por ubicación y referencia a movimientos |
+| `specs/008-transferencias-depositos/spec.md`, `specs/README.md` | estado, supuestos y aclaraciones |
+
+**Pruebas nuevas** (además de las de la estrategia original, que pasan a existir de verdad)
+
+- Transferencia fallida (stock insuficiente, depósito inactivo, mismo depósito): la suma global
+  de `stock_por_deposito` y `productos.stock_actual` no cambian, y no hay filas nuevas en
+  `transferencias`, `movimientos` ni `auditoria` (SC-016).
+- Una transferencia exitosa deja una fila de auditoría `tabla_ref = 'transferencias'`,
+  `accion = 'CREAR'` y `registro_id` igual al id de la transferencia (FR-033).
+- Con 20 unidades solo en la ubicación A-01 de origen, transferir sin `ubicacion_origen_id`
+  responde 409 `stock_insuficiente` con "0 disponibles" (decisión 9).
+- `GET /api/movimientos/{movimiento_salida_id}` y `{movimiento_entrada_id}` devuelven `SALIDA` en
+  origen y `ENTRADA` en destino, ambos con motivo `TRANSFERENCIA` (8.5, decisión 11).
+- `GET /api/transferencias/999999` → 404 `recurso_no_encontrado` con el mensaje del contrato.
+
+**Orden**: progress.md → helper y `Cargo.toml` → tests (registrar RED o verde inmediato) →
+correcciones del servicio → docs de spec → quality gates.
 
 ## Riesgos
 

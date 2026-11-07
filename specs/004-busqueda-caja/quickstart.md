@@ -36,8 +36,43 @@ cargo run
     el checkbox de inactivos no aparece. Con GESTION sí aparece.
 14. `EXPLAIN ANALYZE` de la consulta por nombre: registrar tiempo y uso del índice GIN.
 
+## Ampliación 2026-11-07
+
+### V2 — Aviso de truncados
+
+15. En `/caja`, buscar un término con 20 coincidencias o más (con el seed de V3, `SEED4`):
+    aparece «Se muestran los primeros 20 resultados. Refiná la búsqueda para encontrar el
+    producto.». Con un término de menos de 20 coincidencias, el aviso no aparece.
+
+### V3 — SC-002 sobre el catálogo de referencia
+
+Requiere una base **de desarrollo** (no `stockmante_test`) y el backend apuntando a ella.
+
+16. Verificar el esquema real de `productos` y `categorias` contra
+    [data-model.md](./data-model.md) (Principio V) antes de sembrar.
+17. Ejecutar `scripts/seed_catalogo_10000.sql`. **Esperado**: 10.000 productos `SEED4-` y 20
+    categorías `SEED4-CAT-`.
+18. Con el backend corriendo y una sesión válida:
+
+    ```powershell
+    $env:STOCKMANTE_URL = "http://localhost:3000"
+    $env:STOCKMANTE_EMAIL = "<email de un usuario de desarrollo>"
+    $env:STOCKMANTE_PASSWORD = "<su contraseña de desarrollo>"
+    node scripts/medir_sc002.mjs
+    ```
+
+    **Esperado**: p95 ≤ 1000 ms para `sku`, `codigo`, `nombre` y `categoria` (40 consultas cada
+    uno). Si alguno supera la meta, guardar `EXPLAIN (ANALYZE, BUFFERS)` de esa consulta y la
+    decisión en `progress.md`; SC-002 no se da por cumplido.
+19. `EXPLAIN (ANALYZE, BUFFERS)` de la búsqueda por nombre con el seed: registrar si usa
+    `idx_productos_nombre_trgm`.
+20. Limpiar: volver a ejecutar solo el bloque `DELETE` del seed (o el script completo y luego el
+    `DELETE`) y confirmar que no quedan filas `SEED4-`.
+
 ## Evidencia a registrar
 
 - Status y cuerpo de cada paso.
-- Tiempo de la búsqueda por nombre (objetivo SC-002: ≤ 1 s).
-- Captura/nota de `/caja` con ambas familias.
+- p50/p95/máximo por tipo de búsqueda sobre 10.000 productos (objetivo SC-002: p95 ≤ 1 s,
+  medido como respuesta de la API vista desde el cliente).
+- Plan de ejecución de la consulta por nombre con el seed.
+- Captura/nota de `/caja` con ambas familias y con el aviso de truncados.

@@ -16,20 +16,21 @@ conservan **verbatim**; solo se distribuyeron por caso de uso.
 | [001-autenticacion-sesion](./001-autenticacion-sesion/spec.md) | Login, sesión única y cambio obligatorio de contraseña | FR-001, FR-002, FR-003, FR-008a, FR-070 ... FR-073 | SC-003, SC-004, SC-026 ... SC-028 | Implementado; ajustes 2026-11 (registro, SSO, credenciales) en revisión | — |
 | [002-gestion-usuarios](./002-gestion-usuarios/spec.md) | Alta, edición, baja lógica y reactivación de usuarios | FR-004, FR-005, FR-006, FR-007, FR-008, FR-008b | SC-001 | Implementado (retro-documentado); ajustes 2026-11 en Phase 2 | 001 |
 | [003-catalogo-productos](./003-catalogo-productos/spec.md) | CRUD de productos y categorías, baja lógica | FR-009, FR-010, FR-012, FR-014, FR-020 … FR-023, FR-074 | SC-006, SC-009 … SC-012, SC-029 | Implementado y verificado; ampliación de ubicaciones implementada y verificada (2026-11-06) | 001 |
-| [004-busqueda-caja](./004-busqueda-caja/spec.md) | Búsqueda rápida por SKU, código, nombre y categoría | FR-011, FR-013 | SC-002 | Implementado y verificado (2026-10-26) | 001, 003 |
+| [004-busqueda-caja](./004-busqueda-caja/spec.md) | Búsqueda rápida por SKU, código, nombre y categoría | FR-011, FR-013 | SC-002 | Implementado (2026-10-26); ampliación 2026-11-07 (aviso de truncados, debounce testeado, SC-002 a 10.000 productos, W-006) | 001, 003 |
 | [005-depositos-ubicaciones](./005-depositos-ubicaciones/spec.md) | Depósitos, ubicaciones jerárquicas y asignación a producto | FR-015, FR-016, FR-017, FR-018, FR-075 | SC-005 | Implementado y verificado (2026-10-26); lectura masiva ampliada y verificada 2026-11-06 | 001 (003 para asignación) |
-| [006-rbac-auditoria](./006-rbac-auditoria/spec.md) | Verificación transversal de RBAC y auditoría básica | FR-003 (verificación), FR-019 (derivado) | SC-007, SC-008 | Implementado y verificado (2026-10-26) | 001–005 |
+| [006-rbac-auditoria](./006-rbac-auditoria/spec.md) | Verificación transversal de RBAC y auditoría básica | FR-003 (verificación), FR-019 (derivado) | SC-007, SC-008, SC-030 | Implementado (2026-10-26); ampliación de auditoría a categorías/depósitos/ubicaciones/asignaciones en curso (2026-11-07, T001a y T012–T027) | 001–005 |
 | [007-movimientos-stock](./007-movimientos-stock/spec.md) | Entradas, salidas, mermas y ajustes con stock por depósito | FR-024 … FR-030 | SC-013 … SC-015 | Implementado y verificado (2026-10-28) | 001, 003, 005, 006 |
-| [008-transferencias-depositos](./008-transferencias-depositos/spec.md) | Transferencias atómicas entre depósitos | FR-031 … FR-033 | SC-016 | Especificado | 007 |
+| [008-transferencias-depositos](./008-transferencias-depositos/spec.md) | Transferencias atómicas entre depósitos | FR-031 … FR-033 | SC-016 | Implementado; remediación 2026-11-07 en curso (tests de integración, T025–T036) | 007 |
 | [009-inventario-fisico](./009-inventario-fisico/spec.md) | Conteo físico y ajuste automático de diferencias | FR-034 … FR-037 | SC-017 | Especificado | 007, 005 |
-| [010-consulta-stock](./010-consulta-stock/spec.md) | Consulta, desglose y tablero de stock | FR-038 … FR-040 | SC-018 | Especificado | 007 |
-| [011-alertas-stock-minimo](./011-alertas-stock-minimo/spec.md) | Alertas in-app y digest por correo bajo mínimo | FR-041 … FR-043 | SC-019 | Especificado | 007, 010, 002 |
-| [012-proveedores-compras](./012-proveedores-compras/spec.md) | Proveedores, compras y recepción con entrada de stock | FR-044 … FR-048 | SC-020 | Especificado | 007, 003 |
+| [010-consulta-stock](./010-consulta-stock/spec.md) | Consulta, desglose y tablero de stock | FR-038 … FR-040 | SC-018 | Clarificado; plan y tasks listos (2026-11-07) | 007, 005 |
+| [011-alertas-stock-minimo](./011-alertas-stock-minimo/spec.md) | Alertas in-app y digest por correo bajo mínimo | FR-041 … FR-043 | SC-019 | Clarificado; plan y tasks regenerados (2026-11-07) | 007, 010, 002 |
+| [012-proveedores-compras](./012-proveedores-compras/spec.md) | Proveedores, compras y recepción con entrada de stock | FR-044 … FR-048 | SC-020, SC-021 | Implementado (T001–T023); aclarado y replanificado (2026-11-07), fase 6 de cierre de hallazgos pendiente (T024–T036) | 007, 003, 005 |
 | [013-ventas-caja](./013-ventas-caja/spec.md) | Ventas de caja, clientes y descuento de stock | FR-049 … FR-055 | SC-021 | Especificado | 003, 004, 005, 007 |
-| [014-reportes-kardex](./014-reportes-kardex/spec.md) | Kardex, valorización, rotación, ventas y CSV | FR-056 … FR-059 | SC-022 | Especificado | 007, 012, 013 |
+| [014-reportes-kardex](./014-reportes-kardex/spec.md) | Kardex, valorización, rotación, ventas y CSV | FR-056 … FR-059 | SC-022, SC-031 | Clarificado y replanificado (2026-11-07); backend parcial, sin tests ni frontend | 007, 008, 012, 013 |
 | [015-auditoria-consultable](./015-auditoria-consultable/spec.md) | Consulta de auditoría y cobertura ampliada | FR-060 … FR-062 | SC-023 | Especificado | 006, 007, 012, 013 |
 | [016-importacion-masiva](./016-importacion-masiva/spec.md) | Importación CSV de productos y stock inicial | FR-063 … FR-065 | SC-024 | Especificado | 003, 007 |
 | [017-asistente-inventario](./017-asistente-inventario/spec.md) | Asistente con tools de lectura y escrituras vía API | FR-066 … FR-069, FR-076 … FR-078 | SC-025 | Implementado y verificado (2026-11-07) | 007, 010, 013, 014 |
+| [018-rediseno-visual-desktop](./018-rediseno-visual-desktop/spec.md) | Rediseño visual del escritorio (por página) y tema claro/oscuro | FR-079 … FR-087 | SC-032 … SC-036 | En curso por páginas; tokens, tema y `/login` implementados, gates pendientes (2026-11-07) | 001 |
 
 ## Partición de requisitos funcionales
 
@@ -57,7 +58,7 @@ Cada FR tiene **un solo dueño**. Los demás specs lo referencian, no lo repiten
 | FR-016 | 005 | Ubicaciones jerárquicas sin huérfanas |
 | FR-017 | 005 | Asignación de ubicaciones permitidas por producto |
 | FR-018 | 005 | Borrado bloqueado de depósitos con dependencias |
-| FR-019 | 006 | Auditoría básica (derivado de US6 escenario 3 y Supuestos; el spec original no le asignó FR) |
+| FR-019 | 006 | Auditoría de todas las escrituras de gestión de 001–005 (usuarios, productos, categorías, depósitos, ubicaciones y asignaciones producto–ubicación) |
 | FR-020 | 003 | Listado de catálogo paginado y filtrable |
 | FR-021 | 003 | Reactivación de productos y categorías |
 | FR-022 | 003 | Productos inactivos sin movimientos nuevos |
@@ -117,6 +118,15 @@ Cada FR tiene **un solo dueño**. Los demás specs lo referencian, no lo repiten
 | FR-076 | 017 | Resultado visible tras confirmar una propuesta del asistente |
 | FR-077 | 017 | Contexto de conversación: últimos 10 mensajes, solo en memoria |
 | FR-078 | 017 | Logs del asistente solo con metadatos, sin contenido |
+| FR-079 | 018 | Capa única de tokens visuales para claro y oscuro |
+| FR-080 | 018 | Tema Light/Dark/System con persistencia y sin destello inicial |
+| FR-081 | 018 | Login rediseñado conservando campos y comportamiento de 001 |
+| FR-082 | 018 | Estados visibles y contraste WCAG AA en ambos temas |
+| FR-083 | 018 | Cambio obligatorio de contraseña con la misma estética |
+| FR-084 | 018 | Adaptabilidad de 320 px a 1440 px sin desborde |
+| FR-085 | 018 | Accesibilidad: etiquetas, foco, teclado y movimiento reducido |
+| FR-086 | 018 | Identidad visual de referencia (crema/negro, naranja, mono, grilla) |
+| FR-087 | 018 | Incorporación incremental del rediseño página por página |
 
 ## Partición de criterios de éxito
 
@@ -151,6 +161,13 @@ Cada FR tiene **un solo dueño**. Los demás specs lo referencian, no lo repiten
 | SC-027 | 001 | Botones SSO ocultos sin credenciales; flujo completo con ellas |
 | SC-028 | 001 | Credenciales (correo + contraseña) visibles en pantalla al crear usuario (criterio compartido con SC-001/002; evidencia del módulo en 002 Phase 2, ver dueños §FR-008a/FR-008b) |
 | SC-029 | 003 | Una llamada masiva por página y «Sin ubicación» explícito en la vista de productos |
+| SC-030 | 006 | Una fila de auditoría por escritura de gestión completada; ninguna por rechazo |
+| SC-031 | 014 | Los cuatro reportes (JSON y CSV) solo para `GESTION` |
+| SC-032 | 018 | Tema persistido y aplicado antes del primer pintado, sin destellos |
+| SC-033 | 018 | Cero regresiones funcionales en los cuatro recorridos de acceso |
+| SC-034 | 018 | Sin desborde de 320 a 1440 px y contraste AA en ambos temas |
+| SC-035 | 018 | Comparación visual contra la referencia en 1440×900 claro y oscuro |
+| SC-036 | 018 | Cada página posterior llega con capturas en ambos temas y cero regresiones |
 
 ## Ledger de migraciones
 
@@ -179,12 +196,12 @@ Cada FR tiene **un solo dueño**. Los demás specs lo referencian, no lo repiten
 
 | Versión | Archivo previsto | Propósito | Spec dueña |
 |---|---|---|---|
-| 0010 | `0010_transferencias.sql` | `transferencias` y `movimientos.transferencia_id` | 008 |
-| 0011 | `0011_inventario_fisico.sql` | `conteos`, `conteo_lineas` | 009 |
-| 0012 | `0012_alertas_stock.sql` | `notificaciones_stock` | 011 |
-| 0013 | `0013_proveedores_compras.sql` | `proveedores`, `compras`, `compra_lineas` | 012 |
-| 0014 | `0014_ventas.sql` | `clientes`, `ventas`, `venta_lineas` y secuencia de número | 013 |
-| 0015 | `0015_auditoria_consultas.sql` | Índices de consulta de auditoría | 015 |
+| 0015 | `0015_alertas_stock.sql` | `notificaciones_stock` | 011 |
+| 0016 | `0016_auditoria_consultas.sql` | Índices de consulta de auditoría | 015 |
+
+> 0010–0014 ya están creadas: `0010_transferencias` (008), `0011_inventario_fisico` (009),
+> `0012_registro_sso` (001), `0013_proveedores_compras` (012) y `0014_ventas` (013).
+> 011 tomó la `0015` al generar su `plan.md`, así que 015 se corre a la `0016`.
 
 > Las reservas son orientativas hasta que cada spec genere su `plan.md` y verifique el esquema real.
 > Un número reservado que no se use **no se reutiliza**: queda como hueco, igual que la `0004`.
@@ -274,5 +291,6 @@ Se reevalúan solo si aparece un requisito concreto (Principio I: YAGNI).
   `FR-071` (SSO config/ocultado), `FR-072` (vinculación), `FR-073` (rol SSO), `SC-026`
   (registro), `SC-027` (ocultado SSO), `SC-028` (credenciales en pantalla). Las specs dueñas
   originales no se tocaron.
-- **Auditoría**: el spec original solo la menciona en US6 y en Supuestos; 006 la formaliza
-  como FR-019 (derivado), sin ampliar alcance.
+- **Auditoría**: el spec original solo la menciona en US6 y en Supuestos; 006 la formaliza como
+  FR-019 (derivado). La ampliación 2026-11-07 extiende su alcance a todas las escrituras de gestión
+  de 001–005 (categorías, depósitos, ubicaciones y asignaciones), con SC-030.
