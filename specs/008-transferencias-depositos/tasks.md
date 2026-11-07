@@ -50,7 +50,7 @@ los hallazgos (plan.md, «Ampliación 2026-11-07»).
 
 - [X] T004 Add constant `pub const TABLA_TRANSFERENCIAS: &str = "transferencias";` and `pub const MOTIVO_TRANSFERENCIA: &str = "TRANSFERENCIA";` to `backend/src/services/auditoria.rs`
 
-- [ ] T005 [P] *(reabierta 2026-11-07: el helper no existe)* Create test helper in `backend/tests/unit/common/mod.rs`, function `crear_transferencia_de_prueba` (or extend existing helpers), that seeds: an active product with stock in deposito origen, an active deposito destino, and returns the IDs needed by transfer tests
+- [X] T005 [P] *(reabierta 2026-11-07: el helper no existe)* Create test helper in `backend/tests/unit/common/mod.rs`, function `crear_transferencia_de_prueba` (or extend existing helpers), that seeds: an active product with stock in deposito origen, an active deposito destino, and returns the IDs needed by transfer tests
 
 **Checkpoint**: Foundation ready — user story implementation can now begin
 
@@ -66,13 +66,13 @@ los hallazgos (plan.md, «Ampliación 2026-11-07»).
 
 > **NOTE: Write these tests FIRST, ensure they FAIL before implementation**
 
-- [ ] T006 [P] [US8] *(reabierta: hoy solo hay tests inline en `models/transferencia.rs`)* Unit tests for pure validation rules in `backend/tests/unit/test_transferencia_validacion.rs`, through `stockmante::models::transferencia::validar_transferencia`: origen=destino → 422 `transferencia_mismo_deposito`, cantidad<=0 → 422, producto_id<=0 → 422, observacion length>500 → 422, missing required field → 422
+- [X] T006 [P] [US8] *(reabierta: hoy solo hay tests inline en `models/transferencia.rs`)* Unit tests for pure validation rules in `backend/tests/unit/test_transferencia_validacion.rs`, through `stockmante::models::transferencia::validar_transferencia`: origen=destino → 422 `transferencia_mismo_deposito`, cantidad<=0 → 422, producto_id<=0 → 422, observacion length>500 → 422, missing required field → 422
 
-- [ ] T007 [US8] *(reabierta: el archivo no existe)* Integration tests for POST /api/transferencias in `backend/tests/integration/test_transferencias_http.rs`: (a) 201 with correct stock_origen_resultante and stock_destino_resultante; (b) 409 stock_insuficiente with literal message `"Stock insuficiente en Principal: 3 disponibles, 5 solicitadas."` and no stock change; (c) 422 transferencia_mismo_deposito with literal message; (d) 422 validacion for inactive destination deposit; (e) 409 producto_inactivo; (f) SC-016: global stock sum identical before and after successful transfer
+- [X] T007 [US8] *(reabierta: el archivo no existe)* Integration tests for POST /api/transferencias in `backend/tests/integration/test_transferencias_http.rs`: (a) 201 with correct stock_origen_resultante and stock_destino_resultante; (b) 409 stock_insuficiente with literal message `"Stock insuficiente en Principal: 3 disponibles, 5 solicitadas."` and no stock change; (c) 422 transferencia_mismo_deposito with literal message; (d) 422 validacion for inactive destination deposit; (e) 409 producto_inactivo; (f) SC-016: global stock sum identical before and after successful transfer
 
-- [ ] T008 [US8] *(reabierta)* Integration tests for GET /api/transferencias and GET /api/transferencias/{id} in `backend/tests/integration/test_transferencias_http.rs`: list with filters producto_id/deposito_origen_id/deposito_destino_id, date range, pagination; detail returns `movimiento_salida_id` and `movimiento_entrada_id` (the full movements are checked in T030, plan decision 11); 404 for nonexistent id (message in T033)
+- [X] T008 [US8] *(reabierta)* Integration tests for GET /api/transferencias and GET /api/transferencias/{id} in `backend/tests/integration/test_transferencias_http.rs`: list with filters producto_id/deposito_origen_id/deposito_destino_id, date range, pagination; detail returns `movimiento_salida_id` and `movimiento_entrada_id` (the full movements are checked in T030, plan decision 11); 404 for nonexistent id (message in T033)
 
-- [ ] T009 [US8] *(reabierta)* Integration tests for ubicacion origen/destino in `backend/tests/integration/test_transferencias_http.rs`: (a) with ubicacion_origen_id and ubicacion_destino_id → 201 and stock lands in correct ubicacion; (b) ubicacion belonging to wrong deposito → 422; (c) ubicacion not permitted for producto (producto_ubicacion_permitida) → 422
+- [X] T009 [US8] *(reabierta)* Integration tests for ubicacion origen/destino in `backend/tests/integration/test_transferencias_http.rs`: (a) with ubicacion_origen_id and ubicacion_destino_id → 201 and stock lands in correct ubicacion; (b) ubicacion belonging to wrong deposito → 422; (c) ubicacion not permitted for producto (producto_ubicacion_permitida) → 422
 
 ### Implementation for User Story 8
 
@@ -88,7 +88,7 @@ los hallazgos (plan.md, «Ampliación 2026-11-07»).
 
 - [X] T015 [US8] Register router: add `pub mod transferencias;` to `backend/src/handlers/mod.rs`; add `.nest("/api/transferencias", handlers::transferencias::router())` to the authenticated router in `backend/src/app.rs`; add TransferenciaDetalle and ListaTransferencias to the OpenAPI schemas and the three paths to the OpenAPI paths in `backend/src/docs.rs`
 
-- [ ] T016 [US8] *(reabierta: depende de T006–T009)* Run backend tests and make them pass: `cargo test` in `backend/`; fix any failures in models/services/handlers until all unit and integration tests for transferencias are green
+- [X] T016 [US8] *(reabierta: depende de T006–T009)* Run backend tests and make them pass: `cargo test` in `backend/`; fix any failures in models/services/handlers until all unit and integration tests for transferencias are green
 
 - [X] T017 [P] [US8] Create Zod schema in `frontend/src/lib/schemas/transferencias.ts`: `TransferenciaSchema` (id, producto_id, producto_nombre, sku, deposito_origen: DepositoBreve, deposito_destino: DepositoBreve, cantidad, stock_origen_resultante, stock_destino_resultante, usuario: UsuarioBreve, creado_en: string, movimiento_salida_id, movimiento_entrada_id, observacion nullable) and `CrearTransferenciaInputSchema`; export types
 
@@ -110,9 +110,9 @@ los hallazgos (plan.md, «Ampliación 2026-11-07»).
 
 - [X] T022 [P] Update API documentation table in `docs/api.md` with the three new routes (POST /api/transferencias, GET /api/transferencias, GET /api/transferencias/{id}) including required permissions and error codes
 
-- [ ] T023 *(reabierta; se cierra junto con T036)* Run full quality gates: `cargo test`, `cargo sqlx prepare --check` in `backend/`; `npm test`, `npm run check`, `npm run build` in `frontend/`; fix any regressions
+- [X] T023 *(reabierta; se cierra junto con T036)* Run full quality gates: `cargo test`, `cargo sqlx prepare --check` in `backend/`; `npm test`, `npm run check`, `npm run build` in `frontend/`; fix any regressions
 
-- [ ] T024 *(reabierta: `test_openapi.rs` no cubre las rutas nuevas, ver T032)* Update OpenAPI spec in `backend/src/docs.rs` if any schema or path was missed; verify `cargo test --test test_openapi` passes
+- [X] T024 *(reabierta: `test_openapi.rs` no cubre las rutas nuevas, ver T032)* Update OpenAPI spec in `backend/src/docs.rs` if any schema or path was missed; verify `cargo test --test test_openapi` passes
 
 ---
 
@@ -125,18 +125,18 @@ quedar verdes en la primera corrida. No se fabrica un RED artificial: cada test 
 de tocar el código y el resultado (RED o verde inmediato) se anota en `progress.md`. Los tests de
 T028 (desborde) y T033 (mensaje 404) cubren comportamiento que cambia y DEBEN observarse en RED.
 
-- [ ] T025 Create `specs/008-transferencias-depositos/progress.md`: record that T006–T009 were marked done without files and without RED evidence, and propose waiver W-004 with `/speckit constitution` (scope: the T007–T009 tests that pass on the first run). **Aceptación**: `progress.md` exists and the waiver has been proposed.
-- [ ] T026 Register `[[test]]` entries `test_transferencia_validacion` (`tests/unit/test_transferencia_validacion.rs`) and `test_transferencias_http` (`tests/integration/test_transferencias_http.rs`) in `backend/Cargo.toml`. Prerequisite for T006–T009 and T027–T033.
-- [ ] T027 [US8] Integration test in `test_transferencias_http.rs`: a successful transfer writes exactly one `auditoria` row with `tabla_ref = 'transferencias'`, `accion = 'CREAR'`, `registro_id` = transfer id and `usuario_id` = session user (FR-033).
-- [ ] T028 [US8] Integration tests in `test_transferencias_http.rs`, plan decisions 9–10: (a) 20 units only in ubicación A-01 of origin, transfer without `ubicacion_origen_id` → 409 `stock_insuficiente` with "0 disponibles" and no change; (b) `stock_origen_resultante`/`stock_destino_resultante` equal `movimiento_lineas.stock_resultante` of each movement; (c) destination row at `i32::MAX` → 422 `validacion`, no writes (**RED**: today the sum is unchecked).
-- [ ] T029 [US8] Fix `backend/src/services/transferencias.rs`: replace both `.expect(...)` (lines 93 and 96) with `ok_or_else(|| AppError::Validacion(...))?`; compute `stock_destino_resultante` with `checked_add`, same as `services/movimientos.rs`. **Aceptación**: `grep -n "unwrap()\|expect(\|panic!"` over `services/transferencias.rs` and `handlers/transferencias.rs` returns nothing; T028(c) green.
-- [ ] T030 [US8] Integration test in `test_transferencias_http.rs` (escenario 8.5, decision 11): `GET /api/movimientos/{movimiento_salida_id}` returns `SALIDA` in origin and `GET /api/movimientos/{movimiento_entrada_id}` returns `ENTRADA` in destination, both with `motivo = 'TRANSFERENCIA'` and one line of ±cantidad.
-- [ ] T031 [US8] Integration test in `test_transferencias_http.rs` (SC-016 on failures): for stock insuficiente, inactive destination and same deposit, `SUM(stock_por_deposito.cantidad)` and `productos.stock_actual` do not change, and there are no new rows in `transferencias`, `movimientos` or `auditoria`.
-- [ ] T032 [P] Extend `backend/tests/unit/test_openapi.rs`: the three `/api/transferencias` paths and the `TransferenciaDetalle`/`ListaTransferencias` schemas appear in the generated OpenAPI document. Closes T024.
-- [ ] T033 [US8] 404 message: test (**RED**) in `test_transferencias_http.rs` expecting `"No existe la transferencia {id}. Revisá el número o buscala en el listado de transferencias."`; then update `obtener` in `services/transferencias.rs` (Principio III, contracts/api.md).
+- [X] T025 Create `specs/008-transferencias-depositos/progress.md`: record that T006–T009 were marked done without files and without RED evidence, and propose waiver W-004 with `/speckit constitution` (scope: the T007–T009 tests that pass on the first run). **Aceptación**: `progress.md` exists and the waiver has been proposed.
+- [X] T026 Register `[[test]]` entries `test_transferencia_validacion` (`tests/unit/test_transferencia_validacion.rs`) and `test_transferencias_http` (`tests/integration/test_transferencias_http.rs`) in `backend/Cargo.toml`. Prerequisite for T006–T009 and T027–T033.
+- [X] T027 [US8] Integration test in `test_transferencias_http.rs`: a successful transfer writes exactly one `auditoria` row with `tabla_ref = 'transferencias'`, `accion = 'CREAR'`, `registro_id` = transfer id and `usuario_id` = session user (FR-033).
+- [X] T028 [US8] Integration tests in `test_transferencias_http.rs`, plan decisions 9–10: (a) 20 units only in ubicación A-01 of origin, transfer without `ubicacion_origen_id` → 409 `stock_insuficiente` with "0 disponibles" and no change; (b) `stock_origen_resultante`/`stock_destino_resultante` equal `movimiento_lineas.stock_resultante` of each movement; (c) destination row at `i32::MAX` → 422 `validacion`, no writes (**RED**: today the sum is unchecked).
+- [X] T029 [US8] Fix `backend/src/services/transferencias.rs`: replace both `.expect(...)` (lines 93 and 96) with `ok_or_else(|| AppError::Validacion(...))?`; compute `stock_destino_resultante` with `checked_add`, same as `services/movimientos.rs`. **Aceptación**: `grep -n "unwrap()\|expect(\|panic!"` over `services/transferencias.rs` and `handlers/transferencias.rs` returns nothing; T028(c) green.
+- [X] T030 [US8] Integration test in `test_transferencias_http.rs` (escenario 8.5, decision 11): `GET /api/movimientos/{movimiento_salida_id}` returns `SALIDA` in origin and `GET /api/movimientos/{movimiento_entrada_id}` returns `ENTRADA` in destination, both with `motivo = 'TRANSFERENCIA'` and one line of ±cantidad.
+- [X] T031 [US8] Integration test in `test_transferencias_http.rs` (SC-016 on failures): for stock insuficiente, inactive destination and same deposit, `SUM(stock_por_deposito.cantidad)` and `productos.stock_actual` do not change, and there are no new rows in `transferencias`, `movimientos` or `auditoria`.
+- [X] T032 [P] Extend `backend/tests/unit/test_openapi.rs`: the three `/api/transferencias` paths and the `TransferenciaDetalle`/`ListaTransferencias` schemas appear in the generated OpenAPI document. Closes T024.
+- [X] T033 [US8] 404 message: test (**RED**) in `test_transferencias_http.rs` expecting `"No existe la transferencia {id}. Revisá el número o buscala en el listado de transferencias."`; then update `obtener` in `services/transferencias.rs` (Principio III, contracts/api.md).
 - [X] T034 *(hecha 2026-11-07: clarify confirmó las decisiones 9 y 11 sin cambios)* Run `/speckit clarify 008-transferencias-depositos` to confirm plan decisions 9 (stock per ubicación row) and 11 (movements by id), then update `spec.md`: status «Implementado; remediación 2026-11-07 en curso», a "Clarificaciones" section, and the "sin idempotencia" assumption (L1). Update the 008 row in `specs/README.md`. If clarify changes a decision, reopen T028/T030 and adjust the plan.
-- [ ] T035 [P] `docs/api.md`: in the transfers section, state that stock is validated and reported per ubicación row (decision 9) and that the detail references the movements by id (decision 11).
-- [ ] T036 Quality gates: `cargo test` (all binaries, including `test_transferencia_validacion` and `test_transferencias_http`) and `cargo sqlx prepare --check` in `backend/`; `npm test`, `npm run check`, `npm run build` in `frontend/`. Mark T016, T023 and T024 done only after this passes. Apply the `CARGO_TARGET_DIR` workaround if the backend is running.
+- [X] T035 [P] `docs/api.md`: in the transfers section, state that stock is validated and reported per ubicación row (decision 9) and that the detail references the movements by id (decision 11).
+- [X] T036 Quality gates: `cargo test` (all binaries, including `test_transferencia_validacion` and `test_transferencias_http`) and `cargo sqlx prepare --check` in `backend/`; `npm test`, `npm run check`, `npm run build` in `frontend/`. Mark T016, T023 and T024 done only after this passes. Apply the `CARGO_TARGET_DIR` workaround if the backend is running.
 
 ---
 

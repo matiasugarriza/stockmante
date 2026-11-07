@@ -2,6 +2,10 @@
 //!
 //! Toda escritura ocurre en una única transacción SQLx. El orden de bloqueo es siempre
 //! `depositos` (por id ascendente) → `productos` → `stock_por_deposito`.
+//!
+//! `stock_origen_resultante`/`stock_destino_resultante` no se guardan en la
+//! cabecera: se leen de `movimiento_lineas.stock_resultante` de cada movimiento
+//! enlazado (decisiones 9 y 11 del plan; un solo dato, sin duplicación).
 
 use crate::error::AppError;
 use crate::models::stock::{
@@ -88,12 +92,12 @@ pub async fn crear(
         depositos.insert(id, fila);
     }
 
-    let dep_origen = depositos
-        .get(&nueva.deposito_origen_id)
-        .expect("origen bloqueado");
-    let dep_destino = depositos
-        .get(&nueva.deposito_destino_id)
-        .expect("destino bloqueado");
+    let dep_origen = depositos.get(&nueva.deposito_origen_id).ok_or_else(|| {
+        AppError::Validacion("El depósito de origen no existe.".into())
+    })?;
+    let dep_destino = depositos.get(&nueva.deposito_destino_id).ok_or_else(|| {
+        AppError::Validacion("El depósito de destino no existe.".into())
+    })?;
 
     if !dep_origen.activo {
         return Err(AppError::Validacion("El depósito de origen está inactivo.".into()));
@@ -231,7 +235,14 @@ pub async fn crear(
     .await?;
 
     let stock_origen_resultante = stock_origen_actual - nueva.cantidad;
-    let stock_destino_resultante = stock_destino_actual + nueva.cantidad;
+    let stock_destino_resultante = stock_destino_actual
+        .checked_add(nueva.cantidad)
+        .ok_or_else(|| {
+            AppError::Validacion(
+                "La cantidad resultante en el destino supera el máximo admitido. Revisá la cantidad."
+                    .into(),
+            )
+        })?;
 
     // Actualizar stock.
     sqlx::query(
@@ -395,16 +406,19 @@ pub async fn listar(
 
     let filas = sqlx::query_as::<_, TransferenciaFila>(
         r#"SELECT t.id, t.producto_id, p.nombre AS producto_nombre, p.sku,
-                  t.deposito_origen_id, do.nombre AS deposito_origen_nombre,
+                  t.deposito_origen_id, dor.nombre AS deposito_origen_nombre,
                   t.deposito_destino_id, dd.nombre AS deposito_destino_nombre,
-                  t.cantidad, t.stock_origen_resultante, t.stock_destino_resultante,
+                  t.cantidad, ls.stock_resultante AS stock_origen_resultante,
+                  le.stock_resultante AS stock_destino_resultante,
                   t.usuario_id, u.nombre AS usuario_nombre, t.creado_en,
                   t.movimiento_salida_id, t.movimiento_entrada_id, t.observacion
              FROM transferencias t
              JOIN productos p ON p.id = t.producto_id
-             JOIN depositos do ON do.id = t.deposito_origen_id
+             JOIN depositos dor ON dor.id = t.deposito_origen_id
              JOIN depositos dd ON dd.id = t.deposito_destino_id
              JOIN usuarios u ON u.id = t.usuario_id
+             JOIN movimiento_lineas ls ON ls.movimiento_id = t.movimiento_salida_id
+             JOIN movimiento_lineas le ON le.movimiento_id = t.movimiento_entrada_id
             WHERE ($1::int IS NULL OR t.producto_id = $1)
               AND ($2::int IS NULL OR t.deposito_origen_id = $2)
               AND ($3::int IS NULL OR t.deposito_destino_id = $3)
@@ -464,22 +478,29 @@ pub async fn listar(
 pub async fn obtener(pool: &PgPool, id: i32) -> Result<TransferenciaDetalle, AppError> {
     let fila = sqlx::query_as::<_, TransferenciaFila>(
         r#"SELECT t.id, t.producto_id, p.nombre AS producto_nombre, p.sku,
-                  t.deposito_origen_id, do.nombre AS deposito_origen_nombre,
+                  t.deposito_origen_id, dor.nombre AS deposito_origen_nombre,
                   t.deposito_destino_id, dd.nombre AS deposito_destino_nombre,
-                  t.cantidad, t.stock_origen_resultante, t.stock_destino_resultante,
+                  t.cantidad, ls.stock_resultante AS stock_origen_resultante,
+                  le.stock_resultante AS stock_destino_resultante,
                   t.usuario_id, u.nombre AS usuario_nombre, t.creado_en,
                   t.movimiento_salida_id, t.movimiento_entrada_id, t.observacion
              FROM transferencias t
              JOIN productos p ON p.id = t.producto_id
-             JOIN depositos do ON do.id = t.deposito_origen_id
+             JOIN depositos dor ON dor.id = t.deposito_origen_id
              JOIN depositos dd ON dd.id = t.deposito_destino_id
              JOIN usuarios u ON u.id = t.usuario_id
+             JOIN movimiento_lineas ls ON ls.movimiento_id = t.movimiento_salida_id
+             JOIN movimiento_lineas le ON le.movimiento_id = t.movimiento_entrada_id
             WHERE t.id = $1"#,
     )
     .bind(id)
     .fetch_optional(pool)
     .await?
-    .ok_or_else(|| AppError::RecursoNoEncontrado("No existe la transferencia.".into()))?;
+    .ok_or_else(|| {
+        AppError::RecursoNoEncontrado(format!(
+            "No existe la transferencia {id}. Revisá el número o buscala en el listado de transferencias."
+        ))
+    })?;
 
     Ok(TransferenciaDetalle {
         id: fila.id,

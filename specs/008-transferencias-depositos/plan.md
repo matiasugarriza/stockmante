@@ -228,3 +228,11 @@ correcciones del servicio → docs de spec → quality gates.
   evita deadlocks con movimientos concurrentes de 007.
 - **Migración**: `transferencias` arranca vacía; `movimientos.transferencia_id` es nullable
   y las filas existentes quedan en NULL.
+
+## Implementación de la remediación (2026-11-07)
+
+16. **Saldos derivados, sin migración**. `0010_transferencias.sql` no tiene columnas de saldo; el
+    servicio las leía y fallaba con 500. Se derivan con `JOIN movimiento_lineas` sobre
+    `movimiento_salida_id`/`movimiento_entrada_id`: es exactamente el dato de la decisión 9 y no se
+    duplica. Se corrigió además el alias `do` (reservado en PostgreSQL). Evidencia en
+    [progress.md](./progress.md); waiver W-004 registrado en la constitución 1.3.4.

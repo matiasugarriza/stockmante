@@ -63,8 +63,8 @@ transferencia.
 |---|---|---|
 | 401 | `no_autenticado` | `Necesitás iniciar sesión para continuar` |
 | 403 | `sin_permisos` | `No tenés permiso para realizar esta acción` |
-| 409 | `stock_insuficiente` | `Stock insuficiente en Principal: 3 disponibles, 5 solicitadas.` |
-| 409 | `producto_inactivo` | `El producto está inactivo y no admite movimientos.` |
+| 409 | `stock_insuficiente` | `Stock insuficiente en Principal: 3 disponibles, 5 solicitadas. Reducí la cantidad o registrá antes una entrada en ese depósito.` |
+| 409 | `producto_inactivo` | `El producto está inactivo y no admite movimientos. Reactivalo desde Productos o quitalo de la operación.` |
 | 422 | `transferencia_mismo_deposito` | `El depósito de origen y el de destino deben ser distintos.` |
 | 422 | `validacion` | `La cantidad transferida debe ser mayor que cero.` |
 

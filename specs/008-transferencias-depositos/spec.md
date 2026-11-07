@@ -44,7 +44,7 @@ forma segura de mover stock sin dos movimientos manuales que pueden quedar a med
 - **Dado** 3 unidades en origen,
 - **Cuando** se transfieren 5,
 - **Entonces** responde **409** `stock_insuficiente` con el mensaje
-  `"Stock insuficiente en Principal: 3 disponibles, 5 solicitadas."` y ningún depósito cambia.
+  `"Stock insuficiente en Principal: 3 disponibles, 5 solicitadas. Reducí la cantidad o registrá antes una entrada en ese depósito."` y ningún depósito cambia.
 
 **Escenario 8.3 — Mismo depósito**
 
