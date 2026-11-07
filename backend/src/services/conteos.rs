@@ -65,7 +65,23 @@ pub async fn crear(
     .ok_or_else(|| AppError::Validacion("El depósito indicado no existe.".into()))?;
 
     if !deposito.activo {
-        return Err(AppError::Validacion("El depósito está inactivo.".into()));
+        return Err(AppError::DepositoInactivo);
+    }
+
+    // Capturar líneas del stock actual del depósito (snapshot de apertura).
+    let filas = sqlx::query_as::<_, StockFila>(
+        r#"SELECT s.producto_id, s.ubicacion_id, s.cantidad
+             FROM stock_por_deposito s
+            WHERE s.deposito_id = $1
+            ORDER BY s.producto_id, s.ubicacion_id"#,
+    )
+    .bind(nuevo.deposito_id)
+    .fetch_all(&mut *tx)
+    .await?;
+    if filas.is_empty() {
+        return Err(AppError::Validacion(
+            "El depósito no tiene stock registrado para contar.".into(),
+        ));
     }
 
     let conteo_id: i32 = sqlx::query_scalar(
@@ -76,17 +92,6 @@ pub async fn crear(
     .bind(usuario.id)
     .bind(observacion.as_deref())
     .fetch_one(&mut *tx)
-    .await?;
-
-    // Capturar líneas del stock actual del depósito.
-    let filas = sqlx::query_as::<_, StockFila>(
-        r#"SELECT s.producto_id, s.ubicacion_id, s.cantidad
-             FROM stock_por_deposito s
-            WHERE s.deposito_id = $1
-            ORDER BY s.producto_id, s.ubicacion_id"#,
-    )
-    .bind(nuevo.deposito_id)
-    .fetch_all(&mut *tx)
     .await?;
 
     for f in &filas {
@@ -216,153 +221,107 @@ pub async fn cerrar(
     .fetch_all(&mut *tx)
     .await?;
 
-    // Validar que todas tengan cantidad_contada.
+    let deposito_id: i32 = sqlx::query_scalar("SELECT deposito_id FROM conteos WHERE id = $1")
+        .bind(conteo_id)
+        .fetch_one(&mut *tx)
+        .await?;
+
+    // Única compuerta: todas las líneas deben tener cantidad contada.
+    let mut contadas: Vec<(&ConteoLineaFila, i32)> = Vec::with_capacity(lineas.len());
     for l in &lineas {
-        if l.cantidad_contada.is_none() {
-            return Err(AppError::Validacion(
-                "Hay líneas sin cantidad contada.".into(),
-            ));
-        }
+        let contada = l.cantidad_contada.ok_or(AppError::LineasSinContar)?;
+        contadas.push((l, contada));
     }
 
-    // Recalcular cantidad_sistema vigente y diferencia; aplicar deltas.
-    // Agrupar productos afectados para recalcular cache.
+    // El cierre ajusta contra el stock vigente (aclaración 3): la diferencia de
+    // cada línea es `contada − vigente`, y el stock queda igual a lo contado.
     let mut productos_afectados: Vec<i32> = Vec::new();
-
-    // Primero, recalcular cantidad_sistema vigente por línea.
-    for l in &lineas {
-        let contada = l.cantidad_contada.unwrap();
-        // stock vigente
-        let stock_vigente: i32 = sqlx::query_scalar(
-            r#"SELECT COALESCE((SELECT cantidad FROM stock_por_deposito
-                                 WHERE producto_id = $1 AND deposito_id = (
-                                     SELECT deposito_id FROM conteos WHERE id = $2)
-                                   AND ubicacion_id IS NOT DISTINCT FROM $3), 0)"#,
+    let mut ajustes: Vec<(i32, Option<i32>, i32, i32)> = Vec::new();
+    for (l, contada) in &contadas {
+        sqlx::query(
+            r#"INSERT INTO stock_por_deposito (producto_id, deposito_id, ubicacion_id, cantidad)
+               VALUES ($1, $2, $3, 0)
+               ON CONFLICT ON CONSTRAINT uq_stock_producto_deposito_ubicacion DO NOTHING"#,
         )
         .bind(l.producto_id)
-        .bind(conteo_id)
+        .bind(deposito_id)
+        .bind(l.ubicacion_id)
+        .execute(&mut *tx)
+        .await?;
+
+        let vigente: i32 = sqlx::query_scalar(
+            r#"SELECT cantidad FROM stock_por_deposito
+                WHERE producto_id = $1 AND deposito_id = $2
+                  AND ubicacion_id IS NOT DISTINCT FROM $3
+                FOR UPDATE"#,
+        )
+        .bind(l.producto_id)
+        .bind(deposito_id)
         .bind(l.ubicacion_id)
         .fetch_one(&mut *tx)
         .await?;
 
-        let diff = contada - stock_vigente;
+        let diff = contada.checked_sub(vigente).ok_or_else(|| {
+            AppError::Validacion("La diferencia del conteo supera el máximo admitido.".into())
+        })?;
 
-        // Actualizar cantidad_sistema y diferencia en la línea.
         sqlx::query(
             "UPDATE conteo_lineas SET cantidad_sistema = $1, diferencia = $2 WHERE id = $3",
         )
-        .bind(stock_vigente)
+        .bind(vigente)
         .bind(diff)
         .bind(l.id)
         .execute(&mut *tx)
         .await?;
 
-        // Aplicar delta si diff != 0.
         if diff != 0 {
-            // Asegurar fila de stock.
-            let deposito_id: i32 =
-                sqlx::query_scalar("SELECT deposito_id FROM conteos WHERE id = $1")
-                    .bind(conteo_id)
-                    .fetch_one(&mut *tx)
-                    .await?;
-
-            sqlx::query(
-                r#"INSERT INTO stock_por_deposito (producto_id, deposito_id, ubicacion_id, cantidad)
-                   VALUES ($1, $2, $3, 0)
-                   ON CONFLICT ON CONSTRAINT uq_stock_producto_deposito_ubicacion DO NOTHING"#,
-            )
-            .bind(l.producto_id)
-            .bind(deposito_id)
-            .bind(l.ubicacion_id)
-            .execute(&mut *tx)
-            .await?;
-
-            // Leer stock actual (ya bloqueado por transacción; bloquear fila).
-            let actual: i32 = sqlx::query_scalar(
-                r#"SELECT cantidad FROM stock_por_deposito
-                    WHERE producto_id = $1 AND deposito_id = $2
-                      AND ubicacion_id IS NOT DISTINCT FROM $3
-                    FOR UPDATE"#,
-            )
-            .bind(l.producto_id)
-            .bind(deposito_id)
-            .bind(l.ubicacion_id)
-            .fetch_one(&mut *tx)
-            .await?;
-
-            let nuevo = actual + diff;
-            if nuevo < 0 {
-                // No debería pasar porque contada >= 0 y stock_vigente recalculado,
-                // pero por seguridad.
-                return Err(AppError::Validacion(
-                    "El ajuste dejaría stock negativo.".into(),
-                ));
-            }
-
             sqlx::query(
                 r#"UPDATE stock_por_deposito SET cantidad = $1, actualizado_en = now()
                    WHERE producto_id = $2 AND deposito_id = $3
                      AND ubicacion_id IS NOT DISTINCT FROM $4"#,
             )
-            .bind(nuevo)
+            .bind(*contada)
             .bind(l.producto_id)
             .bind(deposito_id)
             .bind(l.ubicacion_id)
             .execute(&mut *tx)
             .await?;
-
+            ajustes.push((l.producto_id, l.ubicacion_id, diff, *contada));
             if !productos_afectados.contains(&l.producto_id) {
                 productos_afectados.push(l.producto_id);
             }
         }
     }
 
-    // Generar un movimiento AJUSTE si hay diferencias.
-    let deposito_id: i32 = sqlx::query_scalar("SELECT deposito_id FROM conteos WHERE id = $1")
-        .bind(conteo_id)
-        .fetch_one(&mut *tx)
-        .await?;
-
-    let hay_diferencias = lineas.iter().any(|l| {
-        let contada = l.cantidad_contada.unwrap_or(0);
-        contada != l.cantidad_sistema
-    });
-
+    // Un único AJUSTE (motivo INVENTARIO) con las líneas de diferencia ≠ 0.
     let mut movimiento_ajuste_id: Option<i32> = None;
-
-    if hay_diferencias {
+    if !ajustes.is_empty() {
         let mov_id: i32 = sqlx::query_scalar(
             r#"INSERT INTO movimientos (tipo, deposito_id, motivo, observacion, usuario_id)
                VALUES ('AJUSTE', $1, 'INVENTARIO', $2, $3)
                RETURNING id"#,
         )
         .bind(deposito_id)
-        .bind(None::<&str>)
+        .bind(format!("Cierre del conteo {conteo_id}"))
         .bind(usuario.id)
         .fetch_one(&mut *tx)
         .await?;
 
-        for l in &lineas {
-            let contada = l.cantidad_contada.unwrap();
-            // cantidad_sistema vigente (recalculado arriba, pero re-leer para seguridad)
-            let diff_mov = contada - l.cantidad_sistema;
-            if diff_mov != 0 {
-                sqlx::query(
-                    r#"INSERT INTO movimiento_lineas
-                           (movimiento_id, producto_id, ubicacion_id, cantidad_delta, stock_resultante)
-                       VALUES ($1, $2, $3, $4, $5)"#,
-                )
-                .bind(mov_id)
-                .bind(l.producto_id)
-                .bind(l.ubicacion_id)
-                .bind(diff_mov)
-                .bind(contada)
-                .execute(&mut *tx)
-                .await?;
-            }
+        for (producto_id, ubicacion_id, diff, contada) in &ajustes {
+            sqlx::query(
+                r#"INSERT INTO movimiento_lineas
+                       (movimiento_id, producto_id, ubicacion_id, cantidad_delta, stock_resultante)
+                   VALUES ($1, $2, $3, $4, $5)"#,
+            )
+            .bind(mov_id)
+            .bind(producto_id)
+            .bind(ubicacion_id)
+            .bind(diff)
+            .bind(contada)
+            .execute(&mut *tx)
+            .await?;
         }
 
-        // Auditar el movimiento.
         auditoria::registrar(
             &mut tx,
             auditoria::TABLA_MOVIMIENTOS,

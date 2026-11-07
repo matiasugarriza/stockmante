@@ -32,7 +32,7 @@ y lo ausente queda `[ ]`.
 
 - [X] T001 Verify migration `migrations/0011_inventario_fisico.sql` creates `conteos` (id, deposito_id, estado CHECK IN ('ABIERTO','CERRADO','CANCELADO'), usuario_id, creado_en, cerrado_en, cancelado_en, movimiento_ajuste_id, observacion CHECK `length(observacion) <= 500`) and `conteo_lineas` (conteo_id ON DELETE CASCADE, producto_id, ubicacion_id, cantidad_sistema CHECK >= 0, cantidad_contada CHECK NULL OR >= 0, diferencia, UNIQUE NULLS NOT DISTINCT (conteo_id, producto_id, ubicacion_id) as `uq_conteo_linea_producto_ubicacion`) — matches `data-model.md`
 
-- [ ] T002 Apply migration to both databases and verify: run `cargo sqlx migrate run --source ../migrations` against `stockmante` and `stockmante_test`, then confirm the tables exist with `\d conteos` and `\d conteo_lineas`
+- [X] T002 Apply migration to both databases and verify: run `cargo sqlx migrate run --source ../migrations` against `stockmante` and `stockmante_test`, then confirm the tables exist with `\d conteos` and `\d conteo_lineas`
 
 ---
 
@@ -44,11 +44,11 @@ y lo ausente queda `[ ]`.
 
 - [X] T003 Verify existing `AppError` variants `ConteoCerrado`, `ConteoCancelado`, `ConteoNoEncontrado` in `backend/src/error.rs` with status 409/409/404 and `codigo()` `conteo_cerrado`/`conteo_cancelado`/`conteo_no_encontrado`
 
-- [ ] T004 Add variants `LineasSinContar` and `DepositoInactivo` to enum `AppError` in `backend/src/error.rs`: `status()` → 422 for both, `codigo()` → `"lineas_sin_contar"` / `"deposito_inactivo"`, `Display` con mensajes accionables ("Hay líneas sin cantidad contada; cargalas antes de cerrar." / "El depósito está inactivo; activalo antes de abrir un conteo."), and wire every match arm (status, codigo, Display, From)
+- [X] T004 Add variants `LineasSinContar` and `DepositoInactivo` to enum `AppError` in `backend/src/error.rs`: `status()` → 422 for both, `codigo()` → `"lineas_sin_contar"` / `"deposito_inactivo"`, `Display` con mensajes accionables ("Hay líneas sin cantidad contada; cargalas antes de cerrar." / "El depósito está inactivo; activalo antes de abrir un conteo."), and wire every match arm (status, codigo, Display, From)
 
 - [X] T005 Verify constant `pub const TABLA_CONTEOS: &str = "conteos";` in `backend/src/services/auditoria.rs`
 
-- [ ] T006 Add helper `crear_conteo_de_prueba` to `backend/tests/unit/common/mod.rs` that seeds an active deposito with stock (`stock_por_deposito`) for a fresh producto and returns `(deposito_id, producto_id, ubicacion_id, cantidad)`; reuse `sku_unico`/`nombre_categoria_unico`
+- [X] T006 Add helper `crear_conteo_de_prueba` to `backend/tests/unit/common/mod.rs` that seeds an active deposito with stock (`stock_por_deposito`) for a fresh producto and returns `(deposito_id, producto_id, ubicacion_id, cantidad)`; reuse `sku_unico`/`nombre_categoria_unico`
 
 **Checkpoint**: Foundation ready — user story implementation can now begin
 
@@ -64,13 +64,13 @@ y lo ausente queda `[ ]`.
 
 > **NOTE: Write these tests FIRST, ensure they FAIL before implementation (T011–T014)**
 
-- [ ] T007 [P] [US9] Create `backend/tests/unit/test_conteo_validacion.rs` for pure rules in `backend/src/models/conteo.rs`: `deposito_id <= 0` → `validacion`, `cantidad_contada < 0` → `validacion`, `observacion` > 500 caracteres → `validacion`, `observacion` en blanco normaliza a `None`, `observacion` con espacios se recorta
+- [X] T007 [P] [US9] Create `backend/tests/unit/test_conteo_validacion.rs` for pure rules in `backend/src/models/conteo.rs`: `deposito_id <= 0` → `validacion`, `cantidad_contada < 0` → `validacion`, `observacion` > 500 caracteres → `validacion`, `observacion` en blanco normaliza a `None`, `observacion` con espacios se recorta
 
-- [ ] T008 [P] [US9] Create `backend/tests/integration/test_conteos_http.rs` (alta y consulta): `POST /api/conteos` → 201 con `estado=ABIERTO` y una línea por producto+ubicación con `cantidad_contada: null` (9.1); depósito inactivo → 422 `deposito_inactivo`; depósito sin filas de stock → 422 `validacion` sin crear conteo; `GET /api/conteos` con filtros → 200 página; `GET /api/conteos/{id}` → 200; id inexistente → 404 `conteo_no_encontrado`; `OPERACION` → 403 `sin_permisos`
+- [X] T008 [P] [US9] Create `backend/tests/integration/test_conteos_http.rs` (alta y consulta): `POST /api/conteos` → 201 con `estado=ABIERTO` y una línea por producto+ubicación con `cantidad_contada: null` (9.1); depósito inactivo → 422 `deposito_inactivo`; depósito sin filas de stock → 422 `validacion` sin crear conteo; `GET /api/conteos` con filtros → 200 página; `GET /api/conteos/{id}` → 200; id inexistente → 404 `conteo_no_encontrado`; `OPERACION` → 403 `sin_permisos`
 
-- [ ] T009 [P] [US9] Extend `backend/tests/integration/test_conteos_http.rs` (carga y cierre): `PATCH /api/conteos/{id}/lineas` → 200 con `diferencia = cantidad_contada − cantidad_sistema` del snapshot (9.2 + aclaración 3); cerrar con diff → 200 + **un** `AJUSTE` (motivo `INVENTARIO`) con líneas solo para diff ≠ 0 y stock = contado (9.3, SC-017); cerrar sin diff → 200 sin movimiento (9.4); cerrar un `CERRADO` → 409 `conteo_cerrado` (9.5) y sin duplicar el AJUSTE; cerrar con líneas sin contar → 422 `lineas_sin_contar`
+- [X] T009 [P] [US9] Extend `backend/tests/integration/test_conteos_http.rs` (carga y cierre): `PATCH /api/conteos/{id}/lineas` → 200 con `diferencia = cantidad_contada − cantidad_sistema` del snapshot (9.2 + aclaración 3); cerrar con diff → 200 + **un** `AJUSTE` (motivo `INVENTARIO`) con líneas solo para diff ≠ 0 y stock = contado (9.3, SC-017); cerrar sin diff → 200 sin movimiento (9.4); cerrar un `CERRADO` → 409 `conteo_cerrado` (9.5) y sin duplicar el AJUSTE; cerrar con líneas sin contar → 422 `lineas_sin_contar`
 
-- [ ] T010 [P] [US9] Extend `backend/tests/integration/test_conteos_http.rs` (cancelación y RBAC): cancelar → 200 `CANCELADO` sin ajuste; cargar/cerrar/cancelar un `CANCELADO` → 409 `conteo_cancelado` (9.6); `OPERACION` → 403 `sin_permisos` en las 6 rutas (9.7)
+- [X] T010 [P] [US9] Extend `backend/tests/integration/test_conteos_http.rs` (cancelación y RBAC): cancelar → 200 `CANCELADO` sin ajuste; cargar/cerrar/cancelar un `CANCELADO` → 409 `conteo_cancelado` (9.6); `OPERACION` → 403 `sin_permisos` en las 6 rutas (9.7)
 
 ### Implementation for User Story 9
 
@@ -78,9 +78,9 @@ y lo ausente queda `[ ]`.
 
 - [X] T012 [P] [US9] Verify response structs in `backend/src/models/stock.rs`: `ConteoDetalle`, `ConteoLinea`, `ListaConteos`, `ConteoFila`, `ConteoLineaFila` with `sqlx::FromRow`
 
-- [ ] T013 [US9] Remove the two `unwrap()` on `cantidad_contada` in `backend/src/services/conteos.rs:234,346` (Principio II) and return `AppError::LineasSinContar`; the earlier null-check at line ~220 must remain the single gate
+- [X] T013 [US9] Remove the two `unwrap()` on `cantidad_contada` in `backend/src/services/conteos.rs:234,346` (Principio II) and return `AppError::LineasSinContar`; the earlier null-check at line ~220 must remain the single gate
 
-- [ ] T014 [US9] In `backend/src/services/conteos.rs`: return `AppError::DepositoInactivo` (not generic `Validacion`) when the deposit is inactive (line ~68); after loading `stock_por_deposito` in `crear`, if zero rows, return `Validacion("El depósito no tiene stock registrado para contar.")` without creating the conteo (aclaración 5)
+- [X] T014 [US9] In `backend/src/services/conteos.rs`: return `AppError::DepositoInactivo` (not generic `Validacion`) when the deposit is inactive (line ~68); after loading `stock_por_deposito` in `crear`, if zero rows, return `Validacion("El depósito no tiene stock registrado para contar.")` without creating the conteo (aclaración 5)
 
 - [X] T015 [US9] Verify service `backend/src/services/conteos.rs` exposes `crear`, `cargar_lineas`, `cerrar`, `cancelar`, `listar`, `obtener`, with the close in a single `pool.begin()` transaction and `FOR UPDATE`
 
@@ -88,23 +88,23 @@ y lo ausente queda `[ ]`.
 
 - [X] T017 [US9] Verify router registration: `pub mod conteos;` in `backend/src/handlers/mod.rs`, `.nest("/api/conteos", handlers::conteos::router())` in `backend/src/app.rs:53`, paths/schemas in `backend/src/docs.rs:74-79,160-161`
 
-- [ ] T018 [US9] Update utoipa `responses(...)` in `backend/src/handlers/conteos.rs` to document the specific 409/422 codes (`conteo_cerrado`, `conteo_cancelado`, `lineas_sin_contar`, `deposito_inactivo`) instead of a generic "Cuerpo inválido"
+- [X] T018 [US9] Update utoipa `responses(...)` in `backend/src/handlers/conteos.rs` to document the specific 409/422 codes (`conteo_cerrado`, `conteo_cancelado`, `lineas_sin_contar`, `deposito_inactivo`) instead of a generic "Cuerpo inválido"
 
-- [ ] T019 [US9] Run backend tests and make them pass: `cd backend && cargo test`; fix until `test_conteo_validacion` and `test_conteos_http` are green
+- [X] T019 [US9] Run backend tests and make them pass: `cd backend && cargo test`; fix until `test_conteo_validacion` and `test_conteos_http` are green
 
 - [X] T020 [P] [US9] Verify Zod schema `frontend/src/lib/schemas/conteos.ts`: `ConteoSchema`, `ConteoLineaSchema`, `ListaConteosSchema`, `CrearConteoSchema`, `CargarLineasSchema` with exported types
 
 - [X] T021 [P] [US9] Verify typed API client `frontend/src/lib/api/conteos.ts`: `crearConteo`, `listarConteos`, `obtenerConteo`, `cargarLineas`, `cerrarConteo`, `cancelarConteo`
 
-- [ ] T022 [US9] Create `frontend/src/lib/schemas/conteos.test.ts` covering valid parse, `cantidad_contada` nullability, `observacion` optional and rejection of negative quantities (Principio IV: schemas have no tests today)
+- [X] T022 [US9] Create `frontend/src/lib/schemas/conteos.test.ts` covering valid parse, `cantidad_contada` nullability, `observacion` optional and rejection of negative quantities (Principio IV: schemas have no tests today)
 
 - [X] T023 [US9] Verify page `frontend/src/routes/conteos/+page.svelte` (abrir por depósito, inputs de `cantidad_contada`, diferencia, cerrar/cancelar, listado con filtros)
 
 - [X] T024 [US9] Verify navigation link "Conteos" in `frontend/src/routes/+layout.svelte:57` (visible para `GESTION`)
 
-- [ ] T025 [US9] Extend `frontend/src/lib/api/conteos.test.ts` to cover the specific error codes (`lineas_sin_contar`, `deposito_inactivo`, `conteo_cancelado`) since they change what the SPA can distinguish
+- [X] T025 [US9] Extend `frontend/src/lib/api/conteos.test.ts` to cover the specific error codes (`lineas_sin_contar`, `deposito_inactivo`, `conteo_cancelado`) since they change what the SPA can distinguish
 
-- [ ] T026 [US9] Run frontend tests and checks: `cd frontend && npm test && npm run check && npm run build`
+- [X] T026 [US9] Run frontend tests and checks: `cd frontend && npm test && npm run check && npm run build`
 
 **Checkpoint**: User Story 9 fully functional and testable independently
 
@@ -114,13 +114,13 @@ y lo ausente queda `[ ]`.
 
 **Purpose**: Quality gates, docs, and final verification
 
-- [ ] T027 [P] Update API documentation table in `docs/api.md` with the six `/api/conteos` routes and the `GESTION` row of the RBAC matrix (currently absent)
+- [X] T027 [P] Update API documentation table in `docs/api.md` with the six `/api/conteos` routes and the `GESTION` row of the RBAC matrix (currently absent)
 
 - [X] T028 [P] Align `specs/009-inventario-fisico/contracts/api.md` and `data-model.md` with the clarified spec (specific error codes, `observacion`, `diferencia` baseline, empty-deposit rule) — done in the 2026-11-07 session
 
-- [ ] T029 [P] Extend `backend/tests/unit/test_openapi.rs`: add `/api/conteos`, `/api/conteos/{id}`, `/api/conteos/{id}/lineas`, `/api/conteos/{id}/cerrar`, `/api/conteos/{id}/cancelar` to `esperadas`, and `ConteoDetalle` / `ListaConteos` to the schema list
+- [X] T029 [P] Extend `backend/tests/unit/test_openapi.rs`: add `/api/conteos`, `/api/conteos/{id}`, `/api/conteos/{id}/lineas`, `/api/conteos/{id}/cerrar`, `/api/conteos/{id}/cancelar` to `esperadas`, and `ConteoDetalle` / `ListaConteos` to the schema list
 
-- [ ] T030 Run full quality gates: `cd backend && cargo test && cargo sqlx prepare --check`; `cd frontend && npm test && npm run check && npm run build`; verify no `unwrap`/`expect`/`panic!` in `backend/src/services/conteos.rs` and `backend/src/handlers/conteos.rs`
+- [X] T030 Run full quality gates: `cd backend && cargo test && cargo sqlx prepare --check`; `cd frontend && npm test && npm run check && npm run build`; verify no `unwrap`/`expect`/`panic!` in `backend/src/services/conteos.rs` and `backend/src/handlers/conteos.rs`
 
 - [ ] T031 Run `quickstart.md` scenarios 1–9 end to end (including depósito inactivo, depósito sin stock, líneas sin contar y conteo cancelado)
 

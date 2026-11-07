@@ -242,3 +242,84 @@ pub fn nombre_categoria_unico(etiqueta: &str) -> String {
         format!("{etiqueta} {sufijo}")
     }
 }
+
+/// Escenario base de transferencias (008, T005): producto activo con `stock`
+/// unidades a nivel depósito en `origen` y un `destino` activo, sembrado por SQL
+/// directo (no audita ni genera movimientos: es fixture, no flujo de negocio).
+#[derive(Debug, Clone, Copy)]
+pub struct EscenarioTransferencia {
+    pub producto_id: i32,
+    pub origen_id: i32,
+    pub destino_id: i32,
+}
+
+pub async fn crear_transferencia_de_prueba(pool: &PgPool, stock: i32) -> EscenarioTransferencia {
+    let sufijo = uuid::Uuid::new_v4().simple().to_string()[..10].to_uppercase();
+    let categoria_id: i32 = sqlx::query_scalar(
+        "INSERT INTO categorias (nombre) VALUES ($1) RETURNING id",
+    )
+    .bind(format!("Transf {sufijo}"))
+    .fetch_one(pool)
+    .await
+    .expect("categoría de transferencia");
+    let producto_id: i32 = sqlx::query_scalar(
+        r#"INSERT INTO productos (nombre, sku, categoria_id, unidad_medida, costo, precio_venta, stock_actual)
+           VALUES ($1, $2, $3, 'UNIDAD', 10, 20, $4) RETURNING id"#,
+    )
+    .bind(format!("Producto transferible {sufijo}"))
+    .bind(sku_unico("TRF"))
+    .bind(categoria_id)
+    .bind(stock)
+    .fetch_one(pool)
+    .await
+    .expect("producto de transferencia");
+    let mut depositos = Vec::with_capacity(2);
+    for etiqueta in ["Origen", "Destino"] {
+        let id: i32 = sqlx::query_scalar(
+            "INSERT INTO depositos (nombre, identificador) VALUES ($1, $2) RETURNING id",
+        )
+        .bind(format!("{etiqueta} {sufijo}"))
+        .bind(format!("{}-{sufijo}", &etiqueta[..3].to_uppercase()))
+        .fetch_one(pool)
+        .await
+        .expect("depósito de transferencia");
+        depositos.push(id);
+    }
+    if stock > 0 {
+        sqlx::query(
+            r#"INSERT INTO stock_por_deposito (producto_id, deposito_id, ubicacion_id, cantidad)
+               VALUES ($1, $2, NULL, $3)"#,
+        )
+        .bind(producto_id)
+        .bind(depositos[0])
+        .bind(stock)
+        .execute(pool)
+        .await
+        .expect("stock inicial en origen");
+    }
+    EscenarioTransferencia {
+        producto_id,
+        origen_id: depositos[0],
+        destino_id: depositos[1],
+    }
+}
+
+/// Escenario base de conteos (009, T006): depósito activo con `cantidad` unidades
+/// de un producto nuevo a nivel depósito (sin filas de stock si `cantidad == 0`).
+#[derive(Debug, Clone, Copy)]
+pub struct EscenarioConteo {
+    pub deposito_id: i32,
+    pub producto_id: i32,
+    pub ubicacion_id: Option<i32>,
+    pub cantidad: i32,
+}
+
+pub async fn crear_conteo_de_prueba(pool: &PgPool, cantidad: i32) -> EscenarioConteo {
+    let base = crear_transferencia_de_prueba(pool, cantidad).await;
+    EscenarioConteo {
+        deposito_id: base.origen_id,
+        producto_id: base.producto_id,
+        ubicacion_id: None,
+        cantidad,
+    }
+}

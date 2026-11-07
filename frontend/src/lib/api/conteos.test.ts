@@ -101,4 +101,26 @@ describe('cliente de conteos', () => {
 		expect(url).toContain('/api/conteos/1');
 		expect(detalle.id).toBe(1);
 	});
+
+	it.each([
+		[422, 'lineas_sin_contar', 'Hay líneas sin cantidad contada; cargalas antes de cerrar.', () => cerrarConteo(1)],
+		[
+			422,
+			'deposito_inactivo',
+			'El depósito está inactivo; activalo antes de abrir un conteo.',
+			() => crearConteo({ deposito_id: 1, observacion: null })
+		],
+		[409, 'conteo_cancelado', 'El conteo fue cancelado.', () => cancelarConteo(1)]
+	] as const)('propaga el código específico %s %s', async (status, codigo, mensaje, llamar) => {
+		vi.stubGlobal(
+			'fetch',
+			vi.fn(async () => jsonResponse({ error: { codigo, mensaje } }, status))
+		);
+
+		const error = (await llamar().catch((e: unknown) => e)) as ApiError;
+
+		expect(error.status).toBe(status);
+		expect(error.codigo).toBe(codigo);
+		expect(error.message).toBe(mensaje);
+	});
 });

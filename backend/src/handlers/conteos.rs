@@ -59,8 +59,8 @@ fn exigir_gestion(usuario: &crate::models::usuario::Usuario) -> Result<(), AppEr
     responses(
         (status = 201, description = "Conteo abierto", body = ConteoDetalle),
         (status = 401, description = "Sin sesión", body = ErrorRespuesta),
-        (status = 403, description = "Sin permisos", body = ErrorRespuesta),
-        (status = 422, description = "Cuerpo inválido", body = ErrorRespuesta)
+        (status = 403, description = "Requiere familia GESTION (`sin_permisos`)", body = ErrorRespuesta),
+        (status = 422, description = "`deposito_inactivo`, o `validacion` (depósito inexistente, sin stock registrado u observación > 500)", body = ErrorRespuesta)
     )
 )]
 pub async fn crear(
@@ -111,7 +111,7 @@ fn parsear_fecha(valor: Option<&str>, campo: &str) -> Result<Option<DateTime<Utc
     responses(
         (status = 200, description = "Página de conteos", body = ListaConteos),
         (status = 401, description = "Sin sesión", body = ErrorRespuesta),
-        (status = 403, description = "Sin permisos", body = ErrorRespuesta),
+        (status = 403, description = "Requiere familia GESTION (`sin_permisos`)", body = ErrorRespuesta),
         (status = 422, description = "Filtros inválidos", body = ErrorRespuesta)
     )
 )]
@@ -141,8 +141,8 @@ pub async fn listar(
     responses(
         (status = 200, description = "Conteo con sus líneas", body = ConteoDetalle),
         (status = 401, description = "Sin sesión", body = ErrorRespuesta),
-        (status = 403, description = "Sin permisos", body = ErrorRespuesta),
-        (status = 404, description = "No existe", body = ErrorRespuesta)
+        (status = 403, description = "Requiere familia GESTION (`sin_permisos`)", body = ErrorRespuesta),
+        (status = 404, description = "`conteo_no_encontrado`", body = ErrorRespuesta)
     )
 )]
 pub async fn obtener(
@@ -164,10 +164,10 @@ pub async fn obtener(
     responses(
         (status = 200, description = "Conteo actualizado", body = ConteoDetalle),
         (status = 401, description = "Sin sesión", body = ErrorRespuesta),
-        (status = 403, description = "Sin permisos", body = ErrorRespuesta),
-        (status = 404, description = "No existe", body = ErrorRespuesta),
-        (status = 409, description = "Conteo cerrado o cancelado", body = ErrorRespuesta),
-        (status = 422, description = "Cuerpo inválido", body = ErrorRespuesta)
+        (status = 403, description = "Requiere familia GESTION (`sin_permisos`)", body = ErrorRespuesta),
+        (status = 404, description = "`conteo_no_encontrado`", body = ErrorRespuesta),
+        (status = 409, description = "`conteo_cerrado` o `conteo_cancelado`", body = ErrorRespuesta),
+        (status = 422, description = "`validacion`: cantidad negativa o línea ajena al conteo", body = ErrorRespuesta)
     )
 )]
 pub async fn cargar_lineas(
@@ -199,10 +199,10 @@ pub async fn cargar_lineas(
     responses(
         (status = 200, description = "Conteo cerrado", body = ConteoDetalle),
         (status = 401, description = "Sin sesión", body = ErrorRespuesta),
-        (status = 403, description = "Sin permisos", body = ErrorRespuesta),
-        (status = 404, description = "No existe", body = ErrorRespuesta),
-        (status = 409, description = "Conteo cerrado o cancelado", body = ErrorRespuesta),
-        (status = 422, description = "Líneas sin contar", body = ErrorRespuesta)
+        (status = 403, description = "Requiere familia GESTION (`sin_permisos`)", body = ErrorRespuesta),
+        (status = 404, description = "`conteo_no_encontrado`", body = ErrorRespuesta),
+        (status = 409, description = "`conteo_cerrado` o `conteo_cancelado`", body = ErrorRespuesta),
+        (status = 422, description = "`lineas_sin_contar`", body = ErrorRespuesta)
     )
 )]
 pub async fn cerrar(
@@ -223,9 +223,9 @@ pub async fn cerrar(
     responses(
         (status = 200, description = "Conteo cancelado", body = ConteoDetalle),
         (status = 401, description = "Sin sesión", body = ErrorRespuesta),
-        (status = 403, description = "Sin permisos", body = ErrorRespuesta),
-        (status = 404, description = "No existe", body = ErrorRespuesta),
-        (status = 409, description = "Conteo cerrado o cancelado", body = ErrorRespuesta)
+        (status = 403, description = "Requiere familia GESTION (`sin_permisos`)", body = ErrorRespuesta),
+        (status = 404, description = "`conteo_no_encontrado`", body = ErrorRespuesta),
+        (status = 409, description = "`conteo_cerrado` o `conteo_cancelado`", body = ErrorRespuesta)
     )
 )]
 pub async fn cancelar(
