@@ -1,7 +1,7 @@
 //! Servicio de clientes (013).
 
 use crate::error::AppError;
-use crate::models::venta::{self as vm, Cliente, ListaClientes};
+use crate::models::cliente::{self as vm, Cliente, ListaClientes};
 use crate::services::{auditoria, normalizar_paginacion};
 use sqlx::PgPool;
 
@@ -29,7 +29,7 @@ pub async fn crear(pool: &PgPool, nuevo: NuevoCliente, usuario_id: i32) -> Resul
     if let Some(d) = &documento {
         let dup: bool = sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM clientes WHERE documento=$1)")
             .bind(d).fetch_one(pool).await?;
-        if dup { return Err(AppError::Validacion("Ya existe un cliente con ese documento.".into())); }
+        if dup { return Err(AppError::DocumentoDuplicado); }
     }
 
     let id: i32 = sqlx::query_scalar(
@@ -74,7 +74,7 @@ pub async fn actualizar(pool: &PgPool, id: i32, nuevo: NuevoCliente, usuario_id:
     if let Some(d) = &documento {
         let dup: bool = sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM clientes WHERE documento=$1 AND id<>$2)")
             .bind(d).bind(id).fetch_one(pool).await?;
-        if dup { return Err(AppError::Validacion("Ya existe un cliente con ese documento.".into())); }
+        if dup { return Err(AppError::DocumentoDuplicado); }
     }
 
     sqlx::query("UPDATE clientes SET nombre=$1, documento=$2, email=$3, telefono=$4, direccion=$5, actualizado_en=now() WHERE id=$6")

@@ -1,7 +1,7 @@
 //! Handlers de ventas (013).
 
 use crate::app::AppEstado;
-use crate::auth::extractors::AuthUsuario;
+use crate::auth::extractors::{AuthUsuario, RequiereGestion};
 use crate::docs::ErrorRespuesta;
 use crate::error::AppError;
 use crate::extractores::{JsonValido, PathValido, QueryValida};
@@ -24,7 +24,8 @@ pub fn router() -> Router<AppEstado> {
 pub struct VentaLineaDto {
     pub producto_id: i32,
     pub cantidad: i32,
-    #[schema(value_type = f64)]
+    /// No se acepta: el precio sale del catálogo. Se deserializa solo para rechazarlo (422).
+    #[schema(value_type = Option<f64>)]
     pub precio_unitario: Option<Decimal>,
 }
 
@@ -40,10 +41,22 @@ pub struct VentaDto {
 }
 
 #[utoipa::path(post, path = "/api/ventas", tag = "ventas", summary = "Registrar venta",
-    request_body = VentaDto, responses((status = 201, body = VentaDetalle)))]
+    description = "OPERACION o GESTION. Las líneas del mismo producto se agregan; el precio sale del catálogo.",
+    request_body = VentaDto, responses(
+        (status = 201, description = "Venta registrada con `stock_resultante` por línea", body = VentaDetalle),
+        (status = 401, description = "Sin sesión", body = crate::docs::ErrorRespuesta),
+        (status = 404, description = "Depósito, cliente o producto inexistente", body = crate::docs::ErrorRespuesta),
+        (status = 409, description = "`stock_insuficiente` (sobre la cantidad agregada)", body = crate::docs::ErrorRespuesta),
+        (status = 422, description = "Precio enviado, producto inactivo, medio de pago, descuento o cantidad inválidos", body = crate::docs::ErrorRespuesta)
+    ))]
 pub async fn crear_venta(
     State(e): State<AppEstado>, AuthUsuario(u): AuthUsuario, JsonValido(dto): JsonValido<VentaDto>,
 ) -> Result<(StatusCode, Json<VentaDetalle>), AppError> {
+    if dto.lineas.iter().any(|l| l.precio_unitario.is_some()) {
+        return Err(AppError::Validacion(
+            "El precio unitario se toma del catálogo; no se puede enviar en la venta.".into(),
+        ));
+    }
     let nueva = NuevaVenta {
         deposito_id: dto.deposito_id,
         cliente_id: dto.cliente_id,
@@ -51,7 +64,7 @@ pub async fn crear_venta(
         descuento: dto.descuento.unwrap_or(Decimal::ZERO),
         observacion: dto.observacion,
         lineas: dto.lineas.into_iter().map(|l| NuevaVentaLinea {
-            producto_id: l.producto_id, cantidad: l.cantidad, precio_unitario: l.precio_unitario,
+            producto_id: l.producto_id, cantidad: l.cantidad,
         }).collect(),
     };
     Ok((StatusCode::CREATED, Json(ventas::crear(&e.pool, nueva, &u).await?)))
@@ -103,9 +116,15 @@ pub async fn obtener_venta(
 }
 
 #[utoipa::path(post, path = "/api/ventas/{id}/anular", tag = "ventas", summary = "Anular venta",
-    params(("id" = i32, Path)), responses((status = 200, body = VentaDetalle)))]
+    description = "Solo GESTION. Repone stock con una `ENTRADA` (motivo `DEVOLUCION`).",
+    params(("id" = i32, Path)), responses(
+        (status = 200, description = "Venta anulada", body = VentaDetalle),
+        (status = 403, description = "Requiere familia GESTION (`sin_permisos`)", body = crate::docs::ErrorRespuesta),
+        (status = 404, description = "Venta inexistente", body = crate::docs::ErrorRespuesta),
+        (status = 409, description = "`venta_ya_anulada`", body = crate::docs::ErrorRespuesta)
+    ))]
 pub async fn anular_venta(
-    State(e): State<AppEstado>, AuthUsuario(u): AuthUsuario, PathValido(id): PathValido<i32>,
+    State(e): State<AppEstado>, RequiereGestion(u): RequiereGestion, PathValido(id): PathValido<i32>,
 ) -> Result<Json<VentaDetalle>, AppError> {
     Ok(Json(ventas::anular(&e.pool, id, &u).await?))
 }

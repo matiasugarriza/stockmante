@@ -47,7 +47,7 @@ stock y no cierra el ciclo operativo del negocio.
 - **Dado** un producto con 2 unidades en el depósito de venta,
 - **Cuando** se venden 3,
 - **Entonces** responde **409** `stock_insuficiente` con
-  `"Stock insuficiente en Principal: 2 disponibles, 3 solicitadas."` y no se registra la venta.
+  `"Stock insuficiente en Principal: 2 disponibles, 3 solicitadas. Reducí la cantidad o registrá antes una entrada en ese depósito."` y no se registra la venta.
 
 **Escenario 13.3 — Venta multi-línea atómica**
 
@@ -99,7 +99,7 @@ stock y no cierra el ciclo operativo del negocio.
 - **Dado** un producto con 2 unidades,
 - **Cuando** se registra una venta con dos líneas (2 + 1),
 - **Entonces** responde **409** `stock_insuficiente` con
-  `"Stock insuficiente en Principal: 2 disponibles, 3 solicitadas."` y no se registra la venta.
+  `"Stock insuficiente en Principal: 2 disponibles, 3 solicitadas. Reducí la cantidad o registrá antes una entrada en ese depósito."` y no se registra la venta.
 
 ## Requisitos Funcionales
 

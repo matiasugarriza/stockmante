@@ -1,11 +1,11 @@
 //! Handlers de clientes (013).
 
 use crate::app::AppEstado;
-use crate::auth::extractors::AuthUsuario;
+use crate::auth::extractors::{AuthUsuario, RequiereGestion};
 use crate::docs::ErrorRespuesta;
 use crate::error::AppError;
 use crate::extractores::{JsonValido, PathValido, QueryValida};
-use crate::models::venta::{Cliente, ListaClientes};
+use crate::models::cliente::{Cliente, ListaClientes};
 use crate::services::clientes::{self, FiltrosClientes, NuevoCliente};
 use axum::{extract::State, http::StatusCode, routing::get, Json, Router};
 use serde::Deserialize;
@@ -29,9 +29,14 @@ pub struct ClienteDto {
 }
 
 #[utoipa::path(post, path = "/api/clientes", tag = "clientes", summary = "Crear cliente",
-    request_body = ClienteDto, responses((status = 201, body = Cliente)))]
+    request_body = ClienteDto, responses(
+        (status = 201, body = Cliente),
+        (status = 403, description = "Requiere familia GESTION (`sin_permisos`)", body = crate::docs::ErrorRespuesta),
+        (status = 409, description = "`documento_duplicado`", body = crate::docs::ErrorRespuesta),
+        (status = 422, description = "Nombre vacío o longitudes", body = crate::docs::ErrorRespuesta)
+    ))]
 pub async fn crear_cliente(
-    State(e): State<AppEstado>, AuthUsuario(u): AuthUsuario, JsonValido(dto): JsonValido<ClienteDto>,
+    State(e): State<AppEstado>, RequiereGestion(u): RequiereGestion, JsonValido(dto): JsonValido<ClienteDto>,
 ) -> Result<(StatusCode, Json<Cliente>), AppError> {
     let nuevo = NuevoCliente {
         nombre: dto.nombre, documento: dto.documento, email: dto.email, telefono: dto.telefono, direccion: dto.direccion,
@@ -66,9 +71,13 @@ pub async fn obtener_cliente(
 
 #[utoipa::path(put, path = "/api/clientes/{id}", tag = "clientes", summary = "Actualizar cliente",
     params(("id" = i32, Path)), request_body = ClienteDto,
-    responses((status = 200, body = Cliente)))]
+    responses(
+        (status = 200, body = Cliente),
+        (status = 403, description = "Requiere familia GESTION (`sin_permisos`)", body = crate::docs::ErrorRespuesta),
+        (status = 409, description = "`documento_duplicado`", body = crate::docs::ErrorRespuesta)
+    ))]
 pub async fn actualizar_cliente(
-    State(e): State<AppEstado>, AuthUsuario(u): AuthUsuario, PathValido(id): PathValido<i32>,
+    State(e): State<AppEstado>, RequiereGestion(u): RequiereGestion, PathValido(id): PathValido<i32>,
     JsonValido(dto): JsonValido<ClienteDto>,
 ) -> Result<Json<Cliente>, AppError> {
     let nuevo = NuevoCliente {
@@ -82,17 +91,17 @@ async fn toggle(e: &AppEstado, id: i32, activo: bool, u: i32) -> Result<Cliente,
 }
 
 #[utoipa::path(post, path = "/api/clientes/{id}/activar", tag = "clientes", summary = "Reactivar cliente",
-    params(("id" = i32, Path)), responses((status = 200, body = Cliente)))]
+    params(("id" = i32, Path)), responses((status = 200, body = Cliente), (status = 403, description = "Requiere familia GESTION", body = crate::docs::ErrorRespuesta)))]
 pub async fn activar_cliente(
-    State(e): State<AppEstado>, AuthUsuario(u): AuthUsuario, PathValido(id): PathValido<i32>,
+    State(e): State<AppEstado>, RequiereGestion(u): RequiereGestion, PathValido(id): PathValido<i32>,
 ) -> Result<Json<Cliente>, AppError> {
     Ok(Json(toggle(&e, id, true, u.id).await?))
 }
 
 #[utoipa::path(post, path = "/api/clientes/{id}/desactivar", tag = "clientes", summary = "Desactivar cliente",
-    params(("id" = i32, Path)), responses((status = 200, body = Cliente)))]
+    params(("id" = i32, Path)), responses((status = 200, body = Cliente), (status = 403, description = "Requiere familia GESTION", body = crate::docs::ErrorRespuesta)))]
 pub async fn desactivar_cliente(
-    State(e): State<AppEstado>, AuthUsuario(u): AuthUsuario, PathValido(id): PathValido<i32>,
+    State(e): State<AppEstado>, RequiereGestion(u): RequiereGestion, PathValido(id): PathValido<i32>,
 ) -> Result<Json<Cliente>, AppError> {
     Ok(Json(toggle(&e, id, false, u.id).await?))
 }

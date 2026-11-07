@@ -99,7 +99,7 @@ Registra una venta y descuenta stock en una única transacción (FR-050, FR-051)
 
 **Errores**
 
-- 409 `stock_insuficiente`: `"Stock insuficiente en Principal: 2 disponibles, 3 solicitadas."`
+- 409 `stock_insuficiente`: `"Stock insuficiente en Principal: 2 disponibles, 3 solicitadas. Reducí la cantidad o registrá antes una entrada en ese depósito."`
   (cantidad **agregada** por producto; no se registra nada).
 - 422 `validacion`: precio enviado, producto inactivo
   (`"El producto no está disponible para la venta."`), medio de pago inválido, descuento mayor al

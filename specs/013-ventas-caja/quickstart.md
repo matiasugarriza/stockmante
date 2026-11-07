@@ -50,7 +50,7 @@ sigue mostrando el `precio_unitario` original aunque después cambie `productos.
 ## Escenario 2 — Stock insuficiente y atomicidad (13.2, 13.3)
 
 Con un producto de 2 unidades, vender 3 devuelve **409** `stock_insuficiente` con
-`"Stock insuficiente en Principal: 2 disponibles, 3 solicitadas."`. Repetir con una venta de tres
+`"Stock insuficiente en Principal: 2 disponibles, 3 solicitadas. Reducí la cantidad o registrá antes una entrada en ese depósito."`. Repetir con una venta de tres
 líneas donde la última no alcanza: el 409 no deja venta, líneas, movimiento ni cambio de stock.
 
 ## Escenario 3 — Producto repetido en el carrito (13.9)

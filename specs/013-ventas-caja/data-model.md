@@ -107,3 +107,10 @@ Ambas transiciones ocurren en una única transacción con el orden de bloqueo de
 | `validacion` | 422 | precio enviado, producto inactivo, medio de pago, descuento, cantidades, longitudes |
 | `recurso_no_encontrado` | 404 | venta, cliente, depósito o producto inexistente |
 | `sin_permisos` | 403 | anular o escribir clientes sin familia `GESTION` |
+
+## Verificación de esquema (T001, 2026-11-07)
+
+`clientes`, `ventas`, `venta_lineas`, `ventas_numero_seq` y `movimientos.venta_id` existen en
+`stockmante` y `stockmante_test` y coinciden con `0014_ventas.sql`: el esquema completo de ambas
+bases es idéntico al de una base temporal migrada desde cero (columnas, constraints e índices).
+`0014` estaba aplicada a mano; se registró en `_sqlx_migrations` con su checksum real.

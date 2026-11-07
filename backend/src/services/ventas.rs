@@ -8,10 +8,22 @@ use chrono::{DateTime, Utc};
 use rust_decimal::Decimal;
 use sqlx::PgPool;
 
+/// Línea pedida: el precio siempre sale del catálogo (FR-050, R1).
 pub struct NuevaVentaLinea {
     pub producto_id: i32,
     pub cantidad: i32,
-    pub precio_unitario: Option<Decimal>, // if None, use producto.precio_venta
+}
+
+/// Suma las cantidades por producto conservando el orden de primera aparición (R2).
+pub fn agregar_lineas(lineas: &[NuevaVentaLinea]) -> Vec<(i32, i32)> {
+    let mut agregadas: Vec<(i32, i32)> = Vec::new();
+    for l in lineas {
+        match agregadas.iter_mut().find(|(id, _)| *id == l.producto_id) {
+            Some((_, cantidad)) => *cantidad = cantidad.saturating_add(l.cantidad),
+            None => agregadas.push((l.producto_id, l.cantidad)),
+        }
+    }
+    agregadas
 }
 
 pub struct NuevaVenta {
@@ -35,83 +47,60 @@ pub struct FiltrosVentas {
 
 pub async fn crear(pool: &PgPool, nueva: NuevaVenta, usuario: &Usuario) -> Result<VentaDetalle, AppError> {
     let medio = vm::validar_medio_pago(&nueva.medio_pago)?;
+    let obs = vm::validar_observacion(nueva.observacion.as_deref())?;
     if nueva.lineas.is_empty() { return Err(AppError::Validacion("La venta debe tener al menos una línea.".into())); }
     for l in &nueva.lineas {
         if l.cantidad <= 0 { return Err(AppError::Validacion("La cantidad debe ser mayor a cero.".into())); }
     }
     if nueva.descuento < Decimal::ZERO { return Err(AppError::Validacion("El descuento no puede ser negativo.".into())); }
+    let lineas = agregar_lineas(&nueva.lineas);
 
-    // deposito activo
-    let dep: (String, bool) = sqlx::query_as("SELECT nombre, activo FROM depositos WHERE id=$1")
-        .bind(nueva.deposito_id).fetch_optional(pool).await?
-        .ok_or_else(|| AppError::RecursoNoEncontrado("El depósito no existe.".into()))?;
-    if !dep.1 { return Err(AppError::Validacion("El depósito está inactivo.".into())); }
+    let mut tx = pool.begin().await?;
 
-    // cliente opcional
+    // Orden de bloqueo de 007: depósito → productos por id → filas de stock.
+    let (dep_nombre, dep_activo): (String, bool) =
+        sqlx::query_as("SELECT nombre, activo FROM depositos WHERE id=$1 FOR UPDATE")
+            .bind(nueva.deposito_id).fetch_optional(&mut *tx).await?
+            .ok_or_else(|| AppError::RecursoNoEncontrado("El depósito no existe.".into()))?;
+    if !dep_activo { return Err(AppError::Validacion("El depósito está inactivo.".into())); }
+
     if let Some(cid) = nueva.cliente_id {
         let activo: bool = sqlx::query_scalar("SELECT activo FROM clientes WHERE id=$1")
-            .bind(cid).fetch_optional(pool).await?
+            .bind(cid).fetch_optional(&mut *tx).await?
             .ok_or_else(|| AppError::RecursoNoEncontrado("El cliente no existe.".into()))?;
         if !activo { return Err(AppError::Validacion("El cliente está inactivo.".into())); }
     }
 
-    // resolve prices
-    let mut lineas_resueltas: Vec<(i32, i32, Decimal)> = Vec::new();
+    let mut ids: Vec<i32> = lineas.iter().map(|l| l.0).collect();
+    ids.sort_unstable();
+    let filas: Vec<(i32, bool, Decimal)> = sqlx::query_as(
+        "SELECT id, activo, precio_venta FROM productos WHERE id = ANY($1) ORDER BY id FOR UPDATE",
+    )
+    .bind(&ids).fetch_all(&mut *tx).await?;
+    if filas.len() != ids.len() {
+        return Err(AppError::RecursoNoEncontrado("El producto no existe.".into()));
+    }
+    if filas.iter().any(|(_, activo, _)| !*activo) {
+        return Err(AppError::Validacion("El producto no está disponible para la venta.".into()));
+    }
+
+    // Precio congelado del catálogo al confirmar.
+    let mut resueltas: Vec<(i32, i32, Decimal)> = Vec::with_capacity(lineas.len());
     let mut subtotal = Decimal::ZERO;
-    for l in &nueva.lineas {
-        let precio: Decimal = match l.precio_unitario {
-            Some(p) => p,
-            None => sqlx::query_scalar("SELECT precio_venta FROM productos WHERE id=$1")
-                .bind(l.producto_id).fetch_optional(pool).await?
-                .ok_or_else(|| AppError::RecursoNoEncontrado("El producto no existe.".into()))?,
-        };
-        let prod_activo: bool = sqlx::query_scalar("SELECT activo FROM productos WHERE id=$1")
-            .bind(l.producto_id).fetch_optional(pool).await?
+    for (producto_id, cantidad) in &lineas {
+        let precio = filas
+            .iter()
+            .find(|(id, _, _)| id == producto_id)
+            .map(|(_, _, p)| *p)
             .ok_or_else(|| AppError::RecursoNoEncontrado("El producto no existe.".into()))?;
-        if !prod_activo { return Err(AppError::Validacion("El producto no está disponible para la venta.".into())); }
-        if precio < Decimal::ZERO { return Err(AppError::Validacion("El precio unitario no puede ser negativo.".into())); }
-        let sub = precio * Decimal::from(l.cantidad);
-        subtotal += sub;
-        lineas_resueltas.push((l.producto_id, l.cantidad, precio));
+        subtotal += precio * Decimal::from(*cantidad);
+        resueltas.push((*producto_id, *cantidad, precio));
     }
     if nueva.descuento > subtotal { return Err(AppError::Validacion("El descuento no puede superar el subtotal.".into())); }
     let total = subtotal - nueva.descuento;
 
-    // atomic transaction
-    let mut tx = pool.begin().await?;
-
-    // lock deposito
-    let _: (String, bool) = sqlx::query_as("SELECT nombre, activo FROM depositos WHERE id=$1 FOR UPDATE")
-        .bind(nueva.deposito_id).fetch_one(&mut *tx).await?;
-
-    // validate stock sufficient
-    for (producto_id, cantidad, _) in &lineas_resueltas {
-        let actual: i32 = sqlx::query_scalar(
-            "SELECT COALESCE((SELECT cantidad FROM stock_por_deposito WHERE producto_id=$1 AND deposito_id=$2 AND ubicacion_id IS NULL),0)",
-        )
-        .bind(producto_id).bind(nueva.deposito_id).fetch_one(&mut *tx).await?;
-        if actual < *cantidad {
-            return Err(AppError::StockInsuficiente { deposito: dep.0.clone(), disponibles: actual, solicitadas: *cantidad });
-        }
-    }
-
-    // validate products active (lock)
-    let mut ids: Vec<i32> = lineas_resueltas.iter().map(|l| l.0).collect();
-    ids.sort(); ids.dedup();
-    let filas = sqlx::query_as::<_, (i32, bool)>(
-        "SELECT id, activo FROM productos WHERE id = ANY($1) ORDER BY id FOR UPDATE",
-    )
-    .bind(&ids).fetch_all(&mut *tx).await?;
-    if filas.len() != ids.len() { return Err(AppError::Validacion("Alguno de los productos no existe.".into())); }
-    if let Some((_, false)) = filas.iter().find(|(_, a)| !*a) {
-        return Err(AppError::Validacion("El producto no está disponible para la venta.".into()));
-    }
-
-    // numero
     let seq: i64 = sqlx::query_scalar("SELECT nextval('ventas_numero_seq')").fetch_one(&mut *tx).await?;
     let numero = format!("V-{:06}", seq);
-
-    let obs = vm::validar_observacion(nueva.observacion.as_deref())?;
     let venta_id: i32 = sqlx::query_scalar(
         r#"INSERT INTO ventas (numero, deposito_id, cliente_id, medio_pago, subtotal, descuento, total, estado, observacion, usuario_id)
            VALUES ($1,$2,$3,$4,$5,$6,$7,'CONFIRMADA',$8,$9) RETURNING id"#,
@@ -120,7 +109,6 @@ pub async fn crear(pool: &PgPool, nueva: NuevaVenta, usuario: &Usuario) -> Resul
     .bind(subtotal).bind(nueva.descuento).bind(total).bind(obs.as_deref()).bind(usuario.id)
     .fetch_one(&mut *tx).await?;
 
-    // movimiento SALIDA motivo VENTA
     let movimiento_id: i32 = sqlx::query_scalar(
         r#"INSERT INTO movimientos (tipo, deposito_id, motivo, observacion, usuario_id, venta_id)
            VALUES ('SALIDA', $1, 'VENTA', $2, $3, $4) RETURNING id"#,
@@ -128,31 +116,34 @@ pub async fn crear(pool: &PgPool, nueva: NuevaVenta, usuario: &Usuario) -> Resul
     .bind(nueva.deposito_id).bind(format!("Venta {}", numero)).bind(usuario.id).bind(venta_id)
     .fetch_one(&mut *tx).await?;
 
-    for (producto_id, cantidad, precio) in &lineas_resueltas {
+    for (producto_id, cantidad, precio) in &resueltas {
+        // Descuento condicional sobre la cantidad agregada: sin saldo no se escribe nada.
+        let resultante: Option<i32> = sqlx::query_scalar(
+            r#"UPDATE stock_por_deposito
+                  SET cantidad = cantidad - $3, actualizado_en = now()
+                WHERE producto_id = $1 AND deposito_id = $2 AND ubicacion_id IS NULL
+                  AND cantidad >= $3
+            RETURNING cantidad"#,
+        )
+        .bind(producto_id).bind(nueva.deposito_id).bind(cantidad)
+        .fetch_optional(&mut *tx).await?;
+        let Some(resultante) = resultante else {
+            let disponibles: i32 = sqlx::query_scalar(
+                "SELECT COALESCE((SELECT cantidad FROM stock_por_deposito WHERE producto_id=$1 AND deposito_id=$2 AND ubicacion_id IS NULL),0)",
+            )
+            .bind(producto_id).bind(nueva.deposito_id).fetch_one(&mut *tx).await?;
+            return Err(AppError::StockInsuficiente {
+                deposito: dep_nombre,
+                disponibles,
+                solicitadas: *cantidad,
+            });
+        };
         let sub = *precio * Decimal::from(*cantidad);
         sqlx::query(
             "INSERT INTO venta_lineas (venta_id, producto_id, cantidad, precio_unitario, subtotal) VALUES ($1,$2,$3,$4,$5)",
         )
         .bind(venta_id).bind(producto_id).bind(cantidad).bind(precio).bind(sub)
         .execute(&mut *tx).await?;
-
-        // stock
-        sqlx::query(
-            r#"INSERT INTO stock_por_deposito (producto_id, deposito_id, ubicacion_id, cantidad)
-               VALUES ($1,$2,NULL,0)
-               ON CONFLICT ON CONSTRAINT uq_stock_producto_deposito_ubicacion DO NOTHING"#,
-        )
-        .bind(producto_id).bind(nueva.deposito_id).execute(&mut *tx).await?;
-
-        let actual: i32 = sqlx::query_scalar(
-            "SELECT cantidad FROM stock_por_deposito WHERE producto_id=$1 AND deposito_id=$2 AND ubicacion_id IS NULL FOR UPDATE",
-        )
-        .bind(producto_id).bind(nueva.deposito_id).fetch_one(&mut *tx).await?;
-
-        let resultante = actual - *cantidad;
-        sqlx::query("UPDATE stock_por_deposito SET cantidad=$1, actualizado_en=now() WHERE producto_id=$2 AND deposito_id=$3 AND ubicacion_id IS NULL")
-            .bind(resultante).bind(producto_id).bind(nueva.deposito_id).execute(&mut *tx).await?;
-
         sqlx::query(
             "INSERT INTO movimiento_lineas (movimiento_id, producto_id, ubicacion_id, cantidad_delta, stock_resultante) VALUES ($1,$2,NULL,$3,$4)",
         )
@@ -188,7 +179,13 @@ pub async fn obtener(pool: &PgPool, id: i32) -> Result<VentaDetalle, AppError> {
     .ok_or_else(|| AppError::RecursoNoEncontrado("La venta no existe.".into()))?;
 
     let lineas = sqlx::query_as::<_, VentaLinea>(
-        r#"SELECT vl.id, vl.producto_id, p.nombre AS producto_nombre, p.sku, vl.cantidad, vl.precio_unitario, vl.subtotal
+        r#"SELECT vl.id, vl.producto_id, p.nombre AS producto_nombre, p.sku, vl.cantidad, vl.precio_unitario, vl.subtotal,
+                  (SELECT ml.stock_resultante
+                     FROM movimiento_lineas ml
+                     JOIN movimientos m ON m.id = ml.movimiento_id
+                    WHERE m.venta_id = vl.venta_id AND ml.producto_id = vl.producto_id
+                    ORDER BY m.id DESC
+                    LIMIT 1) AS stock_resultante
              FROM venta_lineas vl
              JOIN productos p ON p.id = vl.producto_id
             WHERE vl.venta_id = $1
@@ -247,8 +244,13 @@ pub async fn anular(pool: &PgPool, id: i32, usuario: &Usuario) -> Result<VentaDe
     if estado != "CONFIRMADA" { return Err(AppError::Validacion("La venta no está confirmada.".into())); }
 
     let (deposito_id,): (i32,) = sqlx::query_as("SELECT deposito_id FROM ventas WHERE id=$1").bind(id).fetch_one(&mut *tx).await?;
-    let lineas: Vec<(i32, i32)> = sqlx::query_as("SELECT producto_id, cantidad FROM venta_lineas WHERE venta_id=$1")
+    let lineas: Vec<(i32, i32)> = sqlx::query_as("SELECT producto_id, cantidad FROM venta_lineas WHERE venta_id=$1 ORDER BY producto_id")
         .bind(id).fetch_all(&mut *tx).await?;
+    sqlx::query("SELECT id FROM depositos WHERE id=$1 FOR UPDATE")
+        .bind(deposito_id).execute(&mut *tx).await?;
+    let bloqueo: Vec<i32> = lineas.iter().map(|l| l.0).collect();
+    sqlx::query("SELECT id FROM productos WHERE id = ANY($1) ORDER BY id FOR UPDATE")
+        .bind(&bloqueo).execute(&mut *tx).await?;
 
     let movimiento_id: i32 = sqlx::query_scalar(
         r#"INSERT INTO movimientos (tipo, deposito_id, motivo, observacion, usuario_id, venta_id)
@@ -273,7 +275,9 @@ pub async fn anular(pool: &PgPool, id: i32, usuario: &Usuario) -> Result<VentaDe
         )
         .bind(producto_id).bind(deposito_id).fetch_one(&mut *tx).await?;
 
-        let resultante = actual + *cantidad;
+        let resultante = actual.checked_add(*cantidad).ok_or_else(|| {
+            AppError::Validacion("La cantidad resultante supera el máximo admitido.".into())
+        })?;
         sqlx::query("UPDATE stock_por_deposito SET cantidad=$1, actualizado_en=now() WHERE producto_id=$2 AND deposito_id=$3 AND ubicacion_id IS NULL")
             .bind(resultante).bind(producto_id).bind(deposito_id).execute(&mut *tx).await?;
 
