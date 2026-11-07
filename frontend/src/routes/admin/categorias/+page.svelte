@@ -1,5 +1,4 @@
 <script lang="ts">
-	import { goto } from '$app/navigation';
 	import type { FiltroActivo } from '#lib/api/categorias';
 	import {
 		actualizarCategoria,
@@ -13,6 +12,10 @@
 	import CategoriaTabla from '#lib/components/categorias/CategoriaTabla.svelte';
 	import type { Categoria } from '#lib/schemas/categorias';
 	import { sesion } from '#lib/stores/sesion';
+	import Aviso from '#lib/components/ui/Aviso.svelte';
+	import Boton from '#lib/components/ui/Boton.svelte';
+	import EncabezadoPagina from '#lib/components/ui/EncabezadoPagina.svelte';
+	import Tarjeta from '#lib/components/ui/Tarjeta.svelte';
 
 	let categorias = $state<Categoria[]>([]);
 	let filtro = $state<FiltroActivo>('true');
@@ -25,11 +28,11 @@
 	let modalAbierto = $state(false);
 	let editando = $state<Categoria | null>(null);
 
-	$effect(() => {
-		if ($sesion.estado === 'activa' && $sesion.usuario.familia_rol !== 'GESTION') {
-			void goto('/');
-		}
-	});
+	let filtros: { valor: FiltroActivo; etiqueta: string }[] = [
+		{ valor: 'true', etiqueta: 'Activas' },
+		{ valor: 'false', etiqueta: 'Inactivas' },
+		{ valor: 'all', etiqueta: 'Todas' }
+	];
 
 	$effect(() => {
 		if (
@@ -126,65 +129,43 @@
 			error = mensajeError(e, 'No se pudo cambiar el estado de la categoría');
 		}
 	}
-
-	const filtros: { valor: FiltroActivo; etiqueta: string }[] = [
-		{ valor: 'true', etiqueta: 'Activas' },
-		{ valor: 'false', etiqueta: 'Inactivas' },
-		{ valor: 'all', etiqueta: 'Todas' }
-	];
 </script>
 
 <svelte:head>
 	<title>Categorías · Stockmante</title>
 </svelte:head>
 
-<div class="flex flex-col gap-4">
-	<div class="flex flex-wrap items-center justify-between gap-2">
-		<div>
-			<h1 class="text-xl font-semibold">Categorías</h1>
-			<p class="text-sm text-slate-500">
-				Nombre único sin distinguir mayúsculas. La baja es lógica: nunca se borra una categoría.
-			</p>
-		</div>
-		<button
-			class="rounded bg-slate-800 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700"
-			onclick={abrirAlta}
-		>
-			Nueva categoría
-		</button>
-	</div>
+<div class="pagina">
+	<EncabezadoPagina
+		titulo="Categorías"
+		descripcion="Nombre único sin distinguir mayúsculas. La baja es lógica: nunca se borra una categoría."
+	>
+		<Boton icono="mas" onclick={abrirAlta}>Nueva categoría</Boton>
+	</EncabezadoPagina>
 
-	{#if error}
-		<p class="rounded border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>
-	{/if}
-	{#if aviso}
-		<p class="rounded border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700">
-			{aviso}
-		</p>
-	{/if}
+	{#if error}<Aviso variante="error">{error}</Aviso>{/if}
+	{#if aviso}<Aviso variante="exito">{aviso}</Aviso>{/if}
 
-	<div class="flex items-center gap-1">
+	<div class="filtros" role="group" aria-label="Filtro de estado">
 		{#each filtros as opcion (opcion.valor)}
-			<button
-				class="rounded px-3 py-1 text-sm {filtro === opcion.valor
-					? 'bg-slate-800 text-white'
-					: 'border border-slate-300 text-slate-600 hover:bg-slate-100'}"
+			<Boton
+				variante={filtro === opcion.valor ? 'primario' : 'secundario'}
+				tamano="sm"
 				onclick={() => void cambiarFiltro(opcion.valor)}
 			>
 				{opcion.etiqueta}
-			</button>
+			</Boton>
 		{/each}
 	</div>
 
-	{#if cargando}
-		<p class="py-6 text-center text-sm text-slate-500">Cargando categorías…</p>
-	{:else}
+	<Tarjeta densa={true}>
 		<CategoriaTabla
 			{categorias}
+			{cargando}
 			onEditar={abrirEdicion}
 			onAlternarEstado={(categoria) => void alternarEstado(categoria)}
 		/>
-	{/if}
+	</Tarjeta>
 </div>
 
 {#if modalAbierto}
@@ -196,3 +177,18 @@
 		onCerrar={cerrarModal}
 	/>
 {/if}
+
+<style>
+	.pagina {
+		display: flex;
+		flex-direction: column;
+		gap: 14px;
+	}
+
+	.filtros {
+		display: flex;
+		align-items: center;
+		gap: 6px;
+		flex-wrap: wrap;
+	}
+</style>

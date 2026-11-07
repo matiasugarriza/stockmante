@@ -26,7 +26,9 @@ operación y administración; cada página se cierra con capturas en ambos temas
 Tailwind CSS 4.
 
 **Primary Dependencies**: las ya instaladas en `frontend/package.json` (SvelteKit, Tailwind, zod,
-Vitest, svelte-check). NO se agregan librerías de UI, gráficos, iconos ni fuentes.
+Vitest, svelte-check). NO se agregan librerías de UI, gráficos ni iconos. Única excepción
+(Session 2026-11-07 (2), FR-098): `@fontsource-variable/outfit` para la tipografía Outfit
+autoalojada.
 
 **Storage**: `localStorage` del navegador para la preferencia de tema (clave `stockmante:tema`). Sin
 cambios de base de datos, migraciones ni endpoints.
@@ -47,7 +49,7 @@ pintado; sin layout shift al cargar tablas o gráficos; cero dependencias nuevas
 temas; sin desborde horizontal de 320 a 1440 px; textos en español (es-AR); un solo dueño de los
 tokens visuales.
 
-**Scale/Scope**: 18 rutas (17 capturas + el modo de cambio de contraseña), 8 páginas de
+**Scale/Scope**: 18 pantallas (17 capturas + el modo de cambio de contraseña), 8 páginas de
 administración, 5 de operación, 1 tablero, 3 pantallas de acceso y ~20 componentes reutilizables.
 
 ## Constitution Check
@@ -118,12 +120,14 @@ frontend/
 │       │   │   ├── Tarjeta.svelte
 │       │   │   ├── EtiquetaEstado.svelte
 │       │   │   ├── TablaDatos.svelte
+│       │   │   ├── tabla.ts
 │       │   │   ├── Paginacion.svelte
 │       │   │   ├── Modal.svelte
 │       │   │   ├── Aviso.svelte
 │       │   │   ├── EstadoVacio.svelte
 │       │   │   ├── Esqueleto.svelte
 │       │   │   ├── Icono.svelte
+│       │   │   ├── iconos.ts
 │       │   │   ├── TarjetaKpi.svelte
 │       │   │   ├── GraficoBarras.svelte
 │       │   │   ├── GraficoDona.svelte
@@ -186,14 +190,14 @@ Salida: [research.md](./research.md). Decisiones principales:
    widgets de gestión se ocultan a `OPERACION` y cada uno resuelve su error.
 5. **Tablas**: un `TablaDatos` compartido para el shell visual y columnas declarativas por página;
    sin grid genérico ni virtualización (paginación del backend).
-6. **Evidencia**: script Playwright que recorre las 18 rutas en claro/oscuro a 1440×900 y una
+6. **Evidencia**: script Playwright que recorre las 18 pantallas en claro/oscuro a 1440×900 y una
    comprobación de 320 px.
 
 ## Phase 1: Design & Contracts
 
 Salidas:
 
-- [data-model.md](./data-model.md): inventario de 18 rutas, grupos de navegación, tokens, catálogo de
+- [data-model.md](./data-model.md): inventario de 18 pantallas, grupos de navegación, tokens, catálogo de
   componentes, widgets del tablero y reglas de evidencia.
 - [contracts/tokens.md](./contracts/tokens.md): nombres y valores de tokens en ambos temas, escalas
   tipográficas, radios, sombras y breakpoints.
@@ -230,6 +234,6 @@ Salidas:
 - `npm run test` y `npm run check` en `frontend/` en verde (incluye tests nuevos de navegación,
   formato y gráficos).
 - Cero errores de `svelte-check` y cero `console.error` en las rutas recorridas.
-- Capturas de las 18 rutas en claro y oscuro + chequeo de 320 px en las páginas con tabla.
+- Capturas de las 18 pantallas en claro y oscuro + chequeo de 320 px en las páginas con tabla.
 - Recorrido manual de los cuatro flujos de acceso y de una acción por página operativa/administrativa
   con el mismo resultado que antes.

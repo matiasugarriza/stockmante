@@ -2,19 +2,40 @@
 	import { onMount } from 'svelte';
 	import { ApiError } from '#lib/api/client';
 	import { crearTransferencia, listarTransferencias } from '#lib/api/transferencias';
-	import { listarDepositos, listarUbicaciones } from '#lib/api/depositos';
+	import { listarDepositosActivos, listarUbicaciones, type DepositoActivo } from '#lib/api/depositos';
 	import { buscarProductos } from '#lib/api/productos';
-	import type { Deposito, Ubicacion } from '#lib/schemas/depositos';
+	import type { Ubicacion } from '#lib/schemas/depositos';
 	import type { Producto, ListaBusqueda } from '#lib/schemas/productos';
 	import type { Transferencia } from '#lib/schemas/transferencias';
-	import { sesion } from '#lib/stores/sesion';
+	import Aviso from '#lib/components/ui/Aviso.svelte';
+	import Boton from '#lib/components/ui/Boton.svelte';
+	import Campo from '#lib/components/ui/Campo.svelte';
+	import EncabezadoPagina from '#lib/components/ui/EncabezadoPagina.svelte';
+	import EstadoVacio from '#lib/components/ui/EstadoVacio.svelte';
+	import Icono from '#lib/components/ui/Icono.svelte';
+	import Paginacion from '#lib/components/ui/Paginacion.svelte';
+	import TablaDatos from '#lib/components/ui/TablaDatos.svelte';
+	import Tarjeta from '#lib/components/ui/Tarjeta.svelte';
+	import type { Columna } from '#lib/components/ui/tabla';
 
 	const formatoFecha = new Intl.DateTimeFormat('es-AR', {
 		dateStyle: 'short',
 		timeStyle: 'short'
 	});
 
-	let depositos = $state<Deposito[]>([]);
+	const COLUMNAS: Columna<Transferencia>[] = [
+		{ clave: 'id', encabezado: 'ID' },
+		{ clave: 'producto_nombre', encabezado: 'Producto' },
+		{ clave: 'deposito_origen', encabezado: 'Origen' },
+		{ clave: 'deposito_destino', encabezado: 'Destino' },
+		{ clave: 'cantidad', encabezado: 'Cantidad', alineacion: 'derecha' },
+		{ clave: 'stock_origen_resultante', encabezado: 'Stock origen', alineacion: 'derecha' },
+		{ clave: 'stock_destino_resultante', encabezado: 'Stock destino', alineacion: 'derecha' },
+		{ clave: 'usuario', encabezado: 'Autor' },
+		{ clave: 'creado_en', encabezado: 'Fecha' }
+	];
+
+	let depositos = $state<DepositoActivo[]>([]);
 	let ubicacionesOrigen = $state<Ubicacion[]>([]);
 	let ubicacionesDestino = $state<Ubicacion[]>([]);
 
@@ -38,9 +59,28 @@
 	let error = $state('');
 	let exito = $state('');
 
+	const opcionesDepositos = $derived([
+		{ valor: '', etiqueta: 'Seleccionar' },
+		...depositos.map((deposito) => ({ valor: String(deposito.id), etiqueta: deposito.nombre }))
+	]);
+	const opcionesOrigen = $derived([
+		{ valor: '', etiqueta: 'Sin ubicación' },
+		...ubicacionesOrigen.map((ubicacion) => ({
+			valor: String(ubicacion.id),
+			etiqueta: ubicacion.nombre
+		}))
+	]);
+	const opcionesDestino = $derived([
+		{ valor: '', etiqueta: 'Sin ubicación' },
+		...ubicacionesDestino.map((ubicacion) => ({
+			valor: String(ubicacion.id),
+			etiqueta: ubicacion.nombre
+		}))
+	]);
+
 	async function cargarDepositos() {
 		try {
-			depositos = await listarDepositos('true');
+			depositos = await listarDepositosActivos();
 		} catch (e) {
 			error = e instanceof ApiError ? e.message : 'No se pudieron cargar los depósitos';
 		}
@@ -67,17 +107,33 @@
 		}
 	}
 
-	async function buscarProducto() {
-		if (productoQuery.trim().length < 2) {
+	async function buscarProducto(texto = productoQuery) {
+		if (texto.trim().length < 2) {
 			productoResultados = [];
 			return;
 		}
 		try {
-			const res: ListaBusqueda = await buscarProductos({ q: productoQuery.trim(), limite: 8 });
+			const res: ListaBusqueda = await buscarProductos({ q: texto.trim(), limite: 8 });
 			productoResultados = res.items;
 		} catch {
 			productoResultados = [];
 		}
+	}
+
+	function elegirProducto(producto: Producto) {
+		productoSel = producto;
+		productoQuery = `${producto.nombre} (${producto.sku})`;
+		productoResultados = [];
+	}
+
+	function cambiarOrigen() {
+		ubicacionOrigenId = '';
+		void cargarUbicaciones();
+	}
+
+	function cambiarDestino() {
+		ubicacionDestinoId = '';
+		void cargarUbicaciones();
 	}
 
 	async function cargarTransferencias() {
@@ -125,7 +181,6 @@
 				observacion: observacion.trim() || null
 			});
 			exito = `Transferencia #${t.id}: ${t.cantidad} unidades. Stock origen ${t.stock_origen_resultante}, destino ${t.stock_destino_resultante}.`;
-			// reset
 			cantidad = '1';
 			observacion = '';
 			await cargarTransferencias();
@@ -136,186 +191,285 @@
 		}
 	}
 
+	function cambiarPagina(nueva: number) {
+		pagina = nueva;
+		void cargarTransferencias();
+	}
+
 	onMount(async () => {
 		await cargarDepositos();
 		await cargarTransferencias();
 	});
 </script>
 
-<div class="p-4 space-y-6">
-	<h1 class="text-2xl font-bold">Transferencias entre depósitos</h1>
+<svelte:head>
+	<title>Transferencias · Stockmante</title>
+</svelte:head>
 
-	{#if error}
-		<div class="rounded bg-red-100 text-red-700 px-3 py-2 text-sm">{error}</div>
-	{/if}
-	{#if exito}
-		<div class="rounded bg-green-100 text-green-700 px-3 py-2 text-sm">{exito}</div>
-	{/if}
+<div class="pagina">
+	<EncabezadoPagina
+		titulo="Transferencias entre depósitos"
+		descripcion="Mové stock entre depósitos de forma inmediata y atómica. El stock origen y destino se actualiza en la misma operación."
+	/>
 
-	<section class="border rounded p-4 space-y-3">
-		<h2 class="font-semibold">Nueva transferencia</h2>
+	{#if error}<Aviso variante="error">{error}</Aviso>{/if}
+	{#if exito}<Aviso variante="exito">{exito}</Aviso>{/if}
 
-		<div class="grid grid-cols-1 md:grid-cols-2 gap-3">
-			<label class="flex flex-col gap-1">
-				<span class="text-sm">Producto</span>
-				<input
-					class="border rounded px-2 py-1"
-					bind:value={productoQuery}
-					oninput={buscarProducto}
-					placeholder="Buscar por nombre o SKU"
+	<Tarjeta titulo="Nueva transferencia">
+		<div class="grilla-campos">
+			<div class="campo-producto">
+				<Campo
+					etiqueta="Producto"
+					nombre="producto"
+					marcador="Buscar por nombre o SKU"
+					bind:valor={productoQuery}
+					oninput={(valor) => {
+						productoQuery = valor;
+						void buscarProducto(valor);
+					}}
 				/>
-				{#if productoResultados.length}
-					<ul class="border rounded max-h-40 overflow-auto">
-						{#each productoResultados as p}
+				{#if productoResultados.length > 0 && !productoSel}
+					<ul class="resultados">
+						{#each productoResultados as producto (producto.id)}
 							<li>
-								<button
-									class="w-full text-left px-2 py-1 hover:bg-gray-100"
-									onclick={() => {
-										productoSel = p;
-										productoQuery = `${p.nombre} (${p.sku})`;
-										productoResultados = [];
-									}}
-								>
-									{p.nombre} — {p.sku}
+								<button type="button" onclick={() => elegirProducto(producto)}>
+									<span>{producto.nombre}</span>
+									<span class="resultado-sku">{producto.sku}</span>
 								</button>
 							</li>
 						{/each}
 					</ul>
 				{/if}
 				{#if productoSel}
-					<span class="text-xs text-gray-500">Seleccionado: {productoSel.nombre}</span>
+					<span class="chip">
+						{productoSel.nombre}
+						<span class="chip-sku">{productoSel.sku}</span>
+						<button
+							type="button"
+							class="chip-quitar"
+							aria-label="Quitar producto"
+							onclick={() => {
+								productoSel = null;
+								productoResultados = [];
+							}}
+						>
+							<Icono nombre="cerrar" tamano={12} />
+						</button>
+					</span>
 				{/if}
-			</label>
-
-			<label class="flex flex-col gap-1">
-				<span class="text-sm">Cantidad</span>
-				<input class="border rounded px-2 py-1" type="number" min="1" bind:value={cantidad} />
-			</label>
-
-			<label class="flex flex-col gap-1">
-				<span class="text-sm">Depósito origen</span>
-				<select
-					class="border rounded px-2 py-1"
-					bind:value={depositoOrigenId}
-					onchange={() => {
-						ubicacionOrigenId = '';
-						cargarUbicaciones();
-					}}
-				>
-					<option value="">Seleccionar</option>
-					{#each depositos as d}
-						<option value={d.id}>{d.nombre}</option>
-					{/each}
-				</select>
-			</label>
-
-			<label class="flex flex-col gap-1">
-				<span class="text-sm">Ubicación origen (opcional)</span>
-				<select class="border rounded px-2 py-1" bind:value={ubicacionOrigenId}>
-					<option value="">Sin ubicación</option>
-					{#each ubicacionesOrigen as u}
-						<option value={u.id}>{u.nombre}</option>
-					{/each}
-				</select>
-			</label>
-
-			<label class="flex flex-col gap-1">
-				<span class="text-sm">Depósito destino</span>
-				<select
-					class="border rounded px-2 py-1"
-					bind:value={depositoDestinoId}
-					onchange={() => {
-						ubicacionDestinoId = '';
-						cargarUbicaciones();
-					}}
-				>
-					<option value="">Seleccionar</option>
-					{#each depositos as d}
-						<option value={d.id}>{d.nombre}</option>
-					{/each}
-				</select>
-			</label>
-
-			<label class="flex flex-col gap-1">
-				<span class="text-sm">Ubicación destino (opcional)</span>
-				<select class="border rounded px-2 py-1" bind:value={ubicacionDestinoId}>
-					<option value="">Sin ubicación</option>
-					{#each ubicacionesDestino as u}
-						<option value={u.id}>{u.nombre}</option>
-					{/each}
-				</select>
-			</label>
-		</div>
-
-		<label class="flex flex-col gap-1">
-			<span class="text-sm">Observación (opcional)</span>
-			<textarea class="border rounded px-2 py-1" rows="2" bind:value={observacion}></textarea>
-		</label>
-
-		<button
-			class="bg-blue-600 text-white rounded px-4 py-2 disabled:opacity-50"
-			disabled={cargando}
-			onclick={enviar}
-		>
-			Transferir
-		</button>
-	</section>
-
-	<section class="space-y-3">
-		<h2 class="font-semibold">Historial</h2>
-		{#if cargando}
-			<p class="text-sm text-gray-500">Cargando…</p>
-		{/if}
-		<table class="w-full text-sm border">
-			<thead class="bg-gray-100">
-				<tr>
-					<th class="p-2 text-left">ID</th>
-					<th class="p-2 text-left">Producto</th>
-					<th class="p-2 text-left">Origen</th>
-					<th class="p-2 text-left">Destino</th>
-					<th class="p-2 text-right">Cantidad</th>
-					<th class="p-2 text-right">Stock origen</th>
-					<th class="p-2 text-right">Stock destino</th>
-					<th class="p-2 text-left">Autor</th>
-					<th class="p-2 text-left">Fecha</th>
-				</tr>
-			</thead>
-			<tbody>
-				{#each transferencias as t}
-					<tr class="border-t">
-						<td class="p-2">{t.id}</td>
-						<td class="p-2">{t.producto_nombre} ({t.sku})</td>
-						<td class="p-2">{t.deposito_origen.nombre}</td>
-						<td class="p-2">{t.deposito_destino.nombre}</td>
-						<td class="p-2 text-right">{t.cantidad}</td>
-						<td class="p-2 text-right">{t.stock_origen_resultante}</td>
-						<td class="p-2 text-right">{t.stock_destino_resultante}</td>
-						<td class="p-2">{t.usuario.nombre}</td>
-						<td class="p-2">{formatoFecha.format(new Date(t.creado_en))}</td>
-					</tr>
-				{/each}
-			</tbody>
-		</table>
-		<div class="flex justify-between text-sm">
-			<span>Total: {total}</span>
-			<div class="space-x-2">
-				<button
-					class="border rounded px-2 py-1"
-					disabled={pagina <= 1}
-					onclick={() => {
-						pagina--;
-						cargarTransferencias();
-					}}>Anterior</button
-				>
-				<button
-					class="border rounded px-2 py-1"
-					disabled={pagina * porPagina >= total}
-					onclick={() => {
-						pagina++;
-						cargarTransferencias();
-					}}>Siguiente</button
-				>
 			</div>
+
+			<Campo
+				etiqueta="Cantidad"
+				nombre="cantidad"
+				tipo="number"
+				min={1}
+				step={1}
+				bind:valor={cantidad}
+			/>
+
+			<Campo
+				etiqueta="Depósito origen"
+				nombre="deposito_origen"
+				tipo="select"
+				opciones={opcionesDepositos}
+				bind:valor={depositoOrigenId}
+				onchange={cambiarOrigen}
+			/>
+			<Campo
+				etiqueta="Ubicación origen (opcional)"
+				nombre="ubicacion_origen"
+				tipo="select"
+				opciones={opcionesOrigen}
+				bind:valor={ubicacionOrigenId}
+			/>
+
+			<Campo
+				etiqueta="Depósito destino"
+				nombre="deposito_destino"
+				tipo="select"
+				opciones={opcionesDepositos}
+				bind:valor={depositoDestinoId}
+				onchange={cambiarDestino}
+			/>
+			<Campo
+				etiqueta="Ubicación destino (opcional)"
+				nombre="ubicacion_destino"
+				tipo="select"
+				opciones={opcionesDestino}
+				bind:valor={ubicacionDestinoId}
+			/>
 		</div>
-	</section>
+
+		<Campo
+			etiqueta="Observación (opcional)"
+			nombre="observacion"
+			tipo="textarea"
+			maxlength={500}
+			bind:valor={observacion}
+		/>
+
+		<div class="acciones">
+			<Boton cargando={cargando} onclick={() => void enviar()}>Transferir</Boton>
+		</div>
+	</Tarjeta>
+
+	<Tarjeta titulo="Historial">
+		<TablaDatos
+			columnas={COLUMNAS}
+			filas={transferencias}
+			etiqueta="Historial de transferencias"
+			cargando={cargando}
+		>
+			{#snippet fila(t)}
+				<td>{t.id}</td>
+				<td>
+					{t.producto_nombre}
+					<span class="sku">{t.sku}</span>
+				</td>
+				<td>{t.deposito_origen.nombre}</td>
+				<td>{t.deposito_destino.nombre}</td>
+				<td class="numero">{t.cantidad}</td>
+				<td class="numero">{t.stock_origen_resultante}</td>
+				<td class="numero">{t.stock_destino_resultante}</td>
+				<td>{t.usuario.nombre}</td>
+				<td class="fecha">{formatoFecha.format(new Date(t.creado_en))}</td>
+			{/snippet}
+			{#snippet vacio()}
+				<EstadoVacio
+					icono="transferencias"
+					titulo="No hay transferencias registradas"
+					descripcion="Registrá la primera con el formulario de arriba."
+				/>
+			{/snippet}
+		</TablaDatos>
+
+		<div class="pie-tabla">
+			<Paginacion {pagina} {total} {porPagina} onCambiar={cambiarPagina} />
+		</div>
+	</Tarjeta>
 </div>
+
+<style>
+	.pagina {
+		display: flex;
+		flex-direction: column;
+		gap: 14px;
+	}
+
+	.grilla-campos {
+		display: grid;
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+		gap: 12px;
+		margin-bottom: 14px;
+	}
+
+	.campo-producto {
+		position: relative;
+	}
+
+	.resultados {
+		position: absolute;
+		top: calc(100% + 4px);
+		left: 0;
+		right: 0;
+		z-index: 15;
+		max-height: 180px;
+		overflow-y: auto;
+		margin: 0;
+		padding: 4px;
+		list-style: none;
+		border: 1px solid var(--borde);
+		border-radius: var(--radio-control);
+		background: var(--superficie);
+		box-shadow: var(--sombra-elevada);
+	}
+
+	.resultados button {
+		display: flex;
+		justify-content: space-between;
+		gap: 8px;
+		width: 100%;
+		padding: 7px 8px;
+		border: 0;
+		border-radius: 4px;
+		background: transparent;
+		color: var(--texto);
+		font-size: 12.5px;
+		text-align: left;
+		cursor: pointer;
+	}
+
+	.resultados button:hover {
+		background: var(--superficie-2);
+	}
+
+	.resultado-sku {
+		color: var(--texto-tenue);
+		font-family: var(--fuente-mono);
+		font-size: 11px;
+	}
+
+	.chip {
+		display: inline-flex;
+		align-items: center;
+		gap: 6px;
+		margin-top: 6px;
+		padding: 2px 6px;
+		border-radius: var(--radio-pildora);
+		background: var(--primario-suave);
+		color: var(--primario-texto);
+		font-size: 11.5px;
+	}
+
+	.chip-sku {
+		font-family: var(--fuente-mono);
+		font-size: 10.5px;
+		opacity: 0.8;
+	}
+
+	.chip-quitar {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		border: 0;
+		background: transparent;
+		color: inherit;
+		cursor: pointer;
+		padding: 0;
+	}
+
+	.acciones {
+		display: flex;
+		justify-content: flex-end;
+		margin-top: 14px;
+	}
+
+	.sku {
+		display: block;
+		color: var(--texto-tenue);
+		font-family: var(--fuente-mono);
+		font-size: 11px;
+	}
+
+	.numero {
+		text-align: right;
+		font-variant-numeric: tabular-nums;
+	}
+
+	.fecha {
+		white-space: nowrap;
+		color: var(--texto-suave);
+		font-size: 12px;
+	}
+
+	.pie-tabla {
+		padding: 12px 16px 0;
+	}
+
+	@media (max-width: 720px) {
+		.grilla-campos {
+			grid-template-columns: 1fr;
+		}
+	}
+</style>

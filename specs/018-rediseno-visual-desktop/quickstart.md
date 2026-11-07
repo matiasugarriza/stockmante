@@ -126,9 +126,11 @@ Capturas de evidencia (con backend y frontend levantados):
 node scripts/capturar-rediseno.mjs
 ```
 
-El script recorre las 18 rutas en claro y oscuro a 1440×900 y guarda los chequeos angostos en
-`specs/018-rediseno-visual-desktop/evidencia/`. Revisar que existan 18 + 18 imágenes y que ninguna
-tenga scroll horizontal.
+El script recorre las 18 pantallas (17 rutas + el modo de cambio de contraseña) en claro y oscuro a
+1440×900 y guarda los chequeos angostos en `specs/018-rediseno-visual-desktop/evidencia/`. Para la
+pantalla de cambio obligatorio, generar una contraseña temporal con
+`cargo run --bin bootstrap -- --reset-admin-password` y pasarla por `CAPTURE_EMAIL`/`CAPTURE_PASSWORD`.
+Revisar que existan 18 + 18 imágenes y que ninguna tenga scroll horizontal.
 
 ## 5. Contraste y accesibilidad
 
@@ -142,7 +144,8 @@ tenga scroll horizontal.
 ## 6. Checklist de cierre
 
 - [ ] `npm run test` y `npm run check` en verde.
-- [ ] Las 18 rutas navegables desde el marco (salvo acceso) y sin errores de consola.
+- [ ] Las 17 rutas navegables desde el marco (salvo acceso) y el modo de cambio accesible desde
+  `/login`, sin errores de consola.
 - [ ] 18 capturas claras + 18 oscuras + chequeos angostos.
 - [ ] Sin `scrollWidth > clientWidth` en `body` a 320, 768, 1024 y 1440 px.
 - [ ] Contraste AA en ambos temas.

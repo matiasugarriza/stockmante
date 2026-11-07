@@ -15,7 +15,7 @@ vive dentro de `/login` y se lista como fila propia porque tiene su propio estad
 | 1 | `01-login.png` | `/login` | Iniciar sesión | Acceso | — | Público | `LienzoAcceso`, `Campo`, `Boton`, `BotonTema`, `Aviso` | `POST /api/auth/login`, `GET /api/auth/sso/config` |
 | 2 | `02-registro.png` | `/registro` | Crear cuenta | Acceso | — | Público | `LienzoAcceso`, `Campo`, `Boton`, `Aviso` | `POST /api/auth/registro` |
 | 3 | `03-verificar-correo.png` | `/verificar-correo` | Verificación de correo | Acceso | — | Público | `LienzoAcceso`, `Aviso`, `Boton` | `GET /api/auth/verificar-correo` |
-| 4 | `04-inicio.png` | `/` | Inicio | Tablero | Operación | Sesión | `TarjetaKpi`, `GraficoBarras`, `GraficoDona`, `PanelActividad`, `AccesosRapidos` | `GET /api/stock`, `GET /api/movimientos`, `GET /api/productos`, `GET /api/transferencias`, `GET /api/reportes/stock-valorizado` |
+| 4 | `04-inicio.png` | `/` | Inicio | Tablero | Operación | Sesión | `TarjetaKpi`, `GraficoBarras`, `GraficoDona`, `PanelActividad`, `AccesosRapidos` | `GET /api/stock`, `GET /api/movimientos`, `GET /api/productos`, `GET /api/reportes/stock-valorizado` |
 | 5 | `05-caja.png` | `/caja` | Caja | Operativa | Operación | Sesión | `FiltrosCaja`, `TablaDatos`, `EtiquetaEstado`, `EstadoVacio` | `GET /api/productos/buscar`, `GET /api/categorias` |
 | 6 | `06-movimientos.png` | `/movimientos` | Movimientos de stock | Operativa | Operación | Sesión | `FormularioMovimiento`, `TablaDatos`, `Aviso`, `EtiquetaEstado` | `GET/POST /api/movimientos`, `GET /api/depositos`, `GET /api/depositos/{id}/ubicaciones`, `GET /api/productos/buscar` |
 | 7 | `07-transferencias.png` | `/transferencias` | Transferencias entre depósitos | Operativa | Operación | Sesión | `FormularioTransferencia`, `TablaDatos`, `Paginacion`, `Aviso` | `GET/POST /api/transferencias`, `GET /api/depositos`, `GET /api/productos/buscar` |
@@ -89,13 +89,17 @@ Contrato completo en [contracts/tokens.md](./contracts/tokens.md). Nombres semá
 | `--borde-fuerte` | Bordes de control | `#c9d3e0` | `#3b4a63` |
 | `--texto` | Texto principal | `#1b2432` | `#e8edf6` |
 | `--texto-suave` | Subtítulos y ayudas | `#5f6f86` | `#9aa9bf` |
-| `--texto-tenue` | Metadatos y placeholders | `#93a1b5` | `#6c7c93` |
+| `--texto-tenue` | Metadatos y placeholders | `#5a6b83` | `#8f9db1` |
 | `--primario` | Acción principal, activo | `#2f6bed` | `#4c8dff` |
 | `--primario-suave` | Fondo de activo/selección | `#e9f0ff` | `#1c2b48` |
 | `--teal` | Acento secundario, éxito informativo | `#14b8bd` | `#2fd0d6` |
 | `--ambar` | Advertencia, bajo mínimo | `#f0a63a` | `#f3b45c` |
 | `--exito` | Estado positivo | `#22a45d` | `#3ecf7a` |
 | `--peligro` | Error y acción destructiva | `#dc3d43` | `#ff6b6e` |
+
+Los textos y badges sobre fondos suaves usan las variantes `--primario-texto`, `--teal-texto`,
+`--ambar-texto`, `--exito-texto` y `--peligro-texto` definidas en `contracts/tokens.md` §2 y §5;
+son las que garantizan contraste AA.
 
 ## 4. Catálogo de componentes
 
@@ -149,6 +153,7 @@ el tablero y no se muestra un error crudo de 403 (se oculta el widget).
 | Captura clara | `specs/018-rediseno-visual-desktop/evidencia/claro/<captura>.png` | 1440×900, tema claro, `data-tema="light"` |
 | Captura oscura | `specs/018-rediseno-visual-desktop/evidencia/oscuro/<captura>.png` | 1440×900, tema oscuro, `data-tema="dark"` |
 | Chequeo angosto | `specs/018-rediseno-visual-desktop/evidencia/angosto/<ruta>.png` | 320 px de ancho, sin overflow del `body` |
+| Bitácora | `specs/018-rediseno-visual-desktop/evidencia/validacion.md` | Resultado de cada recorrido y fecha |
 
 El nombre de archivo conserva el de la captura original (`04-inicio.png`, etc.) para que la
 comparación sea directa.

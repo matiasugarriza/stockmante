@@ -1,5 +1,9 @@
 <script lang="ts">
 	import { CrearUsuarioSchema, type Rol, type Usuario } from '#lib/schemas/usuarios';
+	import Aviso from '../ui/Aviso.svelte';
+	import Boton from '../ui/Boton.svelte';
+	import Campo from '../ui/Campo.svelte';
+	import Modal from '../ui/Modal.svelte';
 
 	interface Props {
 		usuario: Usuario | null;
@@ -25,10 +29,10 @@
 	let errorValidacion = $state<string | null>(null);
 
 	const roles: { valor: Rol; etiqueta: string }[] = [
-		{ valor: 'ADMIN', etiqueta: 'Administrador' },
-		{ valor: 'GERENTE', etiqueta: 'Gerente' },
-		{ valor: 'OPERARIO', etiqueta: 'Operario' },
-		{ valor: 'CAJERO', etiqueta: 'Cajero' }
+		{ valor: 'ADMIN', etiqueta: 'Administrador (ADMIN)' },
+		{ valor: 'GERENTE', etiqueta: 'Gerente (GERENTE)' },
+		{ valor: 'OPERARIO', etiqueta: 'Operario (OPERARIO)' },
+		{ valor: 'CAJERO', etiqueta: 'Cajero (CAJERO)' }
 	];
 
 	function enviar() {
@@ -48,130 +52,134 @@
 	}
 </script>
 
-<div class="fixed inset-0 z-10 flex items-center justify-center bg-slate-900/40 p-4">
-	<div class="w-full max-w-md rounded-xl border border-slate-200 bg-white p-5 shadow-lg">
-		<div class="mb-4 flex items-start justify-between">
-			<div>
-				<h2 class="text-lg font-semibold">
-					{usuario ? 'Editar usuario' : 'Nuevo usuario'}
-				</h2>
-				{#if !usuario}
-					<p class="text-xs text-slate-500">
-						Al crearla vas a ver la contraseña en pantalla; también se envía por correo.
-					</p>
+<Modal
+	abierto={true}
+	titulo={usuario ? 'Editar usuario' : 'Nuevo usuario'}
+	descripcion={usuario
+		? undefined
+		: 'Al crearla vas a ver la contraseña en pantalla; también se envía por correo.'}
+	oncerrar={onCerrar}
+>
+	<form
+		class="formulario"
+		onsubmit={(event) => {
+			event.preventDefault();
+			enviar();
+		}}
+	>
+		<Campo
+			etiqueta="Nombre"
+			nombre="nombre"
+			maxlength={120}
+			bind:valor={nombre}
+			requerido={true}
+		/>
+		<Campo
+			etiqueta="Email"
+			nombre="email"
+			tipo="email"
+			autocomplete="off"
+			maxlength={255}
+			bind:valor={email}
+			requerido={true}
+		/>
+		<Campo
+			etiqueta="Rol"
+			nombre="rol"
+			tipo="select"
+			opciones={roles}
+			bind:valor={rol}
+		/>
+
+		{#if !usuario}
+			<fieldset class="claves">
+				<legend>Contraseña</legend>
+				<label class="radio">
+					<input
+						type="radio"
+						name="metodo-password"
+						value="auto"
+						checked={metodoPassword === 'auto'}
+						onchange={() => (metodoPassword = 'auto')}
+					/>
+					<span>Automática (se genera de 14 caracteres)</span>
+				</label>
+				<label class="radio">
+					<input
+						type="radio"
+						name="metodo-password"
+						value="manual"
+						checked={metodoPassword === 'manual'}
+						onchange={() => (metodoPassword = 'manual')}
+					/>
+					<span>Manual (la ingreso yo)</span>
+				</label>
+				{#if metodoPassword === 'manual'}
+					<Campo
+						etiqueta="Contraseña manual"
+						nombre="password_manual"
+						autocomplete="off"
+						ayuda="Mínimo 8 caracteres, 1 mayúscula y 1 dígito"
+						bind:valor={passwordManual}
+						requerido={true}
+					/>
 				{/if}
-			</div>
-			<button
-				type="button"
-				class="rounded px-2 py-1 text-sm text-slate-500 hover:bg-slate-100"
-				onclick={onCerrar}
-				disabled={guardando}
-			>
-				Cerrar
-			</button>
+			</fieldset>
+		{/if}
+
+		{#if error || errorValidacion}
+			<Aviso variante="error">{error ?? errorValidacion}</Aviso>
+		{/if}
+
+		<div class="acciones">
+			<Boton variante="secundario" deshabilitado={guardando} onclick={onCerrar}>Cancelar</Boton>
+			<Boton tipo="submit" cargando={guardando}>
+				{guardando ? 'Guardando…' : usuario ? 'Guardar cambios' : 'Crear usuario'}
+			</Boton>
 		</div>
+	</form>
+</Modal>
 
-		<form
-			class="flex flex-col gap-3"
-			onsubmit={(e) => {
-				e.preventDefault();
-				enviar();
-			}}
-		>
-			<label class="flex flex-col gap-1 text-sm">
-				<span class="font-medium">Nombre</span>
-				<input
-					class="rounded border border-slate-300 px-3 py-2 focus:border-slate-500 focus:outline-none"
-					bind:value={nombre}
-					maxlength="120"
-					required
-				/>
-			</label>
-			<label class="flex flex-col gap-1 text-sm">
-				<span class="font-medium">Email</span>
-				<input
-					class="rounded border border-slate-300 px-3 py-2 focus:border-slate-500 focus:outline-none"
-					type="email"
-					autocomplete="off"
-					bind:value={email}
-					required
-				/>
-			</label>
-			<label class="flex flex-col gap-1 text-sm">
-				<span class="font-medium">Rol</span>
-				<select
-					class="rounded border border-slate-300 px-3 py-2 focus:border-slate-500 focus:outline-none"
-					bind:value={rol}
-				>
-					{#each roles as opcion (opcion.valor)}
-						<option value={opcion.valor}>{opcion.etiqueta} ({opcion.valor})</option>
-					{/each}
-				</select>
-			</label>
+<style>
+	.formulario {
+		display: flex;
+		flex-direction: column;
+		gap: 13px;
+	}
 
-			{#if !usuario}
-				<fieldset class="flex flex-col gap-2 rounded border border-slate-200 p-3 text-sm">
-					<legend class="px-1 font-medium">Contraseña</legend>
-					<label class="flex items-center gap-2">
-						<input
-							type="radio"
-							name="metodo-password"
-							value="auto"
-							checked={metodoPassword === 'auto'}
-							onchange={() => (metodoPassword = 'auto')}
-						/>
-						<span>Automática (se genera de 14 caracteres)</span>
-					</label>
-					<label class="flex items-center gap-2">
-						<input
-							type="radio"
-							name="metodo-password"
-							value="manual"
-							checked={metodoPassword === 'manual'}
-							onchange={() => (metodoPassword = 'manual')}
-						/>
-						<span>Manual (la ingreso yo)</span>
-					</label>
-					{#if metodoPassword === 'manual'}
-						<label class="flex flex-col gap-1">
-							<span class="text-xs text-slate-500">
-								Mínimo 8 caracteres, 1 mayúscula y 1 dígito
-							</span>
-							<input
-								class="rounded border border-slate-300 px-3 py-2 focus:border-slate-500 focus:outline-none"
-								type="text"
-								autocomplete="off"
-								bind:value={passwordManual}
-								required
-							/>
-						</label>
-					{/if}
-				</fieldset>
-			{/if}
+	.claves {
+		display: flex;
+		flex-direction: column;
+		gap: 8px;
+		margin: 0;
+		padding: 10px 12px;
+		border: 1px solid var(--borde);
+		border-radius: var(--radio-control);
+	}
 
-			{#if error || errorValidacion}
-				<p class="rounded bg-red-50 px-3 py-2 text-sm text-red-700">
-					{error ?? errorValidacion}
-				</p>
-			{/if}
+	legend {
+		padding: 0 4px;
+		color: var(--texto-suave);
+		font-size: 12px;
+		font-weight: 600;
+	}
 
-			<div class="mt-1 flex justify-end gap-2">
-				<button
-					type="button"
-					class="rounded border border-slate-300 px-3 py-2 text-sm hover:bg-slate-100"
-					onclick={onCerrar}
-					disabled={guardando}
-				>
-					Cancelar
-				</button>
-				<button
-					type="submit"
-					class="rounded bg-slate-800 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700 disabled:opacity-60"
-					disabled={guardando}
-				>
-					{guardando ? 'Guardando…' : usuario ? 'Guardar cambios' : 'Crear usuario'}
-				</button>
-			</div>
-		</form>
-	</div>
-</div>
+	.radio {
+		display: flex;
+		align-items: center;
+		gap: 8px;
+		color: var(--texto);
+		font-size: 13px;
+	}
+
+	.radio input {
+		accent-color: var(--primario);
+	}
+
+	.acciones {
+		display: flex;
+		justify-content: flex-end;
+		gap: 8px;
+		margin-top: 2px;
+	}
+</style>

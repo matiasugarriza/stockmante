@@ -2,6 +2,11 @@
 	import { page } from '$app/state';
 	import { ApiError } from '#lib/api/client';
 	import { verificarCorreo } from '#lib/api/auth';
+	import Aviso from '#lib/components/ui/Aviso.svelte';
+	import Boton from '#lib/components/ui/Boton.svelte';
+	import Esqueleto from '#lib/components/ui/Esqueleto.svelte';
+	import Icono from '#lib/components/ui/Icono.svelte';
+	import Tarjeta from '#lib/components/ui/Tarjeta.svelte';
 
 	let estado = $state<'verificando' | 'ok' | 'error' | 'sin_token'>('verificando');
 	let mensaje = $state<string | null>(null);
@@ -33,38 +38,34 @@
 	<title>Verificar correo · Stockmante</title>
 </svelte:head>
 
-<div class="flex min-h-[80vh] items-center justify-center">
-	<div class="w-full max-w-sm rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-		<h1 class="mb-2 text-xl font-semibold">Verificación de correo</h1>
-
-		{#if estado === 'verificando'}
-			<p class="text-sm text-slate-500">Verificando tu cuenta...</p>
-		{:else if estado === 'ok'}
-			<p class="mb-4 text-sm text-emerald-700">
-				Cuenta verificada. Ya podés iniciar sesión con tu correo y contraseña.
-			</p>
-			<a
-				class="block rounded bg-slate-800 px-4 py-2 text-center text-sm font-medium text-white hover:bg-slate-700"
-				href="/login"
-			>
-				Iniciar sesión
-			</a>
-		{:else}
-			<p class="mb-4 rounded bg-red-50 px-3 py-2 text-sm text-red-700">{mensaje}</p>
-			<div class="flex gap-2">
-				<a
-					class="rounded border border-slate-300 px-4 py-2 text-sm hover:bg-slate-100"
-					href="/registro"
-				>
-					Registrarme de nuevo
-				</a>
-				<a
-					class="rounded border border-slate-300 px-4 py-2 text-sm hover:bg-slate-100"
-					href="/login"
-				>
-					Ir al login
-				</a>
+<div class="acceso-panel">
+	<Tarjeta>
+		<div class="acceso-contenido">
+			<div class="acceso-encabezado">
+				<span class="acceso-marca" aria-hidden="true">
+					<Icono nombre={estado === 'ok' ? 'check' : 'usuarios'} tamano={20} />
+				</span>
+				<div>
+					<p class="acceso-kicker">Cuenta</p>
+					<h1 class="acceso-titulo">Verificación de correo</h1>
+				</div>
 			</div>
-		{/if}
-	</div>
+
+			{#if estado === 'verificando'}
+				<p class="acceso-subtitulo">Verificando tu cuenta…</p>
+				<Esqueleto alto="40px" />
+			{:else if estado === 'ok'}
+				<Aviso variante="exito">
+					Cuenta verificada. Ya podés iniciar sesión con tu correo y contraseña.
+				</Aviso>
+				<Boton href="/login" anchoCompleto={true}>Iniciar sesión</Boton>
+			{:else}
+				<Aviso variante="error">{mensaje}</Aviso>
+				<div class="acceso-acciones">
+					<Boton href="/registro" variante="secundario">Registrarme de nuevo</Boton>
+					<Boton href="/login" variante="secundario">Ir al login</Boton>
+				</div>
+			{/if}
+		</div>
+	</Tarjeta>
 </div>

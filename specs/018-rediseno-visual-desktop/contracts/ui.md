@@ -74,6 +74,7 @@ interface Props {
   variante?: 'primario' | 'secundario' | 'fantasma' | 'peligro';
   tamano?: 'sm' | 'md';
   tipo?: 'button' | 'submit' | 'reset';
+  href?: string;
   cargando?: boolean;
   deshabilitado?: boolean;
   icono?: NombreIcono;
@@ -92,8 +93,9 @@ interface Props {
 interface Props {
   etiqueta: string;
   nombre: string;
-  tipo?: 'text' | 'email' | 'password' | 'number' | 'search' | 'date';
+  tipo?: 'text' | 'email' | 'password' | 'number' | 'search' | 'date' | 'select' | 'textarea';
   valor?: string | number;
+  opciones?: Array<{ valor: string; etiqueta: string }>;
   error?: string | null;
   ayuda?: string;
   requerido?: boolean;
@@ -101,6 +103,7 @@ interface Props {
   autocomplete?: string;
   oninput?: (valor: string) => void;
   onchange?: (valor: string) => void;
+  children?: Snippet;
 }
 ```
 

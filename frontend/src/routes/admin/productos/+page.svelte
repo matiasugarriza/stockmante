@@ -1,5 +1,4 @@
 <script lang="ts">
-	import { goto } from '$app/navigation';
 	import { listarCategorias } from '#lib/api/categorias';
 	import { listarDepositos, ubicacionesDeProductos } from '#lib/api/depositos';
 	import type { FiltroActivo } from '#lib/api/productos';
@@ -18,7 +17,12 @@
 	import type { Deposito, Ubicacion } from '#lib/schemas/depositos';
 	import type { CrearProductoInput, Producto } from '#lib/schemas/productos';
 	import { sesion } from '#lib/stores/sesion';
-	import { paginaValida, totalPaginas } from '#lib/utils/paginacion';
+	import { paginaValida } from '#lib/utils/paginacion';
+	import Aviso from '#lib/components/ui/Aviso.svelte';
+	import Boton from '#lib/components/ui/Boton.svelte';
+	import EncabezadoPagina from '#lib/components/ui/EncabezadoPagina.svelte';
+	import Paginacion from '#lib/components/ui/Paginacion.svelte';
+	import Tarjeta from '#lib/components/ui/Tarjeta.svelte';
 
 	const POR_PAGINA = 20;
 
@@ -42,13 +46,6 @@
 	let aviso = $state<string | null>(null);
 	let modalAbierto = $state(false);
 	let editando = $state<Producto | null>(null);
-	const paginas = $derived(totalPaginas(total, POR_PAGINA));
-
-	$effect(() => {
-		if ($sesion.estado === 'activa' && $sesion.usuario.familia_rol !== 'GESTION') {
-			void goto('/');
-		}
-	});
 
 	$effect(() => {
 		if (
@@ -125,7 +122,7 @@
 		}
 	}
 
-	/** Una sola llamada por página (FR-075); no se debe confundir «sin ubicación» con «sin datos». */
+	/** Una sola llamada por página (FR-075); no se confunde «sin ubicación» con «sin datos». */
 	async function cargarUbicacionesDePagina(items: Producto[]) {
 		if (items.length === 0) {
 			ubicacionesPorProducto = {};
@@ -156,10 +153,10 @@
 		await cargar();
 	}
 
-	async function irAPagina(nueva: number) {
-		if (cargando || nueva === pagina || nueva < 1 || nueva > paginas) return;
+	function irAPagina(nueva: number) {
+		if (cargando || nueva === pagina || nueva < 1) return;
 		pagina = nueva;
-		await cargar();
+		void cargar();
 	}
 
 	function abrirAlta() {
@@ -229,40 +226,18 @@
 	<title>Productos · Stockmante</title>
 </svelte:head>
 
-<div class="flex flex-col gap-4">
-	<div class="flex flex-wrap items-center justify-between gap-2">
-		<div>
-			<h1 class="text-xl font-semibold">Productos</h1>
-			<p class="text-sm text-slate-500">
-				Catálogo maestro con SKU único y baja lógica: nunca se borra un producto.
-			</p>
-		</div>
-		<button
-			class="rounded bg-slate-800 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700"
-			onclick={abrirAlta}
-		>
-			Nuevo producto
-		</button>
-	</div>
+<div class="pagina">
+	<EncabezadoPagina
+		titulo="Productos"
+		descripcion="Catálogo maestro con SKU único y baja lógica: nunca se borra un producto."
+	>
+		<Boton icono="mas" onclick={abrirAlta}>Nuevo producto</Boton>
+	</EncabezadoPagina>
 
-	{#if error}
-		<p class="rounded border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>
-	{/if}
-	{#if aviso}
-		<p class="rounded border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700">
-			{aviso}
-		</p>
-	{/if}
-	{#if advertenciaDepositos}
-		<p class="rounded border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
-			{advertenciaDepositos}
-		</p>
-	{/if}
-	{#if advertenciaUbicaciones}
-		<p class="rounded border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
-			{advertenciaUbicaciones}
-		</p>
-	{/if}
+	{#if error}<Aviso variante="error">{error}</Aviso>{/if}
+	{#if aviso}<Aviso variante="exito">{aviso}</Aviso>{/if}
+	{#if advertenciaDepositos}<Aviso variante="advertencia">{advertenciaDepositos}</Aviso>{/if}
+	{#if advertenciaUbicaciones}<Aviso variante="advertencia">{advertenciaUbicaciones}</Aviso>{/if}
 
 	<FiltrosCatalogo
 		{q}
@@ -272,39 +247,20 @@
 		onFiltrar={(nuevos) => void aplicarFiltros(nuevos)}
 	/>
 
-	{#if cargando}
-		<p class="py-6 text-center text-sm text-slate-500">Cargando productos…</p>
-	{:else}
+	<Tarjeta densa={true}>
 		<ProductoTabla
 			{productos}
 			{ubicacionesPorProducto}
 			{depositos}
+			{cargando}
 			onEditar={abrirEdicion}
 			onAlternarEstado={(producto) => void alternarEstado(producto)}
 		/>
-		<div class="flex flex-wrap items-center justify-between gap-2">
-			<p class="text-xs text-slate-500">
-				{productos.length} de {total} producto{total === 1 ? '' : 's'} en este filtro · página
-				{pagina} de {paginas}
-			</p>
-			<div class="flex items-center gap-2">
-				<button
-					class="rounded border border-slate-300 px-3 py-1 text-sm text-slate-600 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-40"
-					disabled={pagina <= 1}
-					onclick={() => void irAPagina(pagina - 1)}
-				>
-					Anterior
-				</button>
-				<button
-					class="rounded border border-slate-300 px-3 py-1 text-sm text-slate-600 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-40"
-					disabled={pagina >= paginas}
-					onclick={() => void irAPagina(pagina + 1)}
-				>
-					Siguiente
-				</button>
-			</div>
-		</div>
-	{/if}
+	</Tarjeta>
+
+	<div class="pie">
+		<Paginacion {pagina} {total} porPagina={POR_PAGINA} onCambiar={irAPagina} />
+	</div>
 </div>
 
 {#if modalAbierto}
@@ -317,3 +273,15 @@
 		onCerrar={cerrarModal}
 	/>
 {/if}
+
+<style>
+	.pagina {
+		display: flex;
+		flex-direction: column;
+		gap: 14px;
+	}
+
+	.pie {
+		padding: 0 2px;
+	}
+</style>

@@ -1,5 +1,4 @@
 <script lang="ts">
-	import { goto } from '$app/navigation';
 	import type { FiltroActivo } from '#lib/api/usuarios';
 	import {
 		actualizarUsuario,
@@ -16,7 +15,12 @@
 	import UsuarioTabla from '#lib/components/usuarios/UsuarioTabla.svelte';
 	import type { Rol, Usuario } from '#lib/schemas/usuarios';
 	import { sesion } from '#lib/stores/sesion';
-	import { paginaValida, totalPaginas } from '#lib/utils/paginacion';
+	import { paginaValida } from '#lib/utils/paginacion';
+	import Aviso from '#lib/components/ui/Aviso.svelte';
+	import Boton from '#lib/components/ui/Boton.svelte';
+	import EncabezadoPagina from '#lib/components/ui/EncabezadoPagina.svelte';
+	import Paginacion from '#lib/components/ui/Paginacion.svelte';
+	import Tarjeta from '#lib/components/ui/Tarjeta.svelte';
 
 	const POR_PAGINA = 20;
 
@@ -37,13 +41,12 @@
 	let regenerando = $state<Usuario | null>(null);
 	let regenerandoGuardando = $state(false);
 	let regenerandoError = $state<string | null>(null);
-	const paginas = $derived(totalPaginas(total, POR_PAGINA));
 
-	$effect(() => {
-		if ($sesion.estado === 'activa' && $sesion.usuario.familia_rol !== 'GESTION') {
-			void goto('/');
-		}
-	});
+	const filtros: { valor: FiltroActivo; etiqueta: string }[] = [
+		{ valor: 'true', etiqueta: 'Activos' },
+		{ valor: 'false', etiqueta: 'Inactivos' },
+		{ valor: 'all', etiqueta: 'Todos' }
+	];
 
 	// La sesión la resuelve el layout; recién ahí pedimos la lista.
 	$effect(() => {
@@ -99,10 +102,10 @@
 		await cargar();
 	}
 
-	async function irAPagina(nueva: number) {
-		if (cargando || nueva === pagina || nueva < 1 || nueva > paginas) return;
+	function irAPagina(nueva: number) {
+		if (cargando || nueva === pagina || nueva < 1) return;
 		pagina = nueva;
-		await cargar();
+		void cargar();
 	}
 
 	function abrirAlta() {
@@ -205,88 +208,48 @@
 			regenerandoGuardando = false;
 		}
 	}
-
-	const filtros: { valor: FiltroActivo; etiqueta: string }[] = [
-		{ valor: 'true', etiqueta: 'Activos' },
-		{ valor: 'false', etiqueta: 'Inactivos' },
-		{ valor: 'all', etiqueta: 'Todos' }
-	];
 </script>
 
 <svelte:head>
 	<title>Usuarios · Stockmante</title>
 </svelte:head>
 
-<div class="flex flex-col gap-4">
-	<div class="flex flex-wrap items-center justify-between gap-2">
-		<div>
-			<h1 class="text-xl font-semibold">Usuarios</h1>
-			<p class="text-sm text-slate-500">
-				Alta con contraseña temporal, roles y baja lógica sin borrar historial.
-			</p>
-		</div>
-		<button
-			class="rounded bg-slate-800 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700"
-			onclick={abrirAlta}
-		>
-			Nuevo usuario
-		</button>
-	</div>
+<div class="pagina">
+	<EncabezadoPagina
+		titulo="Usuarios"
+		descripcion="Alta con contraseña temporal, roles y baja lógica sin borrar historial."
+	>
+		<Boton icono="mas" onclick={abrirAlta}>Nuevo usuario</Boton>
+	</EncabezadoPagina>
 
-	{#if error}
-		<p class="rounded border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>
-	{/if}
-	{#if aviso}
-		<p class="rounded border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700">
-			{aviso}
-		</p>
-	{/if}
+	{#if error}<Aviso variante="error">{error}</Aviso>{/if}
+	{#if aviso}<Aviso variante="exito">{aviso}</Aviso>{/if}
 
-	<div class="flex items-center gap-1">
+	<div class="filtros" role="group" aria-label="Filtro de estado">
 		{#each filtros as opcion (opcion.valor)}
-			<button
-				class="rounded px-3 py-1 text-sm {filtro === opcion.valor
-					? 'bg-slate-800 text-white'
-					: 'border border-slate-300 text-slate-600 hover:bg-slate-100'}"
+			<Boton
+				variante={filtro === opcion.valor ? 'primario' : 'secundario'}
+				tamano="sm"
 				onclick={() => void cambiarFiltro(opcion.valor)}
 			>
 				{opcion.etiqueta}
-			</button>
+			</Boton>
 		{/each}
 	</div>
 
-	{#if cargando}
-		<p class="py-6 text-center text-sm text-slate-500">Cargando usuarios…</p>
-	{:else}
+	<Tarjeta densa={true}>
 		<UsuarioTabla
 			{usuarios}
+			{cargando}
 			onEditar={abrirEdicion}
 			onAlternarEstado={(usuario) => void alternarEstado(usuario)}
 			onRegenerar={(usuario) => void regenerar(usuario)}
 		/>
-		<div class="flex flex-wrap items-center justify-between gap-2">
-			<p class="text-xs text-slate-500">
-				{usuarios.length} de {total} usuario{total === 1 ? '' : 's'} en este filtro · página
-				{pagina} de {paginas}
-			</p>
-			<div class="flex items-center gap-2">
-				<button
-					class="rounded border border-slate-300 px-3 py-1 text-sm text-slate-600 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-40"
-					disabled={pagina <= 1}
-					onclick={() => void irAPagina(pagina - 1)}
-				>
-					Anterior
-				</button>
-				<button
-					class="rounded border border-slate-300 px-3 py-1 text-sm text-slate-600 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-40"
-					disabled={pagina >= paginas}
-					onclick={() => void irAPagina(pagina + 1)}
-				>
-					Siguiente
-				</button>
-			</div>
-		</div>
-	{/if}
+	</Tarjeta>
+
+	<div class="pie">
+		<Paginacion {pagina} {total} porPagina={POR_PAGINA} onCambiar={irAPagina} />
+	</div>
 </div>
 
 {#if modalAbierto}
@@ -317,3 +280,22 @@
 		onCerrar={() => (credenciales = null)}
 	/>
 {/if}
+
+<style>
+	.pagina {
+		display: flex;
+		flex-direction: column;
+		gap: 14px;
+	}
+
+	.filtros {
+		display: flex;
+		align-items: center;
+		gap: 6px;
+		flex-wrap: wrap;
+	}
+
+	.pie {
+		padding: 0 2px;
+	}
+</style>

@@ -128,8 +128,8 @@ progreso, tarjeta KPI, gráfico de barras, dona, lista de actividad, paginación
 
 - **Decisión**: los indicadores usan los `total` que ya devuelven los listados paginados:
   `listarStock({bajoMinimo:true, porPagina:1})`, `listarMovimientos({desde, porPagina:1})`,
-  `listarProductos({activo:'true', porPagina:1})` y `listarTransferencias({porPagina:1})`; el valor
-  del stock usa `/api/reportes/stock-valorizado` (GESTION) mediante un cliente nuevo
+  `listarProductos({activo:'true', porPagina:1})`; el valor del stock usa
+  `/api/reportes/stock-valorizado` (GESTION) mediante un cliente nuevo
   `lib/api/reportes.ts`. Los gráficos cuentan por tipo y bajo mínimo con consultas acotadas, sin
   agregaciones nuevas en backend.
 - **Razón**: no inventa series ni aproxima; respeta RBAC y no requiere endpoints nuevos.
@@ -164,7 +164,7 @@ progreso, tarjeta KPI, gráfico de barras, dona, lista de actividad, paginación
 
 - **Decisión**: tests unitarios para `navegacion`, `formato` y `graficos` (Vitest, node);
   `svelte-check` para plantillas; script Playwright `scripts/capturar-rediseno.mjs` que recorre las
-  18 rutas en claro/oscuro y guarda en `specs/018.../evidencia/`. La suite existente sigue siendo la
+  18 pantallas en claro/oscuro y guarda en `specs/018.../evidencia/`. La suite existente sigue siendo la
   red funcional.
 - **Razón**: cubre lógica, tipos y aceptación visual sin montar infraestructura de tests de
   componentes que el proyecto no tiene.

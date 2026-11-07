@@ -1,6 +1,13 @@
 <script lang="ts">
 	import { ApiError } from '#lib/api/client';
 	import { agregarAlHistorial, confirmarPropuesta, consultarAsistente } from '#lib/api/asistente';
+	import Aviso from '#lib/components/ui/Aviso.svelte';
+	import Boton from '#lib/components/ui/Boton.svelte';
+	import Campo from '#lib/components/ui/Campo.svelte';
+	import EncabezadoPagina from '#lib/components/ui/EncabezadoPagina.svelte';
+	import EstadoVacio from '#lib/components/ui/EstadoVacio.svelte';
+	import Esqueleto from '#lib/components/ui/Esqueleto.svelte';
+	import Tarjeta from '#lib/components/ui/Tarjeta.svelte';
 	import TarjetaPropuesta from '#lib/components/asistente/TarjetaPropuesta.svelte';
 	import type { AccionPropuesta, MensajeHistorial } from '#lib/schemas/asistente';
 
@@ -14,7 +21,9 @@
 	let error = $state<string | null>(null);
 
 	function mensajeDe(e: unknown): string {
-		return e instanceof ApiError ? e.message : 'No se pudo hablar con el asistente. Revisá tu conexión e intentá de nuevo.';
+		return e instanceof ApiError
+			? e.message
+			: 'No se pudo hablar con el asistente. Revisá tu conexión e intentá de nuevo.';
 	}
 
 	async function enviar(evento: SubmitEvent) {
@@ -72,54 +81,120 @@
 	<title>Asistente · Stockmante</title>
 </svelte:head>
 
-<main class="mx-auto flex max-w-3xl flex-col gap-4 p-4">
-	<header>
-		<h1 class="text-xl font-semibold">Asistente de inventario</h1>
-		<p class="text-sm text-slate-500">
-			Preguntá por stock, productos o ventas, o pedí registrar un movimiento. Ningún movimiento se
-			registra sin tu confirmación.
-		</p>
-	</header>
+<div class="pagina">
+	<EncabezadoPagina
+		titulo="Asistente de inventario"
+		descripcion="Preguntá por stock, productos o ventas, o pedí registrar un movimiento. Ningún movimiento se registra sin tu confirmación."
+	/>
 
-	<ol class="flex flex-col gap-2" aria-live="polite">
-		{#each historial as mensaje, i (i)}
-			<li
-				class={mensaje.rol === 'usuario'
-					? 'self-end rounded-lg bg-slate-800 px-3 py-2 text-sm whitespace-pre-wrap text-white'
-					: 'self-start rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm whitespace-pre-wrap'}
-			>
-				{mensaje.texto}
-			</li>
-		{/each}
-		{#if enviando}
-			<li class="self-start text-sm text-slate-500">El asistente está pensando…</li>
+	{#if error}<Aviso variante="error">{error}</Aviso>{/if}
+
+	<Tarjeta>
+		{#if historial.length === 0 && !enviando}
+			<EstadoVacio
+				icono="asistente"
+				titulo="¿Qué querés consultar?"
+				descripcion="Por ejemplo: «¿cuánto stock hay de yerba?» o «registrá una merma de 2 unidades en Principal»."
+			/>
+		{:else}
+			<ol class="conversacion" aria-live="polite">
+				{#each historial as mensaje, indice (indice)}
+					<li class="mensaje" class:usuario={mensaje.rol === 'usuario'}>
+						{mensaje.texto}
+					</li>
+				{/each}
+				{#if enviando}
+					<li class="pensando">
+						<Esqueleto alto="14px" ancho="180px" />
+						<span>El asistente está pensando…</span>
+					</li>
+				{/if}
+			</ol>
 		{/if}
-	</ol>
+	</Tarjeta>
 
 	{#if propuesta}
 		<TarjetaPropuesta {propuesta} ocupado={confirmando} onConfirmar={confirmar} onCancelar={cancelar} />
 	{/if}
 
-	{#if error}
-		<p class="rounded border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700" role="alert">{error}</p>
-	{/if}
+	<Tarjeta densa={true}>
+		<form class="compositor" onsubmit={enviar}>
+			<div class="campo-mensaje">
+				<Campo
+					etiqueta="Mensaje"
+					nombre="mensaje-asistente"
+					marcador="¿Cuánto stock hay de yerba?"
+					maxlength={2000}
+					deshabilitado={enviando}
+					bind:valor={texto}
+				/>
+			</div>
+			<Boton tipo="submit" cargando={enviando} deshabilitado={!texto.trim()}>Enviar</Boton>
+		</form>
+	</Tarjeta>
+</div>
 
-	<form class="flex gap-2" onsubmit={enviar}>
-		<label class="sr-only" for="mensaje-asistente">Mensaje</label>
-		<input
-			id="mensaje-asistente"
-			class="flex-1 rounded border border-slate-300 px-3 py-2 text-sm"
-			placeholder="¿Cuánto stock hay de yerba?"
-			maxlength="2000"
-			autocomplete="off"
-			bind:value={texto}
-			disabled={enviando}
-		/>
-		<button
-			class="rounded bg-slate-800 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700 disabled:opacity-50"
-			disabled={enviando || !texto.trim()}
-		>
-			Enviar
-		</button>
-	</form>
-</main>
+<style>
+	.pagina {
+		display: flex;
+		flex-direction: column;
+		gap: 14px;
+	}
+
+	.conversacion {
+		display: flex;
+		flex-direction: column;
+		gap: 10px;
+		margin: 0;
+		padding: 0;
+		list-style: none;
+	}
+
+	.mensaje {
+		max-width: min(680px, 90%);
+		align-self: flex-start;
+		padding: 9px 12px;
+		border: 1px solid var(--borde);
+		border-radius: 10px 10px 10px 3px;
+		background: var(--superficie-2);
+		color: var(--texto);
+		font-size: 13.5px;
+		line-height: 1.5;
+		white-space: pre-wrap;
+	}
+
+	.mensaje.usuario {
+		align-self: flex-end;
+		border-color: transparent;
+		border-radius: 10px 10px 3px 10px;
+		background: var(--primario);
+		color: var(--primario-contraste);
+	}
+
+	.pensando {
+		display: flex;
+		align-items: center;
+		gap: 8px;
+		align-self: flex-start;
+		color: var(--texto-suave);
+		font-size: 12.5px;
+	}
+
+	.compositor {
+		display: flex;
+		align-items: flex-end;
+		gap: 10px;
+	}
+
+	.campo-mensaje {
+		flex: 1;
+		min-width: 0;
+	}
+
+	@media (max-width: 560px) {
+		.compositor {
+			flex-direction: column;
+			align-items: stretch;
+		}
+	}
+</style>

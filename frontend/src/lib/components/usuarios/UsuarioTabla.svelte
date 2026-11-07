@@ -1,80 +1,89 @@
 <script lang="ts">
 	import type { Usuario } from '#lib/schemas/usuarios';
+	import Boton from '../ui/Boton.svelte';
+	import EstadoVacio from '../ui/EstadoVacio.svelte';
+	import EtiquetaEstado from '../ui/EtiquetaEstado.svelte';
+	import TablaDatos from '../ui/TablaDatos.svelte';
+	import type { Columna } from '../ui/tabla';
 
 	interface Props {
 		usuarios: Usuario[];
+		cargando?: boolean;
 		onEditar: (usuario: Usuario) => void;
 		onAlternarEstado: (usuario: Usuario) => void;
 		onRegenerar: (usuario: Usuario) => void;
 	}
 
-	let { usuarios, onEditar, onAlternarEstado, onRegenerar }: Props = $props();
+	let { usuarios, cargando = false, onEditar, onAlternarEstado, onRegenerar }: Props = $props();
 
-	const botonAccion =
-		'rounded border border-slate-300 px-2 py-1 text-xs hover:bg-slate-100 disabled:opacity-60';
+	const COLUMNAS: Columna<Usuario>[] = [
+		{ clave: 'nombre', encabezado: 'Nombre' },
+		{ clave: 'email', encabezado: 'Email' },
+		{ clave: 'rol', encabezado: 'Rol' },
+		{ clave: 'activo', encabezado: 'Estado' },
+		{ clave: 'acciones', encabezado: 'Acciones', alineacion: 'derecha' }
+	];
 </script>
 
-<div class="overflow-x-auto rounded-lg border border-slate-200 bg-white">
-	<table class="min-w-full divide-y divide-slate-200 text-sm">
-		<thead class="bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-500">
-			<tr>
-				<th class="px-4 py-2 font-medium">Nombre</th>
-				<th class="px-4 py-2 font-medium">Email</th>
-				<th class="px-4 py-2 font-medium">Rol</th>
-				<th class="px-4 py-2 font-medium">Estado</th>
-				<th class="px-4 py-2 text-right font-medium">Acciones</th>
-			</tr>
-		</thead>
-		<tbody class="divide-y divide-slate-100">
-			{#each usuarios as usuario (usuario.id)}
-				<tr>
-					<td class="px-4 py-2 font-medium">{usuario.nombre}</td>
-					<td class="px-4 py-2 text-slate-600">{usuario.email}</td>
-					<td class="px-4 py-2">
-						<span class="rounded bg-slate-100 px-1.5 py-0.5 text-xs text-slate-600">
-							{usuario.rol}
-						</span>
-					</td>
-					<td class="px-4 py-2">
-						<span
-							class="rounded px-1.5 py-0.5 text-xs {usuario.activo
-								? 'bg-emerald-50 text-emerald-700'
-								: 'bg-slate-100 text-slate-500'}"
-						>
-							{usuario.activo ? 'Activo' : 'Inactivo'}
-						</span>
-						{#if usuario.password_temporal}
-							<span class="ml-1 rounded bg-amber-50 px-1.5 py-0.5 text-xs text-amber-700">
-								temporal
-							</span>
-						{/if}
-					</td>
-					<td class="px-4 py-2">
-						<div class="flex flex-wrap justify-end gap-1">
-							<button class={botonAccion} onclick={() => onEditar(usuario)}>Editar</button>
-							{#if usuario.activo}
-								<button class={botonAccion} onclick={() => onAlternarEstado(usuario)}>
-									Desactivar
-								</button>
-							{:else}
-								<button class={botonAccion} onclick={() => onAlternarEstado(usuario)}>
-									Reactivar
-								</button>
-							{/if}
-							<button class={botonAccion} onclick={() => onRegenerar(usuario)}>
-								Nueva temporal
-							</button>
-						</div>
-					</td>
-				</tr>
-			{/each}
-			{#if usuarios.length === 0}
-				<tr>
-					<td colspan="5" class="px-4 py-8 text-center text-slate-500">
-						No hay usuarios para este filtro.
-					</td>
-				</tr>
-			{/if}
-		</tbody>
-	</table>
-</div>
+<TablaDatos columnas={COLUMNAS} filas={usuarios} etiqueta="Usuarios" {cargando}>
+	{#snippet fila(usuario)}
+		<td class="principal">{usuario.nombre}</td>
+		<td class="email">{usuario.email}</td>
+		<td>
+			<EtiquetaEstado variante="info">{usuario.rol}</EtiquetaEstado>
+		</td>
+		<td>
+			<div class="estado">
+				<EtiquetaEstado variante={usuario.activo ? 'exito' : 'neutro'}>
+					{usuario.activo ? 'Activo' : 'Inactivo'}
+				</EtiquetaEstado>
+				{#if usuario.password_temporal}
+					<EtiquetaEstado variante="aviso">temporal</EtiquetaEstado>
+				{/if}
+			</div>
+		</td>
+		<td>
+			<div class="acciones">
+				<Boton variante="secundario" tamano="sm" onclick={() => onEditar(usuario)}>
+					Editar
+				</Boton>
+				<Boton variante="fantasma" tamano="sm" onclick={() => onAlternarEstado(usuario)}>
+					{usuario.activo ? 'Desactivar' : 'Reactivar'}
+				</Boton>
+				<Boton variante="fantasma" tamano="sm" onclick={() => onRegenerar(usuario)}>
+					Nueva temporal
+				</Boton>
+			</div>
+		</td>
+	{/snippet}
+	{#snippet vacio()}
+		<EstadoVacio
+			icono="usuarios"
+			titulo="No hay usuarios para este filtro"
+			descripcion="Cambiá el filtro o creá el primer usuario."
+		/>
+	{/snippet}
+</TablaDatos>
+
+<style>
+	.principal {
+		font-weight: 500;
+	}
+
+	.email {
+		color: var(--texto-suave);
+	}
+
+	.estado {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 4px;
+	}
+
+	.acciones {
+		display: flex;
+		justify-content: flex-end;
+		gap: 4px;
+		flex-wrap: wrap;
+	}
+</style>

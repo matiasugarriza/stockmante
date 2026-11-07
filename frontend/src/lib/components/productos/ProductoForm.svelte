@@ -6,6 +6,10 @@
 		type UnidadMedida
 	} from '#lib/schemas/productos';
 	import type { Categoria } from '#lib/schemas/categorias';
+	import Aviso from '../ui/Aviso.svelte';
+	import Boton from '../ui/Boton.svelte';
+	import Campo from '../ui/Campo.svelte';
+	import Modal from '../ui/Modal.svelte';
 
 	interface Props {
 		producto: Producto | null;
@@ -42,6 +46,13 @@
 	const opciones = $derived(
 		categorias.filter((c) => c.activo || c.id === producto?.categoria.id)
 	);
+	const opcionesCategorias = $derived([
+		{ valor: '', etiqueta: 'Elegí una categoría' },
+		...opciones.map((categoria) => ({
+			valor: String(categoria.id),
+			etiqueta: categoria.activo ? categoria.nombre : `${categoria.nombre} (inactiva)`
+		}))
+	]);
 
 	function numero(valor: string): number {
 		return Number(valor.replace(',', '.'));
@@ -72,148 +83,123 @@
 	}
 
 	const etiquetasUnidad: { valor: UnidadMedida; etiqueta: string }[] = [
-		{ valor: 'UNIDAD', etiqueta: 'Unidad' },
-		{ valor: 'KG', etiqueta: 'Kilogramo' },
-		{ valor: 'METRO', etiqueta: 'Metro' },
-		{ valor: 'CAJA', etiqueta: 'Caja' }
+		{ valor: 'UNIDAD', etiqueta: 'Unidad (UNIDAD)' },
+		{ valor: 'KG', etiqueta: 'Kilogramo (KG)' },
+		{ valor: 'METRO', etiqueta: 'Metro (METRO)' },
+		{ valor: 'CAJA', etiqueta: 'Caja (CAJA)' }
 	];
 </script>
 
-<div class="fixed inset-0 z-10 flex items-center justify-center bg-slate-900/40 p-4">
-	<div class="max-h-full w-full max-w-2xl overflow-y-auto rounded-xl border border-slate-200 bg-white p-5 shadow-lg">
-		<div class="mb-4 flex items-start justify-between">
-			<div>
-				<h2 class="text-lg font-semibold">
-					{producto ? 'Editar producto' : 'Nuevo producto'}
-				</h2>
-				<p class="text-xs text-slate-500">
-					El SKU se guarda en mayúsculas y es único incluso para productos inactivos.
-				</p>
-			</div>
-			<button
-				type="button"
-				class="rounded px-2 py-1 text-sm text-slate-500 hover:bg-slate-100"
-				onclick={onCerrar}
-				disabled={guardando}
-			>
-				Cerrar
-			</button>
+<Modal
+	abierto={true}
+	titulo={producto ? 'Editar producto' : 'Nuevo producto'}
+	descripcion="El SKU se guarda en mayúsculas y es único incluso para productos inactivos."
+	oncerrar={onCerrar}
+>
+	<form
+		class="grilla"
+		onsubmit={(event) => {
+			event.preventDefault();
+			enviar();
+		}}
+	>
+		<div class="ancho">
+			<Campo
+				etiqueta="Nombre"
+				nombre="nombre"
+				maxlength={160}
+				bind:valor={nombre}
+				requerido={true}
+			/>
 		</div>
+		<Campo
+			etiqueta="SKU"
+			nombre="sku"
+			maxlength={30}
+			marcador="YER-001"
+			bind:valor={sku}
+			requerido={true}
+		/>
+		<Campo
+			etiqueta="Código de barras"
+			nombre="codigo_barras"
+			maxlength={64}
+			ayuda="Opcional, 8–64 caracteres alfanuméricos."
+			bind:valor={codigoBarras}
+		/>
+		<Campo
+			etiqueta="Categoría"
+			nombre="categoria"
+			tipo="select"
+			opciones={opcionesCategorias}
+			bind:valor={categoriaId}
+			requerido={true}
+		/>
+		<Campo
+			etiqueta="Unidad de medida"
+			nombre="unidad"
+			tipo="select"
+			opciones={etiquetasUnidad}
+			bind:valor={unidad}
+		/>
+		<Campo
+			etiqueta="Costo"
+			nombre="costo"
+			marcador="0.00"
+			bind:valor={costo}
+			requerido={true}
+		/>
+		<Campo
+			etiqueta="Precio de venta"
+			nombre="precio"
+			marcador="0.00"
+			bind:valor={precio}
+			requerido={true}
+		/>
+		<Campo
+			etiqueta="Stock mínimo"
+			nombre="stock_minimo"
+			marcador="0"
+			bind:valor={stockMinimo}
+			requerido={true}
+		/>
 
-		<form
-			class="grid grid-cols-1 gap-3 sm:grid-cols-2"
-			onsubmit={(e) => {
-				e.preventDefault();
-				enviar();
-			}}
-		>
-			<label class="flex flex-col gap-1 text-sm sm:col-span-2">
-				<span class="font-medium">Nombre</span>
-				<input
-					class="rounded border border-slate-300 px-3 py-2 focus:border-slate-500 focus:outline-none"
-					bind:value={nombre}
-					maxlength="160"
-					required
-				/>
-			</label>
-			<label class="flex flex-col gap-1 text-sm">
-				<span class="font-medium">SKU</span>
-				<input
-					class="rounded border border-slate-300 px-3 py-2 uppercase focus:border-slate-500 focus:outline-none"
-					bind:value={sku}
-					maxlength="30"
-					required
-				/>
-			</label>
-			<label class="flex flex-col gap-1 text-sm">
-				<span class="font-medium">
-					Código de barras <span class="text-slate-400">(opcional)</span>
-				</span>
-				<input
-					class="rounded border border-slate-300 px-3 py-2 focus:border-slate-500 focus:outline-none"
-					bind:value={codigoBarras}
-					maxlength="64"
-				/>
-			</label>
-			<label class="flex flex-col gap-1 text-sm">
-				<span class="font-medium">Categoría</span>
-				<select
-					class="rounded border border-slate-300 px-3 py-2 focus:border-slate-500 focus:outline-none"
-					bind:value={categoriaId}
-					required
-				>
-					<option value="" disabled>Elegí una categoría</option>
-					{#each opciones as categoria (categoria.id)}
-						<option value={String(categoria.id)}>
-							{categoria.nombre}{categoria.activo ? '' : ' (inactiva)'}
-						</option>
-					{/each}
-				</select>
-			</label>
-			<label class="flex flex-col gap-1 text-sm">
-				<span class="font-medium">Unidad de medida</span>
-				<select
-					class="rounded border border-slate-300 px-3 py-2 focus:border-slate-500 focus:outline-none"
-					bind:value={unidad}
-				>
-					{#each etiquetasUnidad as opcion (opcion.valor)}
-						<option value={opcion.valor}>{opcion.etiqueta} ({opcion.valor})</option>
-					{/each}
-				</select>
-			</label>
-			<label class="flex flex-col gap-1 text-sm">
-				<span class="font-medium">Costo</span>
-				<input
-					class="rounded border border-slate-300 px-3 py-2 focus:border-slate-500 focus:outline-none"
-					bind:value={costo}
-					inputmode="decimal"
-					placeholder="0.00"
-					required
-				/>
-			</label>
-			<label class="flex flex-col gap-1 text-sm">
-				<span class="font-medium">Precio de venta</span>
-				<input
-					class="rounded border border-slate-300 px-3 py-2 focus:border-slate-500 focus:outline-none"
-					bind:value={precio}
-					inputmode="decimal"
-					placeholder="0.00"
-					required
-				/>
-			</label>
-			<label class="flex flex-col gap-1 text-sm">
-				<span class="font-medium">Stock mínimo</span>
-				<input
-					class="rounded border border-slate-300 px-3 py-2 focus:border-slate-500 focus:outline-none"
-					bind:value={stockMinimo}
-					inputmode="numeric"
-					required
-				/>
-			</label>
-
-			{#if error || errorValidacion}
-				<p class="rounded bg-red-50 px-3 py-2 text-sm text-red-700 sm:col-span-2">
-					{error ?? errorValidacion}
-				</p>
-			{/if}
-
-			<div class="mt-1 flex justify-end gap-2 sm:col-span-2">
-				<button
-					type="button"
-					class="rounded border border-slate-300 px-3 py-2 text-sm hover:bg-slate-100"
-					onclick={onCerrar}
-					disabled={guardando}
-				>
-					Cancelar
-				</button>
-				<button
-					type="submit"
-					class="rounded bg-slate-800 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700 disabled:opacity-60"
-					disabled={guardando}
-				>
-					{guardando ? 'Guardando…' : producto ? 'Guardar cambios' : 'Crear producto'}
-				</button>
+		{#if error || errorValidacion}
+			<div class="ancho">
+				<Aviso variante="error">{error ?? errorValidacion}</Aviso>
 			</div>
-		</form>
-	</div>
-</div>
+		{/if}
+
+		<div class="acciones ancho">
+			<Boton variante="secundario" deshabilitado={guardando} onclick={onCerrar}>Cancelar</Boton>
+			<Boton tipo="submit" cargando={guardando}>
+				{guardando ? 'Guardando…' : producto ? 'Guardar cambios' : 'Crear producto'}
+			</Boton>
+		</div>
+	</form>
+</Modal>
+
+<style>
+	.grilla {
+		display: grid;
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+		gap: 12px;
+	}
+
+	.ancho {
+		grid-column: 1 / -1;
+	}
+
+	.acciones {
+		display: flex;
+		justify-content: flex-end;
+		gap: 8px;
+		margin-top: 2px;
+	}
+
+	@media (max-width: 520px) {
+		.grilla {
+			grid-template-columns: 1fr;
+		}
+	}
+</style>

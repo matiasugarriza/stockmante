@@ -30,7 +30,7 @@ conservan **verbatim**; solo se distribuyeron por caso de uso.
 | [015-auditoria-consultable](./015-auditoria-consultable/spec.md) | Consulta de auditoría y cobertura ampliada | FR-060 … FR-062 | SC-023 | Especificado | 006, 007, 012, 013 |
 | [016-importacion-masiva](./016-importacion-masiva/spec.md) | Importación CSV de productos y stock inicial | FR-063 … FR-065 | SC-024 | Implementado y verificado (2026-11-07): importación atómica, `importacion_invalida` con detalles, SC-024 en 10 s; quickstart manual pendiente (T018) | 003, 007 |
 | [017-asistente-inventario](./017-asistente-inventario/spec.md) | Asistente con tools de lectura y escrituras vía API | FR-066 … FR-069, FR-076 … FR-078 | SC-025 | Implementado y verificado (2026-11-07) | 007, 010, 013, 014 |
-| [018-rediseno-visual-desktop](./018-rediseno-visual-desktop/spec.md) | Rediseño visual del escritorio (por página) y tema claro/oscuro | FR-079 … FR-087 | SC-032 … SC-036 | En curso por páginas; tokens, tema y `/login` implementados, gates pendientes (2026-11-07) | 001 |
+| [018-rediseno-visual-desktop](./018-rediseno-visual-desktop/spec.md) | Rediseño visual del escritorio (17 capturas) y tema claro/oscuro | FR-079 … FR-099 | SC-032 … SC-038 | Implementado en frontend (2026-11-07) con tipografía Outfit autoalojada; test/check/build en verde y evidencia 1440×900 claro/oscuro + 320 px; pendiente la captura del cambio de contraseña y la revisión manual de escenarios | 001 |
 
 ## Partición de requisitos funcionales
 
@@ -125,8 +125,18 @@ Cada FR tiene **un solo dueño**. Los demás specs lo referencian, no lo repiten
 | FR-083 | 018 | Cambio obligatorio de contraseña con la misma estética |
 | FR-084 | 018 | Adaptabilidad de 320 px a 1440 px sin desborde |
 | FR-085 | 018 | Accesibilidad: etiquetas, foco, teclado y movimiento reducido |
-| FR-086 | 018 | Identidad visual de referencia (crema/negro, naranja, mono, grilla) |
+| FR-086 | 018 | Identidad visual de referencia (panel de administración, azul/teal/ámbar, tarjetas, claro y oscuro) |
 | FR-087 | 018 | Incorporación incremental del rediseño página por página |
+| FR-088 | 018 | Marco de escritorio con barra lateral y barra superior |
+| FR-089 | 018 | Navegación agrupada con visibilidad por rol y contador de stock |
+| FR-090 | 018 | Tablero de Inicio con indicadores, gráficos, actividad y accesos rápidos |
+| FR-091 | 018 | Patrón de página operativa con tarjetas de formulario y resultado |
+| FR-092 | 018 | Patrón de página de administración con filtros, tabla, badges y paginación |
+| FR-093 | 018 | Catálogo de componentes visuales reutilizables |
+| FR-094 | 018 | Registro y verificación con el mismo lienzo de acceso |
+| FR-095 | 018 | Selector de tema y menú de usuario en el marco |
+| FR-096 | 018 | Evidencia visual por página en ambos temas y 320 px |
+| FR-097 | 018 | Cero cambios de comportamiento, API, esquema o permisos |
 
 ## Partición de criterios de éxito
 
@@ -168,6 +178,7 @@ Cada FR tiene **un solo dueño**. Los demás specs lo referencian, no lo repiten
 | SC-034 | 018 | Sin desborde de 320 a 1440 px y contraste AA en ambos temas |
 | SC-035 | 018 | Comparación visual contra la referencia en 1440×900 claro y oscuro |
 | SC-036 | 018 | Cada página posterior llega con capturas en ambos temas y cero regresiones |
+| SC-037 | 018 | Las 17 capturas rediseñadas y cubiertas por navegación (14 privadas + 3 públicas) |
 
 ## Ledger de migraciones
 

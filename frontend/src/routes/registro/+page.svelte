@@ -2,6 +2,11 @@
 	import { ApiError } from '#lib/api/client';
 	import { registro } from '#lib/api/auth';
 	import { RegistroSchema } from '#lib/schemas/auth';
+	import Aviso from '#lib/components/ui/Aviso.svelte';
+	import Boton from '#lib/components/ui/Boton.svelte';
+	import Campo from '#lib/components/ui/Campo.svelte';
+	import Icono from '#lib/components/ui/Icono.svelte';
+	import Tarjeta from '#lib/components/ui/Tarjeta.svelte';
 
 	let nombre = $state('');
 	let email = $state('');
@@ -34,60 +39,58 @@
 	<title>Registro · Stockmante</title>
 </svelte:head>
 
-<div class="flex min-h-[80vh] items-center justify-center">
-	<div class="w-full max-w-sm rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-		<h1 class="mb-1 text-xl font-semibold">Stockmante</h1>
-		<p class="mb-5 text-sm text-slate-500">Creá tu cuenta</p>
+<div class="acceso-panel">
+	<Tarjeta>
+		<div class="acceso-contenido">
+			<div class="acceso-encabezado">
+				<span class="acceso-marca" aria-hidden="true">
+					<Icono nombre="usuarios" tamano={20} />
+				</span>
+				<div>
+					<p class="acceso-kicker">Sistema de inventario</p>
+					<h1 class="acceso-titulo">Creá tu cuenta</h1>
+				</div>
+			</div>
 
-		<form
-			class="flex flex-col gap-3"
-			onsubmit={(e) => {
-				e.preventDefault();
-				void enviar();
-			}}
-		>
-			<label class="flex flex-col gap-1 text-sm">
-				<span class="font-medium">Nombre</span>
-				<input class="rounded border border-slate-300 px-3 py-2" bind:value={nombre} required />
-			</label>
-			<label class="flex flex-col gap-1 text-sm">
-				<span class="font-medium">Email</span>
-				<input
-					class="rounded border border-slate-300 px-3 py-2"
-					type="email"
-					bind:value={email}
-					required
-				/>
-			</label>
-			<label class="flex flex-col gap-1 text-sm">
-				<span class="font-medium">Contraseña</span>
-				<input
-					class="rounded border border-slate-300 px-3 py-2"
-					type="password"
-					bind:value={password}
-					required
-				/>
-				<span class="text-xs text-slate-500">Mínimo 8 caracteres, 1 mayúscula y 1 dígito</span>
-			</label>
+			<p class="acceso-subtitulo">Completá tus datos para empezar a operar.</p>
 
-			{#if error}
-				<p class="rounded bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>
-			{/if}
-			{#if exito}
-				<p class="rounded bg-green-50 px-3 py-2 text-sm text-green-700">{exito}</p>
-			{/if}
-
-			<button
-				type="submit"
-				disabled={enviando}
-				class="mt-1 rounded bg-slate-800 px-4 py-2 font-medium text-white hover:bg-slate-700 disabled:opacity-60"
+			<form
+				class="acceso-form"
+				onsubmit={(e) => {
+					e.preventDefault();
+					void enviar();
+				}}
 			>
-				{enviando ? 'Registrando…' : 'Registrarse'}
-			</button>
-		</form>
+				<Campo etiqueta="Nombre" nombre="nombre" bind:valor={nombre} requerido={true} />
+				<Campo
+					etiqueta="Email"
+					nombre="email"
+					tipo="email"
+					autocomplete="email"
+					bind:valor={email}
+					requerido={true}
+				/>
+				<Campo
+					etiqueta="Contraseña"
+					nombre="password"
+					tipo="password"
+					autocomplete="new-password"
+					ayuda="Mínimo 8 caracteres, 1 mayúscula y 1 dígito"
+					bind:valor={password}
+					requerido={true}
+				/>
 
-		<p class="mt-4 text-center text-sm text-slate-500">
-			¿Ya tenés cuenta? <a class="text-blue-600 underline" href="/login">Ingresá</a>
-		</p>
-	</div>
+				{#if error}<Aviso variante="error">{error}</Aviso>{/if}
+				{#if exito}<Aviso variante="exito">{exito}</Aviso>{/if}
+
+				<Boton tipo="submit" cargando={enviando} anchoCompleto={true}>
+					{enviando ? 'Registrando…' : 'Registrarse'}
+				</Boton>
+			</form>
+		</div>
+	</Tarjeta>
+
+	<p class="acceso-pie">
+		¿Ya tenés cuenta? <a class="acceso-enlace" href="/login">Ingresá</a>
+	</p>
 </div>

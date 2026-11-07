@@ -3,6 +3,11 @@
 	import type { Deposito } from '#lib/schemas/depositos';
 	import type { Producto } from '#lib/schemas/productos';
 	import type { Proveedor } from '#lib/schemas/proveedores';
+	import { formatearMoneda } from '#lib/utils/formato';
+	import Aviso from '../ui/Aviso.svelte';
+	import Boton from '../ui/Boton.svelte';
+	import Campo from '../ui/Campo.svelte';
+	import Modal from '../ui/Modal.svelte';
 
 	interface Props {
 		compra: CompraDetalle | null;
@@ -45,6 +50,21 @@
 	);
 	let errorValidacion = $state<string | null>(null);
 
+	const opcionesProveedores = $derived([
+		{ valor: '', etiqueta: 'Elegí un proveedor activo' },
+		...proveedores.map((proveedor) => ({
+			valor: String(proveedor.id),
+			etiqueta: proveedor.nombre
+		}))
+	]);
+	const opcionesDepositos = $derived([
+		{ valor: '', etiqueta: 'Elegí un depósito activo' },
+		...depositos.map((deposito) => ({
+			valor: String(deposito.id),
+			etiqueta: `${deposito.nombre} (${deposito.identificador})`
+		}))
+	]);
+
 	const total = $derived(
 		lineas.reduce((acumulado, linea) => {
 			const cantidad = Number(linea.cantidad.replace(',', '.'));
@@ -53,6 +73,14 @@
 			return acumulado + cantidad * costo;
 		}, 0)
 	);
+
+	function subtotal(linea: LineaForm): string {
+		const cantidad = Number(linea.cantidad.replace(',', '.'));
+		const costo = Number(linea.costo.replace(',', '.'));
+		return Number.isFinite(cantidad) && Number.isFinite(costo)
+			? formatearMoneda(cantidad * costo)
+			: '—';
+	}
 
 	function agregarLinea() {
 		lineas.push({ productoId: '', cantidad: '1', costo: '' });
@@ -102,189 +130,241 @@
 	}
 </script>
 
-<div class="fixed inset-0 z-10 flex items-center justify-center bg-slate-900/40 p-4">
-	<div
-		class="max-h-full w-full max-w-3xl overflow-y-auto rounded-xl border border-slate-200 bg-white p-5 shadow-lg"
+<Modal
+	abierto={true}
+	tamano="lg"
+	titulo={compra ? 'Editar compra en borrador' : 'Nueva compra'}
+	descripcion="La compra nace en BORRADOR. Confirmar la recepción recién ahí mueve el stock."
+	oncerrar={onCerrar}
+>
+	<form
+		class="formulario"
+		onsubmit={(event) => {
+			event.preventDefault();
+			enviar();
+		}}
 	>
-		<div class="mb-4 flex items-start justify-between">
-			<div>
-				<h2 class="text-lg font-semibold">
-					{compra ? 'Editar compra en borrador' : 'Nueva compra'}
-				</h2>
-				<p class="text-xs text-slate-500">
-					La compra nace en BORRADOR. Confirmar la recepción recién ahí mueve el stock.
-				</p>
-			</div>
-			<button
-				type="button"
-				class="rounded px-2 py-1 text-sm text-slate-500 hover:bg-slate-100"
-				onclick={onCerrar}
-				disabled={guardando}
-			>
-				Cerrar
-			</button>
+		<div class="grilla">
+			<Campo
+				etiqueta="Proveedor"
+				nombre="proveedor"
+				tipo="select"
+				opciones={opcionesProveedores}
+				bind:valor={proveedorId}
+				requerido={true}
+			/>
+			<Campo
+				etiqueta="Depósito de destino"
+				nombre="deposito"
+				tipo="select"
+				opciones={opcionesDepositos}
+				bind:valor={depositoId}
+				requerido={true}
+			/>
+			<Campo
+				etiqueta="Nº factura/remito del proveedor (máx. 40)"
+				nombre="numero"
+				marcador="OC-0001"
+				maxlength={40}
+				bind:valor={numero}
+			/>
+			<Campo
+				etiqueta="Observación"
+				nombre="observacion"
+				maxlength={500}
+				bind:valor={observacion}
+			/>
 		</div>
 
-		<form
-			class="flex flex-col gap-3"
-			onsubmit={(e) => {
-				e.preventDefault();
-				enviar();
-			}}
-		>
-			<div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
-				<label class="flex flex-col gap-1 text-sm">
-					<span class="font-medium">Proveedor</span>
+		<div class="lineas">
+			<div class="lineas-cabecera">
+				<span class="titulo">Líneas</span>
+				<Boton variante="secundario" tamano="sm" icono="mas" onclick={agregarLinea}>
+					Agregar línea
+				</Boton>
+			</div>
+
+			<div class="linea-cabecera" aria-hidden="true">
+				<span>Producto</span>
+				<span>Cantidad</span>
+				<span>Costo unitario</span>
+				<span class="derecha">Subtotal</span>
+				<span></span>
+			</div>
+
+			{#each lineas as linea, indice (indice)}
+				{@const producto = productos.find((p) => String(p.id) === linea.productoId)}
+				<div class="linea">
 					<select
-						class="rounded border border-slate-300 px-3 py-2 focus:border-slate-500 focus:outline-none"
-						bind:value={proveedorId}
-						required
+						class="control"
+						aria-label={`Producto de la línea ${indice + 1}`}
+						value={linea.productoId}
+						onchange={(event) => elegirProducto(indice, event.currentTarget.value)}
 					>
-						<option value="" disabled>Elegí un proveedor activo</option>
-						{#each proveedores as proveedor (proveedor.id)}
-							<option value={String(proveedor.id)}>{proveedor.nombre}</option>
+						<option value="" disabled>Elegí un producto</option>
+						{#each productos as opcion (opcion.id)}
+							<option value={String(opcion.id)}>{opcion.nombre} ({opcion.sku})</option>
 						{/each}
 					</select>
-				</label>
-				<label class="flex flex-col gap-1 text-sm">
-					<span class="font-medium">Depósito de destino</span>
-					<select
-						class="rounded border border-slate-300 px-3 py-2 focus:border-slate-500 focus:outline-none"
-						bind:value={depositoId}
-						required
-					>
-						<option value="" disabled>Elegí un depósito activo</option>
-						{#each depositos as deposito (deposito.id)}
-							<option value={String(deposito.id)}>
-								{deposito.nombre} ({deposito.identificador})
-							</option>
-						{/each}
-					</select>
-				</label>
-				<label class="flex flex-col gap-1 text-sm">
-					<span class="font-medium">Número <span class="text-slate-400">(opcional)</span></span>
 					<input
-						class="rounded border border-slate-300 px-3 py-2 focus:border-slate-500 focus:outline-none"
-						bind:value={numero}
-						maxlength="40"
-						placeholder="OC-0001"
+						class="control"
+						aria-label={`Cantidad de la línea ${indice + 1}`}
+						bind:value={linea.cantidad}
 					/>
-				</label>
-				<label class="flex flex-col gap-1 text-sm">
-					<span class="font-medium">Observación <span class="text-slate-400">(opcional)</span></span>
 					<input
-						class="rounded border border-slate-300 px-3 py-2 focus:border-slate-500 focus:outline-none"
-						bind:value={observacion}
-						maxlength="500"
+						class="control"
+						aria-label={`Costo unitario de la línea ${indice + 1}`}
+						bind:value={linea.costo}
+						placeholder={producto ? String(producto.costo) : '0.00'}
 					/>
-				</label>
-			</div>
-
-			<div class="rounded border border-slate-200">
-				<div class="flex items-center justify-between border-b border-slate-200 bg-slate-50 px-3 py-2">
-					<span class="text-sm font-medium">Líneas</span>
-					<button
-						type="button"
-						class="rounded border border-slate-300 px-2 py-1 text-xs hover:bg-slate-100"
-						onclick={agregarLinea}
+					<span class="subtotal">{subtotal(linea)}</span>
+					<Boton
+						variante="fantasma"
+						tamano="sm"
+						icono="basura"
+						deshabilitado={lineas.length === 1}
+						onclick={() => quitarLinea(indice)}
 					>
-						Agregar línea
-					</button>
+						Quitar
+					</Boton>
 				</div>
-				<div class="overflow-x-auto">
-					<table class="w-full text-sm">
-						<thead>
-							<tr class="text-slate-500">
-								<th class="p-2 text-left">Producto</th>
-								<th class="p-2 text-left">Cantidad</th>
-								<th class="p-2 text-left">Costo unitario</th>
-								<th class="p-2 text-right">Subtotal</th>
-								<th class="p-2"></th>
-							</tr>
-						</thead>
-						<tbody>
-							{#each lineas as linea, indice (indice)}
-								{@const producto = productos.find((p) => String(p.id) === linea.productoId)}
-								{@const subtotal =
-									Number(linea.cantidad.replace(',', '.')) *
-									Number(linea.costo.replace(',', '.'))}
-								<tr class="border-t border-slate-100">
-									<td class="p-2">
-										<select
-											class="w-full rounded border border-slate-300 px-2 py-1"
-											value={linea.productoId}
-											onchange={(e) => elegirProducto(indice, e.currentTarget.value)}
-											required
-										>
-											<option value="" disabled>Elegí un producto</option>
-											{#each productos as opcion (opcion.id)}
-												<option value={String(opcion.id)}>{opcion.nombre} ({opcion.sku})</option>
-											{/each}
-										</select>
-									</td>
-									<td class="p-2">
-										<input
-											class="w-24 rounded border border-slate-300 px-2 py-1"
-											bind:value={linea.cantidad}
-											inputmode="numeric"
-											required
-										/>
-									</td>
-									<td class="p-2">
-										<input
-											class="w-28 rounded border border-slate-300 px-2 py-1"
-											bind:value={linea.costo}
-											inputmode="decimal"
-											placeholder={producto ? String(producto.costo) : '0.00'}
-											required
-										/>
-									</td>
-									<td class="p-2 text-right">
-										{Number.isFinite(subtotal) ? subtotal.toFixed(2) : '—'}
-									</td>
-									<td class="p-2 text-right">
-										<button
-											type="button"
-											class="rounded px-2 py-1 text-xs text-red-600 hover:bg-red-50 disabled:opacity-40"
-											onclick={() => quitarLinea(indice)}
-											disabled={lineas.length === 1}
-										>
-											Quitar
-										</button>
-									</td>
-								</tr>
-							{/each}
-						</tbody>
-					</table>
-				</div>
-			</div>
+			{/each}
+		</div>
 
-			<div class="flex items-center justify-end gap-3 text-sm">
-				<span class="text-slate-500">Total estimado</span>
-				<span class="text-lg font-semibold">{total.toFixed(2)}</span>
-			</div>
+		<div class="total">
+			<span>Total estimado</span>
+			<strong>{formatearMoneda(total)}</strong>
+		</div>
 
-			{#if error || errorValidacion}
-				<p class="rounded bg-red-50 px-3 py-2 text-sm text-red-700">{error ?? errorValidacion}</p>
-			{/if}
+		{#if error || errorValidacion}
+			<Aviso variante="error">{error ?? errorValidacion}</Aviso>
+		{/if}
 
-			<div class="flex justify-end gap-2">
-				<button
-					type="button"
-					class="rounded border border-slate-300 px-3 py-2 text-sm hover:bg-slate-100"
-					onclick={onCerrar}
-					disabled={guardando}
-				>
-					Cancelar
-				</button>
-				<button
-					type="submit"
-					class="rounded bg-slate-800 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700 disabled:opacity-60"
-					disabled={guardando}
-				>
-					{guardando ? 'Guardando...' : compra ? 'Guardar cambios' : 'Crear compra'}
-				</button>
-			</div>
-		</form>
-	</div>
-</div>
+		<div class="acciones">
+			<Boton variante="secundario" deshabilitado={guardando} onclick={onCerrar}>Cancelar</Boton>
+			<Boton tipo="submit" cargando={guardando}>
+				{guardando ? 'Guardando…' : compra ? 'Guardar cambios' : 'Crear compra'}
+			</Boton>
+		</div>
+	</form>
+</Modal>
+
+<style>
+	.formulario {
+		display: flex;
+		flex-direction: column;
+		gap: 14px;
+	}
+
+	.grilla {
+		display: grid;
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+		gap: 12px;
+	}
+
+	.lineas {
+		border: 1px solid var(--borde);
+		border-radius: var(--radio-control);
+		overflow: hidden;
+	}
+
+	.lineas-cabecera {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: 8px;
+		padding: 10px 12px;
+		border-bottom: 1px solid var(--borde);
+		background: var(--superficie-2);
+	}
+
+	.titulo {
+		color: var(--texto);
+		font-size: 13px;
+		font-weight: 600;
+	}
+
+	.linea-cabecera,
+	.linea {
+		display: grid;
+		grid-template-columns: minmax(200px, 2fr) 100px 140px 120px 90px;
+		gap: 8px;
+		align-items: center;
+		padding: 8px 12px;
+	}
+
+	.linea-cabecera {
+		border-bottom: 1px solid var(--borde);
+		color: var(--texto-tenue);
+		font-size: 10.5px;
+		font-weight: 600;
+		letter-spacing: 0.05em;
+		text-transform: uppercase;
+	}
+
+	.linea {
+		border-bottom: 1px solid var(--borde);
+	}
+
+	.linea:last-child {
+		border-bottom: 0;
+	}
+
+	.derecha {
+		text-align: right;
+	}
+
+	.control {
+		width: 100%;
+		min-height: 34px;
+		padding: 5px 8px;
+		border: 1px solid var(--borde-fuerte);
+		border-radius: var(--radio-control);
+		background: var(--superficie);
+		color: var(--texto);
+		font-family: var(--fuente-sans);
+		font-size: 12.5px;
+	}
+
+	.subtotal {
+		text-align: right;
+		color: var(--texto);
+		font-size: 12.5px;
+		font-variant-numeric: tabular-nums;
+	}
+
+	.total {
+		display: flex;
+		align-items: baseline;
+		justify-content: flex-end;
+		gap: 10px;
+		color: var(--texto-suave);
+		font-size: 13px;
+	}
+
+	.total strong {
+		color: var(--texto);
+		font-size: 17px;
+		font-variant-numeric: tabular-nums;
+	}
+
+	.acciones {
+		display: flex;
+		justify-content: flex-end;
+		gap: 8px;
+	}
+
+	@media (max-width: 760px) {
+		.grilla {
+			grid-template-columns: 1fr;
+		}
+
+		.linea-cabecera {
+			display: none;
+		}
+
+		.linea {
+			grid-template-columns: 1fr 1fr;
+		}
+	}
+</style>

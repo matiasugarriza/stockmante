@@ -1,65 +1,74 @@
 <script lang="ts">
 	import type { Categoria } from '#lib/schemas/categorias';
+	import Boton from '../ui/Boton.svelte';
+	import EstadoVacio from '../ui/EstadoVacio.svelte';
+	import EtiquetaEstado from '../ui/EtiquetaEstado.svelte';
+	import TablaDatos from '../ui/TablaDatos.svelte';
+	import type { Columna } from '../ui/tabla';
 
 	interface Props {
 		categorias: Categoria[];
+		cargando?: boolean;
 		onEditar: (categoria: Categoria) => void;
 		onAlternarEstado: (categoria: Categoria) => void;
 	}
 
-	let { categorias, onEditar, onAlternarEstado }: Props = $props();
+	let { categorias, cargando = false, onEditar, onAlternarEstado }: Props = $props();
 
-	const botonAccion =
-		'rounded border border-slate-300 px-2 py-1 text-xs hover:bg-slate-100 disabled:opacity-60';
+	const COLUMNAS: Columna<Categoria>[] = [
+		{ clave: 'nombre', encabezado: 'Nombre' },
+		{ clave: 'descripcion', encabezado: 'Descripción' },
+		{ clave: 'activo', encabezado: 'Estado' },
+		{ clave: 'acciones', encabezado: 'Acciones', alineacion: 'derecha' }
+	];
 </script>
 
-<div class="overflow-x-auto rounded-lg border border-slate-200 bg-white">
-	<table class="min-w-full divide-y divide-slate-200 text-sm">
-		<thead class="bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-500">
-			<tr>
-				<th class="px-4 py-2 font-medium">Nombre</th>
-				<th class="px-4 py-2 font-medium">Descripción</th>
-				<th class="px-4 py-2 font-medium">Estado</th>
-				<th class="px-4 py-2 text-right font-medium">Acciones</th>
-			</tr>
-		</thead>
-		<tbody class="divide-y divide-slate-100">
-			{#each categorias as categoria (categoria.id)}
-				<tr>
-					<td class="px-4 py-2 font-medium">{categoria.nombre}</td>
-					<td class="px-4 py-2 text-slate-600">{categoria.descripcion ?? '—'}</td>
-					<td class="px-4 py-2">
-						<span
-							class="rounded px-1.5 py-0.5 text-xs {categoria.activo
-								? 'bg-emerald-50 text-emerald-700'
-								: 'bg-slate-100 text-slate-500'}"
-						>
-							{categoria.activo ? 'Activa' : 'Inactiva'}
-						</span>
-					</td>
-					<td class="px-4 py-2">
-						<div class="flex flex-wrap justify-end gap-1">
-							<button class={botonAccion} onclick={() => onEditar(categoria)}>Editar</button>
-							{#if categoria.activo}
-								<button class={botonAccion} onclick={() => onAlternarEstado(categoria)}>
-									Desactivar
-								</button>
-							{:else}
-								<button class={botonAccion} onclick={() => onAlternarEstado(categoria)}>
-									Reactivar
-								</button>
-							{/if}
-						</div>
-					</td>
-				</tr>
-			{/each}
-			{#if categorias.length === 0}
-				<tr>
-					<td colspan="4" class="px-4 py-8 text-center text-slate-500">
-						No hay categorías para este filtro.
-					</td>
-				</tr>
-			{/if}
-		</tbody>
-	</table>
-</div>
+<TablaDatos columnas={COLUMNAS} filas={categorias} etiqueta="Categorías" {cargando}>
+	{#snippet fila(categoria)}
+		<td class="principal">{categoria.nombre}</td>
+		<td class="descripcion">{categoria.descripcion ?? '—'}</td>
+		<td>
+			<EtiquetaEstado variante={categoria.activo ? 'exito' : 'neutro'}>
+				{categoria.activo ? 'Activa' : 'Inactiva'}
+			</EtiquetaEstado>
+		</td>
+		<td>
+			<div class="acciones">
+				<Boton variante="secundario" tamano="sm" onclick={() => onEditar(categoria)}>
+					Editar
+				</Boton>
+				<Boton variante="fantasma" tamano="sm" onclick={() => onAlternarEstado(categoria)}>
+					{categoria.activo ? 'Desactivar' : 'Reactivar'}
+				</Boton>
+			</div>
+		</td>
+	{/snippet}
+	{#snippet vacio()}
+		<EstadoVacio
+			icono="categorias"
+			titulo="No hay categorías para este filtro"
+			descripcion="Cambiá el filtro o creá la primera categoría."
+		/>
+	{/snippet}
+</TablaDatos>
+
+<style>
+	.principal {
+		font-weight: 500;
+	}
+
+	.descripcion {
+		color: var(--texto-suave);
+		max-width: 360px;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+	}
+
+	.acciones {
+		display: flex;
+		justify-content: flex-end;
+		gap: 4px;
+		flex-wrap: wrap;
+	}
+</style>

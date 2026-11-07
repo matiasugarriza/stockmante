@@ -1,106 +1,147 @@
 <script lang="ts">
 	import type { Deposito, Ubicacion } from '#lib/schemas/depositos';
 	import type { Producto } from '#lib/schemas/productos';
+	import { formatearMoneda } from '#lib/utils/formato';
 	import { textoUbicacion, textoUbicaciones } from '#lib/utils/ubicaciones';
+	import Boton from '../ui/Boton.svelte';
+	import EstadoVacio from '../ui/EstadoVacio.svelte';
+	import EtiquetaEstado from '../ui/EtiquetaEstado.svelte';
+	import TablaDatos from '../ui/TablaDatos.svelte';
+	import type { Columna } from '../ui/tabla';
 
 	interface Props {
 		productos: Producto[];
 		ubicacionesPorProducto: Record<number, Ubicacion[]>;
 		depositos: Deposito[];
+		cargando?: boolean;
 		onEditar: (producto: Producto) => void;
 		onAlternarEstado: (producto: Producto) => void;
 	}
 
-	let { productos, ubicacionesPorProducto, depositos, onEditar, onAlternarEstado }: Props = $props();
+	let {
+		productos,
+		ubicacionesPorProducto,
+		depositos,
+		cargando = false,
+		onEditar,
+		onAlternarEstado
+	}: Props = $props();
 
-	const botonAccion =
-		'rounded border border-slate-300 px-2 py-1 text-xs hover:bg-slate-100 disabled:opacity-60';
-
-	function monto(valor: number): string {
-		return valor.toFixed(2);
-	}
+	const COLUMNAS: Columna<Producto>[] = [
+		{ clave: 'nombre', encabezado: 'Nombre' },
+		{ clave: 'sku', encabezado: 'SKU' },
+		{ clave: 'categoria', encabezado: 'Categoría' },
+		{ clave: 'ubicaciones', encabezado: 'Ubicaciones' },
+		{ clave: 'precio_venta', encabezado: 'Precio', alineacion: 'derecha' },
+		{ clave: 'stock_minimo', encabezado: 'Stock mín.', alineacion: 'derecha' },
+		{ clave: 'activo', encabezado: 'Estado' },
+		{ clave: 'acciones', encabezado: 'Acciones', alineacion: 'derecha' }
+	];
 </script>
 
-<div class="overflow-x-auto rounded-lg border border-slate-200 bg-white">
-	<table class="min-w-full divide-y divide-slate-200 text-sm">
-		<thead class="bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-500">
-			<tr>
-				<th class="px-4 py-2 font-medium">Nombre</th>
-				<th class="px-4 py-2 font-medium">SKU</th>
-				<th class="px-4 py-2 font-medium">Categoría</th>
-				<th class="px-4 py-2 font-medium">Ubicaciones</th>
-				<th class="px-4 py-2 text-right font-medium">Precio</th>
-				<th class="px-4 py-2 text-right font-medium">Stock mín.</th>
-				<th class="px-4 py-2 font-medium">Estado</th>
-				<th class="px-4 py-2 text-right font-medium">Acciones</th>
-			</tr>
-		</thead>
-		<tbody class="divide-y divide-slate-100">
-			{#each productos as producto (producto.id)}
-				{@const listaUbicaciones = ubicacionesPorProducto[producto.id]}
-				<tr>
-					<td class="px-4 py-2">
-						<p class="font-medium">{producto.nombre}</p>
-						{#if producto.codigo_barras}
-							<p class="text-xs text-slate-400">{producto.codigo_barras}</p>
-						{/if}
-					</td>
-					<td class="px-4 py-2 font-mono text-xs text-slate-600">{producto.sku}</td>
-					<td class="px-4 py-2 text-slate-600">{producto.categoria.nombre}</td>
-					<td class="px-4 py-2 text-xs text-slate-600">
-						{#if listaUbicaciones === undefined}
-							<span class="text-slate-400" title="No se pudieron cargar las ubicaciones">
-								No disponible
-							</span>
-						{:else if listaUbicaciones.length === 0}
-							<span class="text-amber-700">Sin ubicación</span>
-						{:else}
-							<span
-								title={listaUbicaciones
-									.map((ubicacion) => textoUbicacion(ubicacion, depositos))
-									.join('\n')}
-							>
-								{textoUbicaciones(listaUbicaciones, depositos)}
-							</span>
-						{/if}
-					</td>
-					<td class="px-4 py-2 text-right text-slate-600">
-						${monto(producto.precio_venta)}
-						<span class="block text-xs text-slate-400">{producto.unidad_medida}</span>
-					</td>
-					<td class="px-4 py-2 text-right text-slate-600">{producto.stock_minimo}</td>
-					<td class="px-4 py-2">
-						<span
-							class="rounded px-1.5 py-0.5 text-xs {producto.activo
-								? 'bg-emerald-50 text-emerald-700'
-								: 'bg-slate-100 text-slate-500'}"
-						>
-							{producto.activo ? 'Activo' : 'Inactivo'}
-						</span>
-					</td>
-					<td class="px-4 py-2">
-						<div class="flex flex-wrap justify-end gap-1">
-							<button class={botonAccion} onclick={() => onEditar(producto)}>Editar</button>
-							{#if producto.activo}
-								<button class={botonAccion} onclick={() => onAlternarEstado(producto)}>
-									Desactivar
-								</button>
-							{:else}
-								<button class={botonAccion} onclick={() => onAlternarEstado(producto)}>
-									Reactivar
-								</button>
-							{/if}
-						</div>
-					</td>
-				</tr>
-			{/each}
-			{#if productos.length === 0}
-				<tr>
-					<td colspan="8" class="px-4 py-8 text-center text-slate-500">
-						No hay productos para estos filtros.
-					</td>
-				</tr>
+<TablaDatos columnas={COLUMNAS} filas={productos} etiqueta="Productos" {cargando}>
+	{#snippet fila(producto)}
+		{@const listaUbicaciones = ubicacionesPorProducto[producto.id]}
+		<td>
+			<p class="nombre">{producto.nombre}</p>
+			{#if producto.codigo_barras}<small>{producto.codigo_barras}</small>{/if}
+		</td>
+		<td class="mono">{producto.sku}</td>
+		<td>{producto.categoria.nombre}</td>
+		<td class="ubicaciones">
+			{#if listaUbicaciones === undefined}
+				<span class="tenue" title="No se pudieron cargar las ubicaciones">No disponible</span>
+			{:else if listaUbicaciones.length === 0}
+				<span class="sin-ubicacion">Sin ubicación</span>
+			{:else}
+				<span
+					title={listaUbicaciones
+						.map((ubicacion) => textoUbicacion(ubicacion, depositos))
+						.join('\n')}
+				>
+					{textoUbicaciones(listaUbicaciones, depositos)}
+				</span>
 			{/if}
-		</tbody>
-	</table>
-</div>
+		</td>
+		<td class="numero">
+			{formatearMoneda(producto.precio_venta)}
+			<span class="unidad">{producto.unidad_medida}</span>
+		</td>
+		<td class="numero">{producto.stock_minimo}</td>
+		<td>
+			<EtiquetaEstado variante={producto.activo ? 'exito' : 'neutro'}>
+				{producto.activo ? 'Activo' : 'Inactivo'}
+			</EtiquetaEstado>
+		</td>
+		<td>
+			<div class="acciones">
+				<Boton variante="secundario" tamano="sm" onclick={() => onEditar(producto)}>
+					Editar
+				</Boton>
+				<Boton variante="fantasma" tamano="sm" onclick={() => onAlternarEstado(producto)}>
+					{producto.activo ? 'Desactivar' : 'Reactivar'}
+				</Boton>
+			</div>
+		</td>
+	{/snippet}
+	{#snippet vacio()}
+		<EstadoVacio
+			icono="productos"
+			titulo="No hay productos para estos filtros"
+			descripcion="Probá con otra búsqueda o creá el primer producto."
+		/>
+	{/snippet}
+</TablaDatos>
+
+<style>
+	.nombre {
+		margin: 0;
+		font-weight: 500;
+	}
+
+	small {
+		color: var(--texto-tenue);
+		font-family: var(--fuente-mono);
+		font-size: 10.5px;
+	}
+
+	.mono {
+		color: var(--texto-suave);
+		font-family: var(--fuente-mono);
+		font-size: 11.5px;
+		white-space: nowrap;
+	}
+
+	.ubicaciones {
+		max-width: 240px;
+		color: var(--texto-suave);
+		font-size: 12px;
+	}
+
+	.tenue {
+		color: var(--texto-tenue);
+	}
+
+	.sin-ubicacion {
+		color: var(--ambar-texto);
+	}
+
+	.numero {
+		text-align: right;
+		font-variant-numeric: tabular-nums;
+		white-space: nowrap;
+	}
+
+	.unidad {
+		display: block;
+		color: var(--texto-tenue);
+		font-size: 10.5px;
+	}
+
+	.acciones {
+		display: flex;
+		justify-content: flex-end;
+		gap: 4px;
+		flex-wrap: wrap;
+	}
+</style>

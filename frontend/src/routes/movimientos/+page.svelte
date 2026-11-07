@@ -1,20 +1,29 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
 	import { ApiError } from '#lib/api/client';
 	import { crearMovimiento, listarMovimientos } from '#lib/api/movimientos';
-	import { listarDepositos, listarUbicaciones } from '#lib/api/depositos';
+	import { listarDepositosActivos, listarUbicaciones, type DepositoActivo } from '#lib/api/depositos';
 	import { buscarProductos } from '#lib/api/productos';
 	import {
-		TipoMovimientoSchema,
 		type LineaNuevaInput,
 		type MovimientoDetalle,
 		type MotivoMovimiento,
 		type TipoMovimiento
 	} from '#lib/schemas/movimientos';
-	import { MotivoMovimientoSchema } from '#lib/schemas/movimientos';
-	import type { Deposito, Ubicacion } from '#lib/schemas/depositos';
+	import { MOTIVOS_POR_TIPO, motivoPorDefecto } from '#lib/schemas/movimientos';
+	import type { Ubicacion } from '#lib/schemas/depositos';
 	import type { Producto } from '#lib/schemas/productos';
 	import { sesion } from '#lib/stores/sesion';
+	import Aviso from '#lib/components/ui/Aviso.svelte';
+	import Boton from '#lib/components/ui/Boton.svelte';
+	import Campo from '#lib/components/ui/Campo.svelte';
+	import EncabezadoPagina from '#lib/components/ui/EncabezadoPagina.svelte';
+	import EstadoVacio from '#lib/components/ui/EstadoVacio.svelte';
+	import EtiquetaEstado from '#lib/components/ui/EtiquetaEstado.svelte';
+	import Icono from '#lib/components/ui/Icono.svelte';
+	import Paginacion from '#lib/components/ui/Paginacion.svelte';
+	import TablaDatos from '#lib/components/ui/TablaDatos.svelte';
+	import Tarjeta from '#lib/components/ui/Tarjeta.svelte';
+	import type { Columna } from '#lib/components/ui/tabla';
 
 	const TIPOS: { valor: TipoMovimiento; etiqueta: string }[] = [
 		{ valor: 'ENTRADA', etiqueta: 'Entrada' },
@@ -23,11 +32,28 @@
 		{ valor: 'AJUSTE', etiqueta: 'Ajuste' }
 	];
 
-	const MOTIVOS: { valor: MotivoMovimiento; etiqueta: string }[] =
-		MotivoMovimientoSchema.options.map((valor) => ({
-			valor,
-			etiqueta: valor.charAt(0) + valor.slice(1).toLowerCase()
-		}));
+	const etiquetaMotivo = (valor: MotivoMovimiento) =>
+		valor.charAt(0) + valor.slice(1).toLowerCase();
+
+	const VARIANTES_TIPO: Record<
+		TipoMovimiento,
+		'exito' | 'info' | 'aviso' | 'peligro' | 'neutro'
+	> = {
+		ENTRADA: 'exito',
+		SALIDA: 'info',
+		MERMA: 'peligro',
+		AJUSTE: 'neutro'
+	};
+
+	const COLUMNAS: Columna<MovimientoDetalle>[] = [
+		{ clave: 'id', encabezado: '#' },
+		{ clave: 'creado_en', encabezado: 'Fecha' },
+		{ clave: 'tipo', encabezado: 'Tipo' },
+		{ clave: 'motivo', encabezado: 'Motivo' },
+		{ clave: 'deposito', encabezado: 'Depósito' },
+		{ clave: 'usuario', encabezado: 'Autor' },
+		{ clave: 'lineas', encabezado: 'Líneas' }
+	];
 
 	const formatoFecha = new Intl.DateTimeFormat('es-AR', {
 		dateStyle: 'short',
@@ -42,7 +68,7 @@
 		ubicacionId: string;
 	}
 
-	let depositos = $state<Deposito[]>([]);
+	let depositos = $state<DepositoActivo[]>([]);
 	let depositoId = $state('');
 	let ubicaciones = $state<Ubicacion[]>([]);
 	let tipo = $state<TipoMovimiento>('ENTRADA');
@@ -73,6 +99,20 @@
 	const restoPositivo = $derived(tipo === 'ENTRADA' || tipo === 'AJUSTE');
 	const pideObservacion = $derived(motivo === 'OTRO');
 
+	const opcionesTipo = $derived(TIPOS.filter((opcion) => opcion.valor !== 'AJUSTE' || esGestion));
+	const opcionesDepositos = $derived([
+		{ valor: '', etiqueta: 'Elegí…' },
+		...depositos.map((deposito) => ({ valor: String(deposito.id), etiqueta: deposito.nombre }))
+	]);
+	const opcionesUbicaciones = $derived([
+		{ valor: '', etiqueta: 'Sin ubicación' },
+		...ubicaciones.map((ubicacion) => ({
+			valor: String(ubicacion.id),
+			etiqueta: ubicacion.nombre
+		}))
+	]);
+	const opcionesFiltroTipo = $derived([{ valor: '', etiqueta: 'Todos' }, ...TIPOS]);
+
 	// Si la sesión cambia a OPERACION, el AJUSTE se cae al primer tipo válido.
 	$effect(() => {
 		if (!esGestion && tipo === 'AJUSTE') {
@@ -90,10 +130,15 @@
 		void cargarUbicaciones(Number(id));
 	});
 
+	// El selector solo ofrece los motivos admitidos para el tipo (matriz de 007).
+	const motivos = $derived(
+		MOTIVOS_POR_TIPO[tipo].map((valor) => ({ valor, etiqueta: etiquetaMotivo(valor) }))
+	);
+
 	// Al cambiar el tipo, el motivo vuelve a una opción coherente.
 	$effect(() => {
-		if (tipo !== 'AJUSTE' && motivo === 'AJUSTE') {
-			motivo = 'COMPRA';
+		if (!MOTIVOS_POR_TIPO[tipo].includes(motivo)) {
+			motivo = motivoPorDefecto(tipo);
 		}
 	});
 
@@ -116,7 +161,7 @@
 
 	async function iniciar() {
 		try {
-			depositos = await listarDepositos('true');
+			depositos = await listarDepositosActivos();
 		} catch (e) {
 			error = mensajeError(e, 'No se pudieron cargar los depósitos');
 		}
@@ -209,7 +254,8 @@
 			return 'Con motivo OTRO hace falta una observación.';
 		for (const [i, linea] of lineas.entries()) {
 			if (!linea.producto) return `Elegí un producto en la línea ${i + 1}.`;
-			if (deltaDe(linea) === null) return `La cantidad de la línea ${i + 1} debe ser un entero mayor que cero.`;
+			if (deltaDe(linea) === null)
+				return `La cantidad de la línea ${i + 1} debe ser un entero mayor que cero.`;
 		}
 		return null;
 	}
@@ -265,297 +311,433 @@
 	<title>Movimientos · Stockmante</title>
 </svelte:head>
 
-<div class="space-y-6">
-	<h1 class="text-xl font-bold">Movimientos de stock</h1>
+<div class="pagina">
+	<EncabezadoPagina
+		titulo="Movimientos de stock"
+		descripcion="Registrá entradas, salidas, mermas y ajustes. El stock se actualiza en una única transacción."
+	/>
 
-	{#if error}
-		<div class="rounded border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
-			{error}
-		</div>
-	{/if}
-	{#if aviso}
-		<div class="rounded border border-green-200 bg-green-50 px-3 py-2 text-sm text-green-700">
-			{aviso}
-		</div>
-	{/if}
+	{#if error}<Aviso variante="error">{error}</Aviso>{/if}
+	{#if aviso}<Aviso variante="exito">{aviso}</Aviso>{/if}
 
-	<section class="rounded-lg border border-slate-200 bg-white p-4">
-		<h2 class="mb-3 font-semibold">Registrar movimiento</h2>
-
-		<div class="mb-3 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-			<label class="block text-sm">
-				<span class="mb-1 block text-slate-600">Tipo</span>
-				<select
-					class="w-full rounded border border-slate-300 px-2 py-1.5"
-					bind:value={tipo}
-				>
-					{#each TIPOS as opcion}
-						{#if opcion.valor !== 'AJUSTE' || esGestion}
-							<option value={opcion.valor}>{opcion.etiqueta}</option>
-						{/if}
-					{/each}
-				</select>
-			</label>
-
-			<label class="block text-sm">
-				<span class="mb-1 block text-slate-600">Depósito</span>
-				<select class="w-full rounded border border-slate-300 px-2 py-1.5" bind:value={depositoId}>
-					<option value="">Elegí…</option>
-					{#each depositos as deposito}
-						<option value={String(deposito.id)}>{deposito.nombre}</option>
-					{/each}
-				</select>
-			</label>
-
-			<label class="block text-sm">
-				<span class="mb-1 block text-slate-600">Motivo</span>
-				<select class="w-full rounded border border-slate-300 px-2 py-1.5" bind:value={motivo}>
-					{#each MOTIVOS as opcion}
-						<option value={opcion.valor}>{opcion.etiqueta}</option>
-					{/each}
-				</select>
-			</label>
-
-			<label class="block text-sm">
-				<span class="mb-1 block text-slate-600">
-					Observación {pideObservacion ? '(obligatoria con OTRO)' : '(opcional)'}
-				</span>
-				<input
-					type="text"
-					class="w-full rounded border border-slate-300 px-2 py-1.5"
-					maxlength="500"
-					bind:value={observacion}
+	<Tarjeta titulo="Registrar movimiento">
+		<div class="formulario">
+			<div class="grilla-campos">
+				<Campo
+					etiqueta="Tipo"
+					nombre="tipo"
+					tipo="select"
+					opciones={opcionesTipo}
+					bind:valor={tipo}
 				/>
-			</label>
-		</div>
+				<Campo
+					etiqueta="Depósito"
+					nombre="deposito"
+					tipo="select"
+					opciones={opcionesDepositos}
+					bind:valor={depositoId}
+				/>
+				<Campo
+					etiqueta="Motivo"
+					nombre="motivo"
+					tipo="select"
+					opciones={motivos}
+					bind:valor={motivo}
+				/>
+				<Campo
+					etiqueta="Observación"
+					nombre="observacion"
+					marcador={pideObservacion ? 'Obligatoria con OTRO' : 'Opcional'}
+					maxlength={500}
+					bind:valor={observacion}
+				/>
+			</div>
 
-		<div class="space-y-3">
-			{#each lineas as linea, index}
-				<div class="rounded border border-slate-200 p-3">
-					<div class="flex flex-wrap items-end gap-2">
-						<label class="min-w-52 flex-1 text-sm">
-							<span class="mb-1 block text-slate-600">Producto (nombre o SKU)</span>
-							<input
-								type="text"
-								class="w-full rounded border border-slate-300 px-2 py-1.5"
-								value={linea.busqueda}
-								oninput={(e) => buscarEnLinea(index, e.currentTarget.value)}
-							/>
-							{#if linea.resultados.length > 0 && !linea.producto}
-								<ul
-									class="mt-1 max-h-44 overflow-auto rounded border border-slate-200 bg-white text-xs shadow"
-								>
-									{#each linea.resultados as resultado}
-										<li>
-											<button
-												type="button"
-												class="block w-full px-2 py-1 text-left hover:bg-slate-50"
-												onclick={() => elegirProducto(index, resultado)}
-											>
-												<span class="font-medium">{resultado.nombre}</span>
-												<span class="ml-2 text-slate-500">{resultado.sku}</span>
-											</button>
-										</li>
-									{/each}
-								</ul>
-							{/if}
-							{#if linea.producto}
-								<span class="mt-1 inline-block rounded bg-slate-100 px-1.5 py-0.5 text-xs">
-									{linea.producto.sku}
-									<button
-										type="button"
-										class="ml-1 text-slate-500 hover:text-slate-800"
-										onclick={() =>
-											(lineas[index] = { ...nuevaLinea(), busqueda: linea.busqueda })}
-									>
-										✕
-									</button>
-								</span>
-							{/if}
-						</label>
-
-						<label class="w-28 text-sm">
-							<span class="mb-1 block text-slate-600">Cantidad</span>
-							<input
-								type="number"
-								min="1"
-								step="1"
-								class="w-full rounded border border-slate-300 px-2 py-1.5"
-								bind:value={linea.cantidad}
-							/>
-						</label>
-
-						<label class="w-48 text-sm">
-							<span class="mb-1 block text-slate-600">Ubicación (opcional)</span>
-							<select class="w-full rounded border border-slate-300 px-2 py-1.5" bind:value={linea.ubicacionId}>
-								<option value="">Sin ubicación</option>
-								{#each ubicaciones as ubicacion}
-									<option value={String(ubicacion.id)}>{ubicacion.nombre}</option>
-								{/each}
-							</select>
-						</label>
-
-						{#if lineas.length > 1}
-							<button
-								type="button"
-								class="rounded border border-slate-300 px-2 py-1.5 text-sm hover:bg-slate-50"
-								onclick={() => quitarLinea(index)}
-							>
-								Quitar
-							</button>
-						{/if}
-					</div>
-					{#if linea.producto && deltaDe(linea) !== null}
-						<p class="mt-2 text-xs text-slate-500">
-							{tipo}: {signoDelta(deltaDe(linea)!)} × {linea.producto.nombre}
-						</p>
-					{/if}
-				</div>
-			{/each}
-		</div>
-
-		<div class="mt-3 flex items-center gap-3">
-			<button
-				type="button"
-				class="rounded border border-slate-300 px-3 py-1.5 text-sm hover:bg-slate-50"
-				onclick={agregarLinea}
-			>
-				+ Agregar línea
-			</button>
-			<button
-				type="button"
-				class="rounded bg-blue-600 px-4 py-1.5 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-50"
-				disabled={guardando}
-				onclick={() => void enviar()}
-			>
-				{guardando ? 'Registrando…' : 'Registrar movimiento'}
-			</button>
-		</div>
-	</section>
-
-	<section class="rounded-lg border border-slate-200 bg-white p-4">
-		<div class="mb-3 flex flex-wrap items-center gap-3">
-			<h2 class="mr-auto font-semibold">Historial</h2>
-			<label class="text-sm">
-				<span class="mr-1 text-slate-600">Tipo</span>
-				<select class="rounded border border-slate-300 px-2 py-1" bind:value={filtroTipo}>
-					<option value="">Todos</option>
-					{#each TIPOS as opcion}
-						<option value={opcion.valor}>{opcion.etiqueta}</option>
-					{/each}
-				</select>
-			</label>
-			<label class="text-sm">
-				<span class="mr-1 text-slate-600">Depósito</span>
-				<select class="rounded border border-slate-300 px-2 py-1" bind:value={filtroDeposito}>
-					<option value="">Todos</option>
-					{#each depositos as deposito}
-						<option value={String(deposito.id)}>{deposito.nombre}</option>
-					{/each}
-				</select>
-			</label>
-			<button
-				type="button"
-				class="rounded border border-slate-300 px-3 py-1 text-sm hover:bg-slate-50"
-				onclick={aplicarFiltros}
-			>
-				Filtrar
-			</button>
-		</div>
-
-		{#if cargando}
-			<p class="py-6 text-center text-sm text-slate-500">Cargando…</p>
-		{:else if movimientos.length === 0}
-			<p class="py-6 text-center text-sm text-slate-500">No hay movimientos registrados.</p>
-		{:else}
-			<div class="overflow-x-auto">
-				<table class="w-full text-left text-sm">
-					<thead class="border-b border-slate-200 text-slate-500">
-						<tr>
-							<th class="py-2 pr-3">#</th>
-							<th class="py-2 pr-3">Fecha</th>
-							<th class="py-2 pr-3">Tipo</th>
-							<th class="py-2 pr-3">Motivo</th>
-							<th class="py-2 pr-3">Depósito</th>
-							<th class="py-2 pr-3">Autor</th>
-							<th class="py-2 pr-3">Líneas</th>
-						</tr>
-					</thead>
-					<tbody>
-						{#each movimientos as movimiento (movimiento.id)}
-							<tr class="border-b border-slate-100 align-top">
-								<td class="py-2 pr-3">{movimiento.id}</td>
-								<td class="py-2 pr-3 whitespace-nowrap">
-									{formatoFecha.format(new Date(movimiento.creado_en))}
-								</td>
-								<td class="py-2 pr-3">
-									<span
-										class="rounded px-1.5 py-0.5 text-xs
-										{movimiento.tipo === 'ENTRADA'
-											? 'bg-green-100 text-green-700'
-											: movimiento.tipo === 'AJUSTE'
-												? 'bg-purple-100 text-purple-700'
-												: 'bg-red-100 text-red-700'}"
-									>
-										{movimiento.tipo}
-									</span>
-								</td>
-								<td class="py-2 pr-3">
-									{movimiento.motivo}
-									{#if movimiento.observacion}
-										<span class="block text-xs text-slate-500">{movimiento.observacion}</span>
-									{/if}
-								</td>
-								<td class="py-2 pr-3">{movimiento.deposito.nombre}</td>
-								<td class="py-2 pr-3">{movimiento.usuario.nombre}</td>
-								<td class="py-2 pr-3">
-									<ul class="space-y-0.5 text-xs">
-										{#each movimiento.lineas as linea}
+			<div class="lineas">
+				{#each lineas as linea, index (index)}
+					<div class="linea">
+						<div class="linea-campos">
+							<div class="campo-producto">
+								<Campo
+									etiqueta={`Producto${lineas.length > 1 ? ` ${index + 1}` : ''}`}
+									nombre={`producto-${index}`}
+									marcador="Nombre o SKU"
+									bind:valor={linea.busqueda}
+									oninput={(valor) => buscarEnLinea(index, valor)}
+								/>
+								{#if linea.resultados.length > 0 && !linea.producto}
+									<ul class="resultados">
+										{#each linea.resultados as resultado (resultado.id)}
 											<li>
-												{linea.producto_nombre}
-												<span class="text-slate-500">({linea.sku})</span>
-												<span class="font-medium {linea.cantidad_delta > 0 ? 'text-green-700' : 'text-red-700'}">
-													{signoDelta(linea.cantidad_delta)}
-												</span>
-												<span class="text-slate-500">→ {linea.stock_resultante}</span>
+												<button
+													type="button"
+													onclick={() => elegirProducto(index, resultado)}
+												>
+													<span class="resultado-nombre">{resultado.nombre}</span>
+													<span class="resultado-sku">{resultado.sku}</span>
+												</button>
 											</li>
 										{/each}
 									</ul>
-								</td>
-							</tr>
-						{/each}
-					</tbody>
-				</table>
+								{/if}
+								{#if linea.producto}
+									<span class="chip">
+										{linea.producto.nombre}
+										<span class="chip-sku">{linea.producto.sku}</span>
+										<button
+											type="button"
+											class="chip-quitar"
+											aria-label="Quitar producto"
+											onclick={() => (lineas[index] = { ...nuevaLinea(), busqueda: linea.busqueda })}
+										>
+											<Icono nombre="cerrar" tamano={12} />
+										</button>
+									</span>
+								{/if}
+							</div>
+
+							<Campo
+								etiqueta="Cantidad"
+								nombre={`cantidad-${index}`}
+								tipo="number"
+								min={1}
+								step={1}
+								bind:valor={linea.cantidad}
+							/>
+
+							<Campo
+								etiqueta="Ubicación (opcional)"
+								nombre={`ubicacion-${index}`}
+								tipo="select"
+								opciones={opcionesUbicaciones}
+								bind:valor={linea.ubicacionId}
+							/>
+
+							{#if lineas.length > 1}
+								<Boton
+									variante="fantasma"
+									tamano="sm"
+									icono="basura"
+									onclick={() => quitarLinea(index)}
+								>
+									Quitar
+								</Boton>
+							{/if}
+						</div>
+
+						{#if linea.producto && deltaDe(linea) !== null}
+							<p class="vista-previa">
+								{tipo}: <strong>{signoDelta(deltaDe(linea)!)}</strong> × {linea.producto.nombre}
+							</p>
+						{/if}
+					</div>
+				{/each}
 			</div>
 
-			{#if totalPaginas > 1}
-				<div class="mt-3 flex items-center justify-end gap-2 text-sm">
-					<button
-						type="button"
-						class="rounded border border-slate-300 px-2 py-1 disabled:opacity-40"
-						disabled={pagina <= 1}
-						onclick={() => cambiarPagina(pagina - 1)}
-					>
-						Anterior
-					</button>
-					<span class="text-slate-600">Página {pagina} de {totalPaginas}</span>
-					<button
-						type="button"
-						class="rounded border border-slate-300 px-2 py-1 disabled:opacity-40"
-						disabled={pagina >= totalPaginas}
-						onclick={() => cambiarPagina(pagina + 1)}
-					>
-						Siguiente
-					</button>
-				</div>
-			{/if}
+			<div class="acciones">
+				<Boton
+					variante="secundario"
+					icono="mas"
+					deshabilitado={lineas.length >= 200}
+					onclick={agregarLinea}
+				>
+					Agregar línea
+				</Boton>
+				<Boton cargando={guardando} onclick={() => void enviar()}>
+					{guardando ? 'Registrando…' : 'Registrar movimiento'}
+				</Boton>
+			</div>
+		</div>
+	</Tarjeta>
+
+	<Tarjeta titulo="Historial">
+		<div class="filtros">
+			<Campo
+				etiqueta="Tipo"
+				nombre="filtro-tipo"
+				tipo="select"
+				opciones={opcionesFiltroTipo}
+				bind:valor={filtroTipo}
+			/>
+			<Campo
+				etiqueta="Depósito"
+				nombre="filtro-deposito"
+				tipo="select"
+				opciones={opcionesDepositos}
+				bind:valor={filtroDeposito}
+			/>
+			<Boton variante="secundario" tamano="sm" onclick={aplicarFiltros}>Filtrar</Boton>
+		</div>
+
+		<TablaDatos
+			columnas={COLUMNAS}
+			filas={movimientos}
+			etiqueta="Historial de movimientos"
+			cargando={cargando}
+		>
+			{#snippet fila(movimiento)}
+				<td>{movimiento.id}</td>
+				<td class="fecha">{formatoFecha.format(new Date(movimiento.creado_en))}</td>
+				<td>
+					<EtiquetaEstado variante={VARIANTES_TIPO[movimiento.tipo]}>
+						{movimiento.tipo}
+					</EtiquetaEstado>
+				</td>
+				<td>
+					{movimiento.motivo}
+					{#if movimiento.observacion}
+						<span class="observacion">{movimiento.observacion}</span>
+					{/if}
+				</td>
+				<td>{movimiento.deposito.nombre}</td>
+				<td>{movimiento.usuario.nombre}</td>
+				<td>
+					<ul class="lineas-tabla">
+						{#each movimiento.lineas as linea (linea.producto_id)}
+							<li>
+								<span>{linea.producto_nombre}</span>
+								<span class="sku">({linea.sku})</span>
+								<strong class:positivo={linea.cantidad_delta > 0}>
+									{signoDelta(linea.cantidad_delta)}
+								</strong>
+								<span class="stock">→ {linea.stock_resultante}</span>
+							</li>
+						{/each}
+					</ul>
+				</td>
+			{/snippet}
+			{#snippet vacio()}
+				<EstadoVacio
+					icono="movimientos"
+					titulo="No hay movimientos registrados"
+					descripcion="Registrá el primero con el formulario de arriba."
+				/>
+			{/snippet}
+		</TablaDatos>
+
+		{#if totalPaginas > 1}
+			<div class="pie-tabla">
+				<Paginacion {pagina} {total} {porPagina} onCambiar={cambiarPagina} />
+			</div>
 		{/if}
-	</section>
+	</Tarjeta>
 
 	{#if depositoActual && ubicaciones.length === 0}
-		<p class="text-xs text-slate-500">
-			{depositoActual.nombre} no tiene ubicaciones cargadas: los movimientos se imputan al
-			depósito hasta que se asignen ubicaciones al producto.
-		</p>
+		<Aviso variante="info">
+			{depositoActual.nombre} no tiene ubicaciones cargadas: los movimientos se imputan al depósito
+			hasta que se asignen ubicaciones al producto.
+		</Aviso>
 	{/if}
 </div>
+
+<style>
+	.pagina {
+		display: flex;
+		flex-direction: column;
+		gap: 14px;
+	}
+
+	.formulario {
+		display: flex;
+		flex-direction: column;
+		gap: 16px;
+	}
+
+	.grilla-campos {
+		display: grid;
+		grid-template-columns: repeat(4, minmax(0, 1fr));
+		gap: 12px;
+	}
+
+	.lineas {
+		display: flex;
+		flex-direction: column;
+		gap: 10px;
+	}
+
+	.linea {
+		display: flex;
+		flex-direction: column;
+		gap: 8px;
+		border: 1px solid var(--borde);
+		border-radius: var(--radio-control);
+		padding: 12px;
+		background: var(--superficie-2);
+	}
+
+	.linea-campos {
+		display: flex;
+		align-items: flex-end;
+		gap: 10px;
+		flex-wrap: wrap;
+	}
+
+	.campo-producto {
+		flex: 1;
+		min-width: 240px;
+		position: relative;
+	}
+
+	.resultados {
+		position: absolute;
+		top: calc(100% + 4px);
+		left: 0;
+		right: 0;
+		z-index: 15;
+		max-height: 180px;
+		overflow-y: auto;
+		margin: 0;
+		padding: 4px;
+		list-style: none;
+		border: 1px solid var(--borde);
+		border-radius: var(--radio-control);
+		background: var(--superficie);
+		box-shadow: var(--sombra-elevada);
+	}
+
+	.resultados button {
+		display: flex;
+		justify-content: space-between;
+		gap: 8px;
+		width: 100%;
+		padding: 7px 8px;
+		border: 0;
+		border-radius: 4px;
+		background: transparent;
+		color: var(--texto);
+		font-size: 12.5px;
+		text-align: left;
+		cursor: pointer;
+	}
+
+	.resultados button:hover {
+		background: var(--superficie-2);
+	}
+
+	.resultado-sku {
+		color: var(--texto-tenue);
+		font-family: var(--fuente-mono);
+		font-size: 11px;
+	}
+
+	.chip {
+		display: inline-flex;
+		align-items: center;
+		gap: 6px;
+		margin-top: 6px;
+		padding: 2px 6px;
+		border-radius: var(--radio-pildora);
+		background: var(--primario-suave);
+		color: var(--primario-texto);
+		font-size: 11.5px;
+	}
+
+	.chip-sku {
+		font-family: var(--fuente-mono);
+		font-size: 10.5px;
+		opacity: 0.8;
+	}
+
+	.chip-quitar {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		border: 0;
+		background: transparent;
+		color: inherit;
+		cursor: pointer;
+		padding: 0;
+	}
+
+	.vista-previa {
+		margin: 0;
+		color: var(--texto-suave);
+		font-size: 12px;
+	}
+
+	.vista-previa strong {
+		color: var(--texto);
+		font-variant-numeric: tabular-nums;
+	}
+
+	.acciones {
+		display: flex;
+		align-items: center;
+		gap: 10px;
+		flex-wrap: wrap;
+	}
+
+	.filtros {
+		display: flex;
+		align-items: flex-end;
+		gap: 10px;
+		flex-wrap: wrap;
+		margin-bottom: 12px;
+	}
+
+	.fecha {
+		white-space: nowrap;
+		color: var(--texto-suave);
+		font-size: 12px;
+	}
+
+	.observacion {
+		display: block;
+		color: var(--texto-tenue);
+		font-size: 11.5px;
+	}
+
+	.lineas-tabla {
+		margin: 0;
+		padding: 0;
+		list-style: none;
+		display: flex;
+		flex-direction: column;
+		gap: 2px;
+	}
+
+	.lineas-tabla li {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 4px;
+		font-size: 11.5px;
+	}
+
+	.lineas-tabla .sku {
+		color: var(--texto-tenue);
+		font-family: var(--fuente-mono);
+	}
+
+	.lineas-tabla strong {
+		color: var(--peligro-texto);
+		font-variant-numeric: tabular-nums;
+	}
+
+	.lineas-tabla strong.positivo {
+		color: var(--exito-texto);
+	}
+
+	.lineas-tabla .stock {
+		color: var(--texto-tenue);
+	}
+
+	.pie-tabla {
+		padding: 12px 16px 0;
+	}
+
+	@media (max-width: 1000px) {
+		.grilla-campos {
+			grid-template-columns: repeat(2, minmax(0, 1fr));
+		}
+	}
+
+	@media (max-width: 640px) {
+		.grilla-campos {
+			grid-template-columns: 1fr;
+		}
+
+		.campo-producto {
+			min-width: 100%;
+		}
+	}
+</style>

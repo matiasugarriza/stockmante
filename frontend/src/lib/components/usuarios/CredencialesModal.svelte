@@ -1,4 +1,7 @@
 <script lang="ts">
+	import Boton from '../ui/Boton.svelte';
+	import Modal from '../ui/Modal.svelte';
+
 	/**
 	 * Modal obligatoria de credenciales (FR-008b, escenarios 1 y 5): muestra el
 	 * correo y la contraseña temporal en claro para copiar y entregar de
@@ -27,45 +30,70 @@
 	}
 </script>
 
-<div class="fixed inset-0 z-20 flex items-center justify-center bg-slate-900/50 p-4">
-	<div
-		class="w-full max-w-md rounded-xl border border-amber-200 bg-white p-5 shadow-lg"
-		role="dialog"
-		aria-modal="true"
-		aria-label={titulo}
-	>
-		<h2 class="mb-1 text-lg font-semibold">{titulo}</h2>
-		<p class="mb-4 text-xs text-slate-500">
-			Entregá estas credenciales al usuario. También se envió por correo (en desarrollo,
-			la consola del backend). Deberá cambiarla en su primer ingreso.
-		</p>
-
-		<div class="mb-4 flex flex-col gap-3 rounded border border-slate-200 bg-slate-50 p-3">
-			<div>
-				<p class="text-xs font-medium text-slate-500">Correo</p>
-				<p class="break-all font-mono text-sm">{email}</p>
-			</div>
-			<div>
-				<p class="text-xs font-medium text-slate-500">Contraseña temporal</p>
-				<p class="break-all font-mono text-sm font-semibold">{password}</p>
-			</div>
-			<button
-				type="button"
-				class="self-start rounded border border-slate-300 px-3 py-1.5 text-sm hover:bg-slate-100"
-				onclick={() => void copiar()}
-			>
-				{copiado ? '¡Copiada!' : 'Copiar contraseña'}
-			</button>
+<Modal
+	abierto={true}
+	titulo={titulo}
+	descripcion="Entregá estas credenciales al usuario. También se envió por correo (en desarrollo, la consola del backend). Deberá cambiarla en su primer ingreso."
+	oncerrar={onCerrar}
+>
+	<div class="credenciales">
+		<div class="dato">
+			<span>Correo</span>
+			<code>{email}</code>
 		</div>
-
-		<div class="flex justify-end">
-			<button
-				type="button"
-				class="rounded bg-slate-800 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700"
-				onclick={onCerrar}
-			>
-				Cerré las credenciales
-			</button>
+		<div class="dato">
+			<span>Contraseña temporal</span>
+			<code class="clave">{password}</code>
 		</div>
+		<Boton variante="secundario" tamano="sm" onclick={() => void copiar()}>
+			{copiado ? '¡Copiada!' : 'Copiar contraseña'}
+		</Boton>
 	</div>
-</div>
+
+	<div class="acciones">
+		<Boton onclick={onCerrar}>Cerré las credenciales</Boton>
+	</div>
+</Modal>
+
+<style>
+	.credenciales {
+		display: flex;
+		flex-direction: column;
+		gap: 12px;
+		margin-bottom: 16px;
+		padding: 14px;
+		border: 1px solid var(--borde);
+		border-radius: var(--radio-control);
+		background: var(--superficie-2);
+	}
+
+	.dato {
+		display: flex;
+		flex-direction: column;
+		gap: 3px;
+	}
+
+	.dato span {
+		color: var(--texto-tenue);
+		font-size: 10.5px;
+		font-weight: 600;
+		letter-spacing: 0.06em;
+		text-transform: uppercase;
+	}
+
+	code {
+		color: var(--texto);
+		font-family: var(--fuente-mono);
+		font-size: 13px;
+		word-break: break-all;
+	}
+
+	.clave {
+		font-weight: 700;
+	}
+
+	.acciones {
+		display: flex;
+		justify-content: flex-end;
+	}
+</style>

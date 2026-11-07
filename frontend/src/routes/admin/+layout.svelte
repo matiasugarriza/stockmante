@@ -17,5 +17,13 @@
 {#if $sesion.estado === 'activa' && $sesion.usuario.familia_rol === 'GESTION'}
 	{@render children()}
 {:else}
-	<p class="px-4 py-6 text-sm text-slate-500">Verificando permisos…</p>
+	<p class="verificando">Verificando permisos…</p>
 {/if}
+
+<style>
+	.verificando {
+		padding: 24px 16px;
+		color: var(--texto-suave);
+		font-size: 13px;
+	}
+</style>

@@ -1,0 +1,182 @@
+/**
+ * Tokens visuales de la interfaz — spec 018 (FR-079, FR-086).
+ *
+ * Única fuente de verdad de color, tipografía, espaciado, radios y sombras.
+ * El tema se activa con `data-tema="dark"` en <html> (lo aplica app.html antes
+ * del primer pintado). Los componentes consumen estos tokens; no declaran
+ * colores de marca propios.
+ */
+
+:root {
+	--fuente-sans:
+		'Outfit Variable', 'Outfit', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto,
+		'Helvetica Neue', Arial, sans-serif;
+	--fuente-mono:
+		ui-monospace, 'SFMono-Regular', 'Cascadia Mono', Menlo, Consolas, monospace;
+
+	--fondo: #f1f4f9;
+	--fondo-elevado: #f7f9fc;
+	--superficie: #ffffff;
+	--superficie-2: #f5f7fb;
+	--superficie-3: #eaeff7;
+	--sidebar: #ffffff;
+	--topbar: #1f2a44;
+
+	--borde: #e3e8f0;
+	--borde-fuerte: #c9d3e0;
+
+	--texto: #1b2432;
+	--texto-suave: #5f6f86;
+	--texto-tenue: #5a6b83;
+	--texto-inverso: #ffffff;
+
+	--primario: #1f3bb3;
+	--primario-hover: #182f94;
+	--primario-suave: #e8ecfb;
+	--primario-texto: #1f3bb3;
+	--primario-contraste: #ffffff;
+
+	--teal: #14b8bd;
+	--teal-suave: #e3f8f8;
+	--teal-texto: #0f7f84;
+	--ambar: #f0a63a;
+	--ambar-suave: #fdf3e2;
+	--ambar-texto: #8a5a12;
+	--exito: #22a45d;
+	--exito-suave: #e7f7ee;
+	--exito-texto: #167a45;
+	--peligro: #dc3d43;
+	--peligro-suave: #fdecec;
+	--peligro-texto: #b42318;
+	--info: #1f3bb3;
+	--info-suave: #e8ecfb;
+
+	--foco: #1f3bb3;
+	--cian: #52cdff;
+	--sombra-tarjeta:
+		0 1px 2px rgba(16, 24, 40, 0.05), 0 8px 24px -18px rgba(16, 24, 40, 0.25);
+	--sombra-elevada: 0 12px 32px -12px rgba(16, 24, 40, 0.28);
+
+	--radio-tarjeta: 10px;
+	--radio-control: 6px;
+	--radio-pildora: 999px;
+
+	--espacio-1: 4px;
+	--espacio-2: 8px;
+	--espacio-3: 12px;
+	--espacio-4: 16px;
+	--espacio-5: 20px;
+	--espacio-6: 24px;
+	--espacio-8: 32px;
+
+	--sidebar-ancho: 248px;
+	--sidebar-ancho-colapsado: 76px;
+	--topbar-alto: 72px;
+	--contenido-max: 1440px;
+}
+
+html[data-tema='dark'] {
+	--fondo: #121722;
+	--fondo-elevado: #161c28;
+	--superficie: #1b2230;
+	--superficie-2: #222b3b;
+	--superficie-3: #2a3447;
+	--sidebar: #151b26;
+	--topbar: var(--fondo);
+
+	--borde: #2b3648;
+	--borde-fuerte: #3b4a63;
+
+	--texto: #e8edf6;
+	--texto-suave: #9aa9bf;
+	--texto-tenue: #8f9db1;
+	--texto-inverso: #0d1320;
+
+	--primario: #3f5efb;
+	--primario-hover: #5872ff;
+	--primario-suave: #1f2752;
+	--primario-texto: #93a5ff;
+	--primario-contraste: #ffffff;
+
+	--teal: #2fd0d6;
+	--teal-suave: #123639;
+	--teal-texto: #2fd0d6;
+	--ambar: #f3b45c;
+	--ambar-suave: #3a2c17;
+	--ambar-texto: #f3b45c;
+	--exito: #3ecf7a;
+	--exito-suave: #12301f;
+	--exito-texto: #3ecf7a;
+	--peligro: #ff6b6e;
+	--peligro-suave: #3a1a1d;
+	--peligro-texto: #ff8a8c;
+	--info: #5872ff;
+	--info-suave: #1f2752;
+
+	--foco: #93a5ff;
+	--cian: #52cdff;
+	--sombra-tarjeta:
+		0 1px 0 rgba(0, 0, 0, 0.35), 0 18px 40px -24px rgba(0, 0, 0, 0.85);
+	--sombra-elevada: 0 20px 48px -18px rgba(0, 0, 0, 0.9);
+}
+
+@layer base {
+	html {
+		color-scheme: light;
+	}
+
+	html[data-tema='dark'] {
+		color-scheme: dark;
+	}
+
+	body {
+		background: var(--fondo);
+		color: var(--texto);
+		font-family: var(--fuente-sans);
+		font-size: 14px;
+		line-height: 1.45;
+		-webkit-font-smoothing: antialiased;
+	}
+
+	:where(a, button, input, select, textarea, [tabindex]):focus-visible {
+		outline: 2px solid var(--foco);
+		outline-offset: 2px;
+	}
+
+	::selection {
+		background: var(--primario-suave);
+		color: var(--primario-texto);
+	}
+
+	@media (prefers-reduced-motion: reduce) {
+		*,
+		*::before,
+		*::after {
+			animation-duration: 0.01ms !important;
+			animation-iteration-count: 1 !important;
+			transition-duration: 0.01ms !important;
+			scroll-behavior: auto !important;
+		}
+	}
+}
+
+/*
+ * Zona oscura (spec 018, FR-099): en tema claro la barra superior es azul marino, como en
+ * `light-2`. Se redefinen localmente los tokens para que sus hijos (selector de tema, menú de
+ * usuario) se adapten sin estilos propios. En tema oscuro no aplica.
+ */
+html:not([data-tema='dark']) .zona-oscura {
+	color-scheme: dark;
+	--texto: #f1f4fb;
+	--texto-suave: #b7c1d6;
+	--texto-tenue: #9fabc2;
+	--superficie: #26324f;
+	--superficie-2: #2c3a5a;
+	--superficie-3: #34446a;
+	--borde: #34415f;
+	--borde-fuerte: #46557a;
+	--primario-suave: #2a3a66;
+	--primario-texto: #c5d0ff;
+	--foco: #c5d0ff;
+	--sombra-elevada: 0 18px 40px -16px rgba(8, 12, 24, 0.7);
+}

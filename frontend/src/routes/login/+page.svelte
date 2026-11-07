@@ -1,19 +1,15 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
 	import { ApiError } from '#lib/api/client';
 	import { cambiarPassword, login, obtenerSsoConfig, urlInicioSso } from '#lib/api/auth';
 	import { CambioPasswordSchema, LoginSchema } from '#lib/schemas/auth';
 	import { refrescarSesion, sesion } from '#lib/stores/sesion';
-	import { elegirPreferencia, iniciarTema, preferencia } from '#lib/tema/tema';
-	import type { PreferenciaTema } from '#lib/tema/tema';
+	import Aviso from '#lib/components/ui/Aviso.svelte';
+	import Boton from '#lib/components/ui/Boton.svelte';
+	import Campo from '#lib/components/ui/Campo.svelte';
+	import Icono from '#lib/components/ui/Icono.svelte';
+	import Tarjeta from '#lib/components/ui/Tarjeta.svelte';
 	type SsoConfig = Awaited<ReturnType<typeof obtenerSsoConfig>>;
-
-	const opcionesTema: { valor: PreferenciaTema; etiqueta: string; titulo: string }[] = [
-		{ valor: 'light', etiqueta: 'Light', titulo: 'Tema claro' },
-		{ valor: 'dark', etiqueta: 'Dark', titulo: 'Tema oscuro' },
-		{ valor: 'system', etiqueta: 'System', titulo: 'Seguir al sistema' }
-	];
 
 	let modo = $state<'login' | 'cambio'>('login');
 	let email = $state('');
@@ -24,10 +20,6 @@
 	let error = $state<string | null>(null);
 	let enviando = $state(false);
 	let ssoConfig = $state<SsoConfig | null>(null);
-
-	// Reaplica el tema al hidratar y escucha cambios del sistema mientras la preferencia sea
-	// "system"; el script de app.html ya lo aplicó antes del primer pintado (FR-080).
-	onMount(iniciarTema);
 
 	// Si llegamos con sesión activa y password temporal, directo al cambio.
 	$effect(() => {
@@ -116,209 +108,122 @@
 	<title>{modo === 'login' ? 'Iniciar sesión' : 'Cambio de contraseña'} · Stockmante</title>
 </svelte:head>
 
-<div class="login-lienzo">
-	<div class="login-panel">
-		<div class="login-barra-tema">
-			<span class="login-campo-etiqueta mb-0">Tema</span>
-			<div class="login-tema" role="group" aria-label="Tema de la interfaz">
-				{#each opcionesTema as opcion (opcion.valor)}
-					<button
-						type="button"
-						class="login-tema-opcion"
-						aria-pressed={$preferencia === opcion.valor}
-						title={opcion.titulo}
-						onclick={() => elegirPreferencia(opcion.valor)}
-					>
-						{#if opcion.valor === 'light'}
-							<svg
-								width="13"
-								height="13"
-								viewBox="0 0 24 24"
-								fill="none"
-								stroke="currentColor"
-								stroke-width="1.8"
-								stroke-linecap="round"
-								aria-hidden="true"
-							>
-								<circle cx="12" cy="12" r="4" />
-								<path
-									d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"
-								/>
-							</svg>
-						{:else if opcion.valor === 'dark'}
-							<svg
-								width="13"
-								height="13"
-								viewBox="0 0 24 24"
-								fill="none"
-								stroke="currentColor"
-								stroke-width="1.8"
-								stroke-linecap="round"
-								stroke-linejoin="round"
-								aria-hidden="true"
-							>
-								<path d="M20 14.5A8.5 8.5 0 0 1 9.5 4 7 7 0 1 0 20 14.5Z" />
-							</svg>
-						{:else}
-							<svg
-								width="13"
-								height="13"
-								viewBox="0 0 24 24"
-								fill="none"
-								stroke="currentColor"
-								stroke-width="1.8"
-								stroke-linecap="round"
-								aria-hidden="true"
-							>
-								<rect x="2.5" y="4" width="19" height="13" rx="2" />
-								<path d="M8 21h8M12 17v4" />
-							</svg>
-						{/if}
-						{opcion.etiqueta}
-					</button>
-				{/each}
-			</div>
-		</div>
-
-		<div class="login-tarjeta">
-			<div class="mb-4 flex items-center gap-3">
-				<span class="login-marca" aria-hidden="true">
-					<svg
-						width="17"
-						height="17"
-						viewBox="0 0 16 16"
-						fill="none"
-						stroke="currentColor"
-						stroke-width="1.3"
-						stroke-linejoin="round"
-					>
-						<path d="M8 1.6 13.6 4.8v6.4L8 14.4 2.4 11.2V4.8L8 1.6Z" />
-						<path d="M2.6 4.9 8 8l5.4-3.1M8 8v6.2" />
-					</svg>
+<div class="acceso-panel">
+	<Tarjeta>
+		<div class="acceso-contenido">
+			<div class="acceso-encabezado">
+				<span class="acceso-marca" aria-hidden="true">
+					<Icono nombre="stock" tamano={20} />
 				</span>
 				<div>
-					<p class="login-kicker">Sistema de inventario</p>
-					<h1 class="login-titulo">Stockmante</h1>
+					<p class="acceso-kicker">Sistema de inventario</p>
+					<h1 class="acceso-titulo">Stockmante</h1>
 				</div>
 			</div>
 
 			{#if modo === 'login'}
-				<p class="login-subtitulo">Iniciá sesión para continuar</p>
+				<p class="acceso-subtitulo">Iniciá sesión para continuar</p>
 
 				<form
-					class="flex flex-col gap-3.5"
+					class="acceso-form"
 					onsubmit={(e) => {
 						e.preventDefault();
 						void enviarLogin();
 					}}
 				>
-					<label class="block">
-						<span class="login-campo-etiqueta">Email</span>
-						<input
-							class="login-campo"
-							type="email"
-							autocomplete="username"
-							bind:value={email}
-							required
-						/>
-					</label>
-					<label class="block">
-						<span class="login-campo-etiqueta">Contraseña</span>
-						<input
-							class="login-campo"
-							type="password"
-							autocomplete="current-password"
-							bind:value={password}
-							required
-						/>
-					</label>
+					<Campo
+						etiqueta="Email"
+						nombre="email"
+						tipo="email"
+						autocomplete="username"
+						bind:valor={email}
+						requerido={true}
+					/>
+					<Campo
+						etiqueta="Contraseña"
+						nombre="password"
+						tipo="password"
+						autocomplete="current-password"
+						bind:valor={password}
+						requerido={true}
+					/>
 
-					{#if error}
-						<p class="login-error" role="alert">{error}</p>
-					{/if}
+					{#if error}<Aviso variante="error">{error}</Aviso>{/if}
 
-					<button
-						type="submit"
-						disabled={enviando}
-						aria-busy={enviando}
-						class="login-primario mt-1"
-					>
+					<Boton tipo="submit" cargando={enviando} anchoCompleto={true}>
 						{enviando ? 'Ingresando…' : 'Ingresar'}
-					</button>
+					</Boton>
 				</form>
 
-				<div class="mt-5 flex flex-col gap-2">
+				<div class="acceso-secundarios">
 					{#if ssoConfig?.google_disponible}
-						<a class="login-secundario" href={urlInicioSso('google')}>Continuar con Google</a>
+						<Boton href={urlInicioSso('google')} variante="secundario" anchoCompleto={true}>
+							Continuar con Google
+						</Boton>
 					{/if}
 					{#if ssoConfig?.microsoft_disponible}
-						<a class="login-secundario" href={urlInicioSso('microsoft')}>
+						<Boton href={urlInicioSso('microsoft')} variante="secundario" anchoCompleto={true}>
 							Continuar con Microsoft
-						</a>
+						</Boton>
 					{/if}
 					{#if ssoConfig === null || (!ssoConfig.google_disponible && !ssoConfig.microsoft_disponible)}
-						<p class="login-sin-sso">Sin proveedores SSO configurados</p>
+						<p class="acceso-sin-sso">Sin proveedores SSO configurados</p>
 					{/if}
-					<p class="login-pie mt-2">
-						¿No tenés cuenta? <a class="login-enlace" href="/registro">Registrate</a>
-					</p>
 				</div>
 			{:else}
-				<p class="login-aviso mb-5">Tu contraseña es temporal: creá una nueva para continuar.</p>
+				<p class="acceso-subtitulo">Definí una contraseña nueva para continuar</p>
+				<Aviso variante="advertencia">
+					Tu contraseña es temporal: creá una nueva para continuar.
+				</Aviso>
 
 				<form
-					class="flex flex-col gap-3.5"
+					class="acceso-form"
 					onsubmit={(e) => {
 						e.preventDefault();
 						void enviarCambio();
 					}}
 				>
-					<label class="block">
-						<span class="login-campo-etiqueta">Contraseña actual (temporal)</span>
-						<input
-							class="login-campo"
-							type="password"
-							autocomplete="current-password"
-							bind:value={passwordActual}
-							required
-						/>
-					</label>
-					<label class="block">
-						<span class="login-campo-etiqueta">Contraseña nueva</span>
-						<input
-							class="login-campo"
-							type="password"
-							autocomplete="new-password"
-							bind:value={passwordNueva}
-							required
-						/>
-					</label>
-					<p class="login-ayuda -mt-1.5">Mínimo 8 caracteres, 1 mayúscula y 1 dígito</p>
-					<label class="block">
-						<span class="login-campo-etiqueta">Repetir contraseña nueva</span>
-						<input
-							class="login-campo"
-							type="password"
-							autocomplete="new-password"
-							bind:value={repetir}
-							required
-						/>
-					</label>
+					<Campo
+						etiqueta="Contraseña actual (temporal)"
+						nombre="password_actual"
+						tipo="password"
+						autocomplete="current-password"
+						bind:valor={passwordActual}
+						requerido={true}
+					/>
+					<Campo
+						etiqueta="Contraseña nueva"
+						nombre="password_nueva"
+						tipo="password"
+						autocomplete="new-password"
+						ayuda="Mínimo 8 caracteres, 1 mayúscula y 1 dígito"
+						bind:valor={passwordNueva}
+						requerido={true}
+					/>
+					<Campo
+						etiqueta="Repetir contraseña nueva"
+						nombre="repetir"
+						tipo="password"
+						autocomplete="new-password"
+						bind:valor={repetir}
+						requerido={true}
+					/>
 
-					{#if error}
-						<p class="login-error" role="alert">{error}</p>
-					{/if}
+					{#if error}<Aviso variante="error">{error}</Aviso>{/if}
 
-					<button
-						type="submit"
-						disabled={enviando}
-						aria-busy={enviando}
-						class="login-primario mt-1"
-					>
+					<Boton tipo="submit" cargando={enviando} anchoCompleto={true}>
 						{enviando ? 'Guardando…' : 'Guardar contraseña'}
-					</button>
+					</Boton>
 				</form>
 			{/if}
 		</div>
-	</div>
+	</Tarjeta>
+
+	<p class="acceso-pie">
+		{#if modo === 'login'}
+			¿No tenés cuenta? <a class="acceso-enlace" href="/registro">Registrate</a>
+		{:else}
+			<a class="acceso-enlace" href="/login">Volver al inicio de sesión</a>
+		{/if}
+	</p>
 </div>

@@ -34,10 +34,26 @@ Decisiones confirmadas por el usuario en esta sesión (opción recomendada en lo
   blancas sobre fondo gris azulado, acento azul, acentos teal y ámbar, y variante oscura azul
   noche. La paleta crema/naranja se retira.
 - Q: ¿Cómo se resuelven los gráficos del tablero sin sumar dependencias? → A: Con SVG y CSS propios
-  (barras, dona y línea), sin librería de gráficos ni de iconos; los iconos son SVG inline.
+  (barras y dona), sin librería de gráficos ni de iconos; los iconos son SVG inline.
 - Q: ¿Se rediseñan todas las páginas en una sola entrega o de a una? → A: Todas las capturadas, en
   incrementos por grupo (marco, acceso, operación, administración) y con evidencia visual por
   página en ambos temas antes de considerarla terminada.
+
+### Session 2026-11-07 (2) — tipografía y segunda pasada de fidelidad
+
+Pedido del usuario al retomar la spec: cambiar la tipografía del sitio por **Outfit**
+(<https://fonts.google.com/specimen/Outfit>) y acercar todavía más las pantallas a las muestras.
+
+- Q: ¿Cómo se incorpora Outfit sin depender de un CDN en tiempo de ejecución? → A: Autoalojada con
+  el paquete `@fontsource-variable/outfit` (licencia OFL, eje de peso 100–900, subconjuntos latin y
+  latin-ext), importado una sola vez desde `routes/layout.css`. No se usa `fonts.googleapis.com`:
+  la SPA funciona sin conexión externa y no filtra visitas a terceros. La pila del sistema queda
+  como respaldo y la monoespaciada se conserva solo para datos técnicos (SKU, IDs).
+- Q: ¿Qué rasgos de las muestras faltan tras la primera pasada? → A: (1) barra superior azul
+  marino en el tema claro, como en `light-2`, con saludo personalizado en Inicio; (2) ítem activo de
+  la barra lateral en forma de píldora apoyada en el borde; (3) marca bicolor "Stock**mante**";
+  (4) acento primario azul real (`#1F3BB3`) de la muestra clara y azul eléctrico en la oscura;
+  (5) pie de página del marco; (6) indicadores de Inicio como franja de métricas.
 
 ## Escenarios de Usuario y Pruebas *(obligatorio)*
 
@@ -58,9 +74,9 @@ tras recargar, y que no hay desborde horizontal entre 320 px y 1440 px.
 **Escenarios de aceptación**:
 
 1. **Dado** un usuario autenticado, **Cuando** entra a cualquier ruta privada, **Entonces** ve la
-   barra lateral con los grupos "Operación" y "Administración", la barra superior con el título de
-   la página, su nombre y rol, el selector de tema y el menú de sesión, y el contenido dentro del
-   área principal.
+   barra lateral con el grupo "Operación" y, si es `GESTION`, también "Administración"; la barra
+   superior con el título de la página, su nombre y rol, el selector de tema y el menú de sesión; y el
+   contenido dentro del área principal.
 2. **Dado** un usuario `OPERACION`, **Cuando** mira la barra lateral, **Entonces** no aparecen
    Productos, Categorías, Depósitos, Stock, Proveedores, Compras, Usuarios ni Auditoría, y ninguna
    ruta de administración queda accesible por navegación (el backend sigue siendo la autoridad).
@@ -84,8 +100,8 @@ pueden conservar su contenido interno anterior.
 ### User Story 18.2 - Inicio como tablero operativo (Prioridad: P2)
 
 Como **gerente u operario**, quiero que la pantalla de Inicio resuma el estado del inventario —stock
-bajo mínimo, productos activos, movimientos recientes y evolución— para empezar el día con contexto
-y detectar problemas sin navegar página por página.
+bajo mínimo, productos activos, movimientos recientes y distribución del stock— para empezar el día
+con contexto y detectar problemas sin navegar página por página.
 
 **Por qué esta prioridad**: es la pantalla que la muestra usa como referencia y el punto de entrada
 diario; además demuestra que el lenguaje visual funciona con datos reales, no solo con formularios.
@@ -284,10 +300,19 @@ y los mensajes son los de antes, con la nueva presentación.
   `dark-2`: marco de administración con barra lateral blanca (clara) o azul noche (oscura), barra
   superior, fondo gris azulado o azul noche, tarjetas de superficie con borde y radio moderado,
   acento primario azul, acentos secundarios teal y ámbar, tipografía sans compacta y jerarquía
-  título/subtítulo/etiqueta. La paleta crema/naranja de la iteración anterior queda retirada.
+  título/subtítulo/etiqueta en Outfit (FR-098). La paleta crema/naranja de la iteración anterior queda retirada.
 - **FR-087 Entrega incremental por página.** El rediseño DEBE completarse página por página, y cada
   página se considera terminada solo cuando tiene su evidencia visual en ambos temas, sus estados
   cubiertos y cero regresiones funcionales.
+
+- **FR-098 Tipografía Outfit.** Toda la interfaz (marco, acceso, páginas, gráficos y controles de
+  formulario) DEBE usar la familia **Outfit** autoalojada como fuente sans, con la pila del sistema
+  como respaldo; la fuente monoespaciada se reserva para SKU, IDs y valores técnicos. No se cargan
+  fuentes desde CDN en tiempo de ejecución.
+- **FR-099 Fidelidad del marco a las muestras.** El marco DEBE reproducir los rasgos distintivos de
+  `light-2`/`dark-2`: barra superior azul marino en tema claro (y del color del fondo en oscuro),
+  saludo con el nombre del usuario en Inicio, ítem activo en píldora apoyada en el borde de la barra
+  lateral, marca bicolor, acento primario azul real y pie de página; todo con contraste AA.
 
 ### Marco y navegación
 
@@ -297,11 +322,12 @@ y los mensajes son los de antes, con la nueva presentación.
 - **FR-089 Navegación agrupada y RBAC.** La barra lateral DEBE agrupar "Operación" (Inicio, Caja,
   Movimientos, Transferencias, Conteos, Asistente) y "Administración" (Productos, Categorías,
   Depósitos, Stock, Proveedores, Compras, Usuarios, Auditoría), con icono, etiqueta y estado activo;
-  los ítems de administración SOLO se muestran a `GESTION` y el ítem Stock muestra el contador de
-  bajo mínimo cuando es mayor que cero.
+  Conteos y los ítems de Administración SOLO se muestran a `GESTION`, los grupos sin ítems visibles
+  no se renderizan y el ítem Stock muestra el contador de bajo mínimo cuando es mayor que cero.
 - **FR-090 Tablero de Inicio.** Inicio DEBE mostrar indicadores, gráficos, actividad reciente y
   accesos rápidos construidos únicamente con endpoints existentes, sin nuevas rutas de backend ni
-  cambios de esquema; cada widget DEBE resolver su propia carga, vacío y error y respetar el rol.
+  cambios de esquema; cada widget DEBE resolver su propia carga, vacío y error, respetar el rol y
+  ocultarse si su endpoint no está disponible en el entorno.
 - **FR-091 Patrón de página operativa.** Caja, Movimientos, Transferencias, Conteos y Asistente
   DEBEN usar el patrón encabezado (título, descripción, acción principal) + tarjeta de formulario +
   tarjeta de resultado/historial, conservando el resultado concreto que exige el Principio III.
@@ -323,7 +349,7 @@ y los mensajes son los de antes, con la nueva presentación.
 - **FR-097 Sin cambios de comportamiento.** El rediseño NO DEBE modificar endpoints, contratos,
   esquema, reglas de negocio, validaciones ni permisos; la suite existente DEBE seguir en verde y
   solo se agregan pruebas unitarias para la lógica pura nueva (navegación, formato y escalas de
-  gráficos).
+  gráficos) y para el cliente tipado de reportes.
 
 ## Entidades Clave *(modelo de diseño, sin datos nuevos)*
 
@@ -345,13 +371,16 @@ El detalle de estas entidades vive en `data-model.md` del plan.
 - **SC-033** Cero regresiones funcionales en los cuatro recorridos de acceso (login con y sin SSO,
   registro, verificación con y sin token y cambio obligatorio de contraseña): los escenarios de 001
   se cumplen y la suite de frontend queda en verde.
-- **SC-034** Ninguna de las 18 rutas presenta desborde horizontal entre 320 px y 1440 px, y todo
-  texto y control alcanza contraste AA en ambos temas.
+- **SC-034** Ninguna de las 17 rutas ni el modo de cambio de contraseña presenta desborde horizontal
+  entre 320 px y 1440 px, y todo texto y control alcanza contraste AA en ambos temas.
 - **SC-035** Comparación visual contra `light-2`/`dark-2` a 1440×900: el marco (barra lateral, barra
   superior, área de contenido), las tarjetas, la paleta y la tipografía se reconocen como la misma
   familia visual en el 100 % de las páginas.
 - **SC-036** Cada página rediseñada se entrega con sus dos capturas (claro y oscuro), su chequeo a
   320 px y cero regresiones en sus flujos existentes.
+- **SC-038** Las 17 rutas y el modo de cambio de contraseña renderizan con Outfit (verificable con
+  `document.fonts.check('16px "Outfit Variable"')` y la fuente calculada del `body`), sin
+  solicitudes a dominios de fuentes externos.
 - **SC-037** Las 17 capturas de `captures/` tienen su página rediseñada: las 14 rutas privadas son
   alcanzables desde el marco, las 3 rutas públicas se enlazan desde el acceso y ningún ítem de
   navegación queda sin página ni página privada queda fuera de la navegación.
@@ -364,8 +393,9 @@ El detalle de estas entidades vive en `data-model.md` del plan.
   320 px; no se diseña una experiencia móvil específica más allá del panel lateral superpuesto.
 - No hay cambios de backend, API ni base de datos; el tablero lee endpoints ya implementados y
   tolera que alguno no esté disponible según el rol o el entorno.
-- No se incorporan librerías de gráficos, iconos, componentes ni fuentes externas; se usan SVG/CSS
-  propios y la pila tipográfica del sistema.
+- No se incorporan librerías de gráficos, iconos ni componentes; se usan SVG/CSS propios. La única
+  dependencia visual agregada es la fuente Outfit autoalojada (`@fontsource-variable/outfit`, FR-098),
+  que reemplaza a la pila tipográfica del sistema.
 - Los textos siguen en español (es-AR), sin internacionalización nueva.
 - La implementación parcial existente de tema (`tema.ts`, script de `app.html`, login con paleta
   crema/naranja) se conserva en su lógica y se re-piela con la nueva identidad; no se descarta el

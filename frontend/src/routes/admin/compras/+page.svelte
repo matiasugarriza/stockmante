@@ -20,9 +20,24 @@
 	import type { Proveedor } from '#lib/schemas/proveedores';
 	import { sesion } from '#lib/stores/sesion';
 	import { mensajeError } from '#lib/utils/errores';
-	import { paginaValida, totalPaginas } from '#lib/utils/paginacion';
+	import { avisoResultadoCompra } from '#lib/utils/compras';
+	import { paginaValida } from '#lib/utils/paginacion';
+	import Aviso from '#lib/components/ui/Aviso.svelte';
+	import Boton from '#lib/components/ui/Boton.svelte';
+	import Campo from '#lib/components/ui/Campo.svelte';
+	import EncabezadoPagina from '#lib/components/ui/EncabezadoPagina.svelte';
+	import EstadoVacio from '#lib/components/ui/EstadoVacio.svelte';
+	import Paginacion from '#lib/components/ui/Paginacion.svelte';
+	import Tarjeta from '#lib/components/ui/Tarjeta.svelte';
 
 	const POR_PAGINA = 20;
+
+	const OPCIONES_ESTADO = [
+		{ valor: '', etiqueta: 'Todas' },
+		{ valor: 'BORRADOR', etiqueta: 'Borrador' },
+		{ valor: 'CONFIRMADA', etiqueta: 'Confirmada' },
+		{ valor: 'ANULADA', etiqueta: 'Anulada' }
+	];
 
 	let compras = $state<Compra[]>([]);
 	let proveedores = $state<Proveedor[]>([]);
@@ -39,7 +54,6 @@
 	let aviso = $state<string | null>(null);
 	let modalAbierto = $state(false);
 	let editando = $state<CompraDetalle | null>(null);
-	const paginas = $derived(totalPaginas(total, POR_PAGINA));
 	const puedeCrear = $derived(
 		proveedores.length > 0 && depositos.length > 0 && productos.length > 0
 	);
@@ -109,10 +123,10 @@
 		await cargar();
 	}
 
-	async function irAPagina(nueva: number) {
-		if (cargando || nueva === pagina || nueva < 1 || nueva > paginas) return;
+	function irAPagina(nueva: number) {
+		if (cargando || nueva === pagina || nueva < 1) return;
 		pagina = nueva;
-		await cargar();
+		void cargar();
 	}
 
 	function abrirAlta() {
@@ -168,8 +182,7 @@
 		error = null;
 		aviso = null;
 		try {
-			await confirmarCompra(compra.id);
-			aviso = `Compra #${compra.id} confirmada. El stock ya está actualizado.`;
+			aviso = avisoResultadoCompra(await confirmarCompra(compra.id));
 			await cargar();
 		} catch (e) {
 			error = mensajeError(e, 'No se pudo confirmar la compra.');
@@ -181,8 +194,7 @@
 		error = null;
 		aviso = null;
 		try {
-			await anularCompra(compra.id);
-			aviso = `Compra #${compra.id} anulada.`;
+			aviso = avisoResultadoCompra(await anularCompra(compra.id));
 			await cargar();
 		} catch (e) {
 			error = mensajeError(e, 'No se pudo anular la compra.');
@@ -207,103 +219,63 @@
 	<title>Compras · Stockmante</title>
 </svelte:head>
 
-<div class="flex flex-col gap-4">
-	<div class="flex flex-wrap items-center justify-between gap-2">
-		<div>
-			<h1 class="text-xl font-semibold">Compras</h1>
-			<p class="text-sm text-slate-500">
-				Compras en borrador, confirmación de recepción con entrada de stock y anulación.
-			</p>
-		</div>
-		<button
-			class="rounded bg-slate-800 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700 disabled:cursor-not-allowed disabled:opacity-40"
-			onclick={abrirAlta}
-			disabled={!puedeCrear}
-		>
-			Nueva compra
-		</button>
-	</div>
+<div class="pagina">
+	<EncabezadoPagina
+		titulo="Compras"
+		descripcion="Compras en borrador, confirmación de recepción con entrada de stock y anulación."
+	>
+		<Boton icono="mas" deshabilitado={!puedeCrear} onclick={abrirAlta}>Nueva compra</Boton>
+	</EncabezadoPagina>
 
-	{#if !puedeCrear && (proveedores.length === 0 || depositos.length === 0 || productos.length === 0)}
-		<p class="rounded border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+	{#if !puedeCrear}
+		<Aviso variante="advertencia">
 			Para crear una compra necesitás al menos un proveedor activo, un depósito activo y un
 			producto activo.
-		</p>
+		</Aviso>
 	{/if}
+	{#if error}<Aviso variante="error">{error}</Aviso>{/if}
+	{#if aviso}<Aviso variante="exito">{aviso}</Aviso>{/if}
 
-	{#if error}
-		<p class="rounded border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>
-	{/if}
-	{#if aviso}
-		<p class="rounded border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700">
-			{aviso}
-		</p>
-	{/if}
+	<Tarjeta>
+		<div class="filtros">
+			<Campo
+				etiqueta="Estado"
+				nombre="filtro-estado"
+				tipo="select"
+				opciones={OPCIONES_ESTADO}
+				bind:valor={filtroEstado}
+				onchange={(valor) => void cambiarFiltro(valor as '' | EstadoCompra)}
+			/>
+		</div>
+	</Tarjeta>
 
-	<div class="flex items-center gap-2 text-sm">
-		<label class="flex items-center gap-2">
-			<span class="text-slate-500">Estado</span>
-			<select
-				class="rounded border border-slate-300 px-3 py-1.5"
-				bind:value={filtroEstado}
-				onchange={() => void cambiarFiltro(filtroEstado)}
-			>
-				<option value="">Todas</option>
-				<option value="BORRADOR">Borrador</option>
-				<option value="CONFIRMADA">Confirmada</option>
-				<option value="ANULADA">Anulada</option>
-			</select>
-		</label>
-	</div>
-
-	{#if cargando}
-		<p class="py-6 text-center text-sm text-slate-500">Cargando compras...</p>
-	{:else if compras.length === 0}
-		<div class="rounded border border-dashed border-slate-300 bg-white px-6 py-10 text-center">
-			<p class="text-sm font-medium text-slate-700">No hay compras en este filtro.</p>
-			<p class="mt-1 text-sm text-slate-500">
-				{puedeCrear
+	{#if !cargando && compras.length === 0}
+		<Tarjeta>
+			<EstadoVacio
+				icono="compras"
+				titulo="No hay compras en este filtro"
+				descripcion={puedeCrear
 					? 'Creá una compra en borrador y confirmá la recepción cuando llegue la mercadería.'
 					: 'Primero cargá proveedores, depósitos y productos activos.'}
-			</p>
-			{#if puedeCrear}
-				<button
-					class="mt-4 rounded bg-slate-800 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700"
-					onclick={abrirAlta}
-				>
-					Crear la primera compra
-				</button>
-			{/if}
-		</div>
+			>
+				{#if puedeCrear}
+					<Boton icono="mas" onclick={abrirAlta}>Crear la primera compra</Boton>
+				{/if}
+			</EstadoVacio>
+		</Tarjeta>
 	{:else}
-		<CompraTabla
-			{compras}
-			onEditar={(compra) => void abrirEdicion(compra)}
-			onConfirmar={(compra) => void confirmar(compra)}
-			onAnular={(compra) => void anular(compra)}
-			onEliminar={(compra) => void eliminar(compra)}
-		/>
-		<div class="flex flex-wrap items-center justify-between gap-2">
-			<p class="text-xs text-slate-500">
-				{compras.length} de {total} compra{total === 1 ? '' : 's'} · página {pagina} de
-				{paginas}
-			</p>
-			<div class="flex items-center gap-2">
-				<button
-					class="rounded border border-slate-300 px-3 py-1 text-sm text-slate-600 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-40"
-					disabled={pagina <= 1}
-					onclick={() => void irAPagina(pagina - 1)}
-				>
-					Anterior
-				</button>
-				<button
-					class="rounded border border-slate-300 px-3 py-1 text-sm text-slate-600 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-40"
-					disabled={pagina >= paginas}
-					onclick={() => void irAPagina(pagina + 1)}
-				>
-					Siguiente
-				</button>
-			</div>
+		<Tarjeta densa={true}>
+			<CompraTabla
+				{compras}
+				{cargando}
+				onEditar={(compra) => void abrirEdicion(compra)}
+				onConfirmar={(compra) => void confirmar(compra)}
+				onAnular={(compra) => void anular(compra)}
+				onEliminar={(compra) => void eliminar(compra)}
+			/>
+		</Tarjeta>
+		<div class="pie">
+			<Paginacion {pagina} {total} porPagina={POR_PAGINA} onCambiar={irAPagina} />
 		</div>
 	{/if}
 </div>
@@ -320,3 +292,25 @@
 		onCerrar={cerrarModal}
 	/>
 {/if}
+
+<style>
+	.pagina {
+		display: flex;
+		flex-direction: column;
+		gap: 14px;
+	}
+
+	.filtros {
+		display: flex;
+		align-items: flex-end;
+		gap: 12px;
+	}
+
+	.filtros :global(.campo) {
+		min-width: 220px;
+	}
+
+	.pie {
+		padding: 0 2px;
+	}
+</style>

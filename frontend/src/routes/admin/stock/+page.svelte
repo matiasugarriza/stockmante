@@ -2,20 +2,111 @@
 	import { onMount } from 'svelte';
 	import { ApiError } from '#lib/api/client';
 	import { listarDepositos } from '#lib/api/depositos';
-	import { listarStock } from '#lib/api/stock';
+	import { listarCategorias } from '#lib/api/categorias';
+	import { listarStock, obtenerStockProducto } from '#lib/api/stock';
+	import type { Categoria } from '#lib/schemas/categorias';
 	import type { Deposito } from '#lib/schemas/depositos';
-	import type { StockItem } from '#lib/schemas/movimientos';
+	import type { StockItem, StockProducto } from '#lib/schemas/movimientos';
+	import { formatearNumero } from '#lib/utils/formato';
+	import { textoValorizado } from '#lib/utils/stock';
+	import Aviso from '#lib/components/ui/Aviso.svelte';
+	import Boton from '#lib/components/ui/Boton.svelte';
+	import Campo from '#lib/components/ui/Campo.svelte';
+	import EncabezadoPagina from '#lib/components/ui/EncabezadoPagina.svelte';
+	import EstadoVacio from '#lib/components/ui/EstadoVacio.svelte';
+	import EtiquetaEstado from '#lib/components/ui/EtiquetaEstado.svelte';
+	import Paginacion from '#lib/components/ui/Paginacion.svelte';
+	import TablaDatos from '#lib/components/ui/TablaDatos.svelte';
+	import Tarjeta from '#lib/components/ui/Tarjeta.svelte';
+	import type { Columna } from '#lib/components/ui/tabla';
+	import { enviarAlertas, listarAlertas } from '#lib/api/alertas';
+	import type { AlertaItem } from '#lib/schemas/alertas';
+
+	// 011: sección destacada "Bajo mínimo" (independiente del filtro de 010).
+	let alertas = $state<AlertaItem[]>([]);
+	let totalAlertas = $state(0);
+	let errorAlertas = $state('');
+	let resultadoEnvio = $state('');
+	let enviando = $state(false);
+
+	async function cargarAlertasBajoMinimo() {
+		errorAlertas = '';
+		try {
+			const res = await listarAlertas({ porPagina: 10 });
+			alertas = res.items;
+			totalAlertas = res.total;
+		} catch (e) {
+			errorAlertas = `No se pudieron cargar las alertas: ${e instanceof ApiError ? e.message : 'sin respuesta'}.`;
+		}
+	}
+
+	async function enviarDigest() {
+		enviando = true;
+		resultadoEnvio = '';
+		try {
+			const r = await enviarAlertas();
+			resultadoEnvio =
+				r.fallidos > 0
+					? `Se enviaron ${r.enviados} avisos; ${r.fallidos} fallaron y se reintentan en el próximo ciclo.`
+					: `Se enviaron ${r.enviados} avisos a ${r.destinatarios} gestores (${r.productos} productos bajo mínimo).`;
+		} catch (e) {
+			resultadoEnvio = `No se pudo disparar el envío: ${e instanceof ApiError ? e.message : 'sin respuesta'}.`;
+		} finally {
+			enviando = false;
+		}
+	}
+
+	const OPCIONES_ACTIVO = [
+		{ valor: 'true', etiqueta: 'Activos' },
+		{ valor: 'false', etiqueta: 'Inactivos' },
+		{ valor: 'all', etiqueta: 'Todos' }
+	];
 
 	let depositos = $state<Deposito[]>([]);
+	let categorias = $state<Categoria[]>([]);
 	let depositoId = $state('');
+	let categoriaId = $state('');
+	let activo = $state('true');
 	let q = $state('');
 	let bajoMinimo = $state(false);
+	let errorFiltros = $state('');
+	let detalle = $state<StockProducto | null>(null);
+	let errorDetalle = $state('');
+
+	// 010: stock global, en depósito (si hay uno elegido), mínimo, faltante y valorizado.
+	const COLUMNAS: Columna<StockItem>[] = $derived([
+		{ clave: 'nombre', encabezado: 'Producto' },
+		{ clave: 'sku', encabezado: 'SKU' },
+		{ clave: 'stock_actual', encabezado: 'Stock global', alineacion: 'derecha' },
+		...(depositoId
+			? [{ clave: 'stock_deposito', encabezado: 'En depósito', alineacion: 'derecha' as const }]
+			: []),
+		{ clave: 'stock_minimo', encabezado: 'Mínimo', alineacion: 'derecha' },
+		{ clave: 'faltante', encabezado: 'Faltante', alineacion: 'derecha' },
+		{ clave: 'costo', encabezado: 'Costo', alineacion: 'derecha' },
+		{ clave: 'valorizado', encabezado: 'Valorizado', alineacion: 'derecha' },
+		{ clave: 'bajo_minimo', encabezado: 'Bajo mínimo' }
+	]);
 	let items = $state<StockItem[]>([]);
 	let total = $state(0);
 	let pagina = $state(1);
 	const porPagina = 20;
 	let cargando = $state(false);
 	let error = $state('');
+
+	const opcionesDepositos = $derived([
+		{ valor: '', etiqueta: 'Todos' },
+		...depositos.map((deposito) => ({ valor: String(deposito.id), etiqueta: deposito.nombre }))
+	]);
+
+	const opcionesCategorias = $derived([
+		{ valor: '', etiqueta: 'Todas' },
+		...categorias.map((categoria) => ({ valor: String(categoria.id), etiqueta: categoria.nombre }))
+	]);
+
+	function motivo(e: unknown, generico: string): string {
+		return e instanceof ApiError ? e.message : generico;
+	}
 
 	async function cargar() {
 		cargando = true;
@@ -24,6 +115,8 @@
 			const res = await listarStock({
 				q: q || undefined,
 				depositoId: depositoId ? Number(depositoId) : undefined,
+				categoriaId: categoriaId ? Number(categoriaId) : undefined,
+				activo: activo as 'true' | 'false' | 'all',
 				bajoMinimo,
 				pagina,
 				porPagina
@@ -31,82 +124,350 @@
 			items = res.items;
 			total = res.total;
 		} catch (e) {
-			error = e instanceof ApiError ? e.message : 'No se pudo cargar el stock';
+			error = `No se pudo cargar el stock: ${motivo(e, 'el servidor no respondió')}. Revisá la conexión y reintentá.`;
 		} finally {
 			cargando = false;
 		}
 	}
 
-	onMount(async () => {
+	/** Depósitos y categorías para los filtros; un fallo se informa, no se descarta. */
+	async function cargarFiltros() {
+		errorFiltros = '';
 		try {
-			depositos = await listarDepositos('true');
-		} catch {
-			depositos = [];
+			[depositos, categorias] = await Promise.all([
+				listarDepositos('true'),
+				listarCategorias('all')
+			]);
+		} catch (e) {
+			errorFiltros = `No se pudieron cargar los depósitos o las categorías: ${motivo(e, 'sin respuesta')}. Los filtros quedan incompletos hasta reintentar.`;
 		}
-		await cargar();
+	}
+
+	async function verDesglose(item: StockItem) {
+		errorDetalle = '';
+		try {
+			detalle = await obtenerStockProducto(item.producto_id);
+		} catch (e) {
+			detalle = null;
+			errorDetalle = `No se pudo abrir el desglose de ${item.nombre}: ${motivo(e, 'sin respuesta')}.`;
+		}
+	}
+
+	function aplicarFiltros() {
+		pagina = 1;
+		void cargar();
+	}
+
+	function cambiarPagina(nueva: number) {
+		pagina = nueva;
+		void cargar();
+	}
+
+	onMount(async () => {
+		await Promise.all([cargarFiltros(), cargar(), cargarAlertasBajoMinimo()]);
 	});
 </script>
 
-<div class="p-4 space-y-4">
-	<h1 class="text-2xl font-bold">Stock</h1>
+<svelte:head>
+	<title>Stock · Stockmante</title>
+</svelte:head>
+
+<div class="pagina">
+	<EncabezadoPagina
+		titulo="Stock"
+		descripcion="Consultá el stock por producto y depósito, y detectá los casos por debajo del mínimo."
+	/>
+
+	<Tarjeta>
+		<div class="detalle-cabecera">
+			<h2>Bajo mínimo ({totalAlertas})</h2>
+			<Boton onclick={() => void enviarDigest()} cargando={enviando}>Enviar aviso por correo</Boton>
+		</div>
+		{#if resultadoEnvio}<p class="detalle-resumen" aria-live="polite">{resultadoEnvio}</p>{/if}
+		{#if errorAlertas}
+			<Aviso variante="error">
+				{errorAlertas}
+				{#snippet accion()}<Boton onclick={() => void cargarAlertasBajoMinimo()}>Reintentar</Boton>{/snippet}
+			</Aviso>
+		{:else if alertas.length === 0}
+			<p class="detalle-resumen">Ningún producto activo está por debajo de su mínimo.</p>
+		{:else}
+			<ul class="desglose">
+				{#each alertas as a (a.producto_id)}
+					<li>
+						<span>{a.nombre} <span class="mono">{a.sku}</span></span>
+						<span class="numero">
+							stock {formatearNumero(a.stock_actual)} · mínimo {formatearNumero(a.stock_minimo)} ·
+							<strong class="alerta">faltan {formatearNumero(a.faltante)}</strong>
+						</span>
+					</li>
+				{/each}
+			</ul>
+			{#if totalAlertas > alertas.length}
+				<p class="detalle-resumen">
+					Y {totalAlertas - alertas.length} más: usá el filtro "Bajo mínimo" para verlos todos.
+				</p>
+			{/if}
+		{/if}
+	</Tarjeta>
 
 	{#if error}
-		<div class="rounded bg-red-100 text-red-700 px-3 py-2 text-sm">{error}</div>
+		<Aviso variante="error">
+			{error}
+			{#snippet accion()}<Boton onclick={() => void cargar()}>Reintentar</Boton>{/snippet}
+		</Aviso>
+	{/if}
+	{#if errorFiltros}
+		<Aviso variante="advertencia">
+			{errorFiltros}
+			{#snippet accion()}<Boton onclick={() => void cargarFiltros()}>Reintentar</Boton>{/snippet}
+		</Aviso>
 	{/if}
 
-	<div class="flex flex-wrap gap-3 items-end">
-		<label class="flex flex-col gap-1 text-sm">
-			<span>Buscar</span>
-			<input class="border rounded px-2 py-1" bind:value={q} onkeydown={(e) => e.key === 'Enter' && cargar()} />
-		</label>
-		<label class="flex flex-col gap-1 text-sm">
-			<span>Depósito</span>
-			<select class="border rounded px-2 py-1" bind:value={depositoId} onchange={cargar}>
-				<option value="">Todos</option>
-				{#each depositos as d}
-					<option value={d.id}>{d.nombre}</option>
-				{/each}
-			</select>
-		</label>
-		<label class="flex items-center gap-2 text-sm">
-			<input type="checkbox" bind:checked={bajoMinimo} onchange={cargar} />
-			Bajo mínimo
-		</label>
-		<button class="bg-blue-600 text-white rounded px-4 py-2" onclick={cargar}>Buscar</button>
-	</div>
-
-	{#if cargando}
-		<p class="text-sm text-gray-500">Cargando…</p>
-	{/if}
-
-	<table class="w-full text-sm border">
-		<thead class="bg-gray-100">
-			<tr>
-				<th class="p-2 text-left">Producto</th>
-				<th class="p-2 text-left">SKU</th>
-				<th class="p-2 text-right">Stock</th>
-				<th class="p-2 text-right">Mínimo</th>
-				<th class="p-2 text-right">Bajo mínimo</th>
-			</tr>
-		</thead>
-		<tbody>
-			{#each items as it}
-				<tr class="border-t">
-					<td class="p-2">{it.nombre}</td>
-					<td class="p-2">{it.sku}</td>
-					<td class="p-2 text-right">{it.stock_actual}</td>
-					<td class="p-2 text-right">{it.stock_minimo}</td>
-					<td class="p-2 text-right">{it.bajo_minimo ? 'Sí' : 'No'}</td>
-				</tr>
-			{/each}
-		</tbody>
-	</table>
-
-	<div class="flex justify-between text-sm">
-		<span>Total: {total}</span>
-		<div class="space-x-2">
-			<button class="border rounded px-2 py-1" disabled={pagina <= 1} onclick={() => { pagina--; cargar(); }}>Anterior</button>
-			<button class="border rounded px-2 py-1" disabled={pagina * porPagina >= total} onclick={() => { pagina++; cargar(); }}>Siguiente</button>
+	<Tarjeta>
+		<div class="filtros">
+			<Campo
+				etiqueta="Buscar"
+				nombre="q"
+				tipo="search"
+				marcador="Producto o SKU"
+				bind:valor={q}
+				onkeydown={(event) => {
+					if (event.key === 'Enter') aplicarFiltros();
+				}}
+			/>
+			<Campo
+				etiqueta="Depósito"
+				nombre="deposito"
+				tipo="select"
+				opciones={opcionesDepositos}
+				bind:valor={depositoId}
+				onchange={aplicarFiltros}
+			/>
+			<Campo
+				etiqueta="Categoría"
+				nombre="categoria"
+				tipo="select"
+				opciones={opcionesCategorias}
+				bind:valor={categoriaId}
+				onchange={aplicarFiltros}
+			/>
+			<Campo
+				etiqueta="Estado"
+				nombre="activo"
+				tipo="select"
+				opciones={OPCIONES_ACTIVO}
+				bind:valor={activo}
+				onchange={aplicarFiltros}
+			/>
+			<label class="checkbox">
+				<input type="checkbox" bind:checked={bajoMinimo} onchange={aplicarFiltros} />
+				Bajo mínimo
+			</label>
+			<div class="accion-filtro">
+				<Boton onclick={aplicarFiltros}>Buscar</Boton>
+			</div>
 		</div>
+	</Tarjeta>
+
+	<Tarjeta densa={true}>
+		<TablaDatos
+			columnas={COLUMNAS}
+			filas={items}
+			etiqueta="Stock por producto y depósito"
+			cargando={cargando}
+		>
+			{#snippet fila(item)}
+				<td class="principal">
+					<button
+						type="button"
+						class="enlace"
+						onclick={() => void verDesglose(item)}
+						aria-label="Ver desglose de {item.nombre}"
+					>
+						{item.nombre}
+					</button>
+				</td>
+				<td class="mono">{item.sku}</td>
+				<td class="numero" class:alerta={item.bajo_minimo}>
+					{formatearNumero(item.stock_actual)}
+				</td>
+				{#if depositoId}
+					<td class="numero">{formatearNumero(item.stock_deposito ?? 0)}</td>
+				{/if}
+				<td class="numero">{formatearNumero(item.stock_minimo)}</td>
+				<td class="numero" class:alerta={item.faltante > 0}>{formatearNumero(item.faltante)}</td>
+				<td class="numero">{item.costo === null ? '—' : textoValorizado({ valorizado: item.costo })}</td>
+				<td class="numero">{textoValorizado(item)}</td>
+				<td>
+					<EtiquetaEstado variante={item.bajo_minimo ? 'aviso' : 'exito'}>
+						{item.bajo_minimo ? 'Sí' : 'No'}
+					</EtiquetaEstado>
+				</td>
+			{/snippet}
+			{#snippet vacio()}
+				<EstadoVacio
+					icono="stock"
+					titulo="Sin resultados de stock"
+					descripcion="Probá con otro producto, depósito o quitá el filtro de bajo mínimo."
+				/>
+			{/snippet}
+		</TablaDatos>
+	</Tarjeta>
+
+	<div class="pie">
+		<Paginacion {pagina} {total} {porPagina} onCambiar={cambiarPagina} />
 	</div>
+
+	{#if errorDetalle}<Aviso variante="error">{errorDetalle}</Aviso>{/if}
+	{#if detalle}
+		<Tarjeta>
+			<div class="detalle-cabecera">
+				<h2>Desglose de {detalle.nombre}</h2>
+				<Boton onclick={() => (detalle = null)}>Cerrar</Boton>
+			</div>
+			<p class="detalle-resumen">
+				Stock global {formatearNumero(detalle.stock_actual)} · mínimo
+				{formatearNumero(detalle.stock_minimo)} · faltante {formatearNumero(detalle.faltante)}
+			</p>
+			{#if detalle.desglose.length === 0}
+				<p class="detalle-resumen">Sin existencias registradas en ningún depósito.</p>
+			{:else}
+				<ul class="desglose">
+					{#each detalle.desglose as fila (`${fila.deposito_id}-${fila.ubicacion_id}`)}
+						<li>
+							<span>{fila.deposito_nombre}{fila.ubicacion_nombre ? ` / ${fila.ubicacion_nombre}` : ''}</span>
+							<span class="numero">{formatearNumero(fila.cantidad)}</span>
+						</li>
+					{/each}
+				</ul>
+			{/if}
+		</Tarjeta>
+	{/if}
 </div>
+
+<style>
+	.pagina {
+		display: flex;
+		flex-direction: column;
+		gap: 14px;
+	}
+
+	.filtros {
+		display: flex;
+		align-items: flex-end;
+		gap: 12px;
+		flex-wrap: wrap;
+	}
+
+	.filtros :global(.campo) {
+		min-width: 190px;
+	}
+
+	.checkbox {
+		display: flex;
+		align-items: center;
+		gap: 6px;
+		padding-bottom: 10px;
+		color: var(--texto-suave);
+		font-size: 13px;
+		white-space: nowrap;
+	}
+
+	.checkbox input {
+		width: 15px;
+		height: 15px;
+		accent-color: var(--primario);
+	}
+
+	.accion-filtro {
+		padding-bottom: 1px;
+	}
+
+	.principal {
+		font-weight: 500;
+	}
+
+	.mono {
+		color: var(--texto-suave);
+		font-family: var(--fuente-mono);
+		font-size: 11.5px;
+	}
+
+	.numero {
+		font-variant-numeric: tabular-nums;
+	}
+
+	strong.alerta,
+	.numero.alerta {
+		color: var(--ambar-texto);
+		font-weight: 700;
+	}
+
+	.pie {
+		padding: 0 2px;
+	}
+
+	.enlace {
+		border: 0;
+		background: none;
+		padding: 0;
+		color: inherit;
+		font: inherit;
+		text-align: left;
+		cursor: pointer;
+	}
+
+	.enlace:hover,
+	.enlace:focus-visible {
+		color: var(--primario);
+		text-decoration: underline;
+	}
+
+	.detalle-cabecera {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: 12px;
+	}
+
+	.detalle-cabecera h2 {
+		margin: 0;
+		font-size: 15px;
+	}
+
+	.detalle-resumen {
+		margin: 8px 0;
+		color: var(--texto-suave);
+		font-size: 13px;
+	}
+
+	.desglose {
+		margin: 0;
+		padding: 0;
+		list-style: none;
+	}
+
+	.desglose li {
+		display: flex;
+		justify-content: space-between;
+		padding: 6px 0;
+		border-top: 1px solid var(--borde);
+		font-size: 13px;
+	}
+
+	@media (max-width: 720px) {
+		.filtros {
+			flex-direction: column;
+			align-items: stretch;
+		}
+
+		.filtros :global(.campo) {
+			min-width: 100%;
+		}
+
+		.checkbox {
+			padding-bottom: 0;
+		}
+	}
+</style>

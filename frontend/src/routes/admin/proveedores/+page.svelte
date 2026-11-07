@@ -13,7 +13,14 @@
 	import type { CrearProveedorInput, Proveedor } from '#lib/schemas/proveedores';
 	import { sesion } from '#lib/stores/sesion';
 	import { mensajeError } from '#lib/utils/errores';
-	import { paginaValida, totalPaginas } from '#lib/utils/paginacion';
+	import { paginaValida } from '#lib/utils/paginacion';
+	import Aviso from '#lib/components/ui/Aviso.svelte';
+	import Boton from '#lib/components/ui/Boton.svelte';
+	import Campo from '#lib/components/ui/Campo.svelte';
+	import EncabezadoPagina from '#lib/components/ui/EncabezadoPagina.svelte';
+	import EstadoVacio from '#lib/components/ui/EstadoVacio.svelte';
+	import Paginacion from '#lib/components/ui/Paginacion.svelte';
+	import Tarjeta from '#lib/components/ui/Tarjeta.svelte';
 
 	const POR_PAGINA = 20;
 
@@ -29,7 +36,12 @@
 	let aviso = $state<string | null>(null);
 	let modalAbierto = $state(false);
 	let editando = $state<Proveedor | null>(null);
-	const paginas = $derived(totalPaginas(total, POR_PAGINA));
+
+	const OPCIONES_ESTADO = [
+		{ valor: 'all', etiqueta: 'Todos' },
+		{ valor: 'true', etiqueta: 'Activos' },
+		{ valor: 'false', etiqueta: 'Inactivos' }
+	];
 
 	$effect(() => {
 		if ($sesion.estado === 'activa' && $sesion.usuario.familia_rol !== 'GESTION') {
@@ -69,10 +81,10 @@
 		await cargar();
 	}
 
-	async function irAPagina(nueva: number) {
-		if (cargando || nueva === pagina || nueva < 1 || nueva > paginas) return;
+	function irAPagina(nueva: number) {
+		if (cargando || nueva === pagina || nueva < 1) return;
 		pagina = nueva;
-		await cargar();
+		void cargar();
 	}
 
 	function abrirAlta() {
@@ -141,88 +153,51 @@
 	<title>Proveedores · Stockmante</title>
 </svelte:head>
 
-<div class="flex flex-col gap-4">
-	<div class="flex flex-wrap items-center justify-between gap-2">
-		<div>
-			<h1 class="text-xl font-semibold">Proveedores</h1>
-			<p class="text-sm text-slate-500">
-				Alta, edición y baja lógica. Los proveedores inactivos no se pueden usar en compras nuevas.
-			</p>
+<div class="pagina">
+	<EncabezadoPagina
+		titulo="Proveedores"
+		descripcion="Alta, edición y baja lógica. Los proveedores inactivos no se pueden usar en compras nuevas."
+	>
+		<Boton icono="mas" onclick={abrirAlta}>Nuevo proveedor</Boton>
+	</EncabezadoPagina>
+
+	{#if error}<Aviso variante="error">{error}</Aviso>{/if}
+	{#if aviso}<Aviso variante="exito">{aviso}</Aviso>{/if}
+
+	<Tarjeta>
+		<div class="filtros">
+			<Campo
+				etiqueta="Estado"
+				nombre="filtro-estado"
+				tipo="select"
+				opciones={OPCIONES_ESTADO}
+				bind:valor={filtro}
+				onchange={(valor) => void cambiarFiltro(valor as FiltroActivo)}
+			/>
 		</div>
-		<button
-			class="rounded bg-slate-800 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700"
-			onclick={abrirAlta}
-		>
-			Nuevo proveedor
-		</button>
-	</div>
+	</Tarjeta>
 
-	{#if error}
-		<p class="rounded border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>
-	{/if}
-	{#if aviso}
-		<p class="rounded border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700">
-			{aviso}
-		</p>
-	{/if}
-
-	<div class="flex items-center gap-2 text-sm">
-		<label class="flex items-center gap-2">
-			<span class="text-slate-500">Estado</span>
-			<select
-				class="rounded border border-slate-300 px-3 py-1.5"
-				bind:value={filtro}
-				onchange={() => void cambiarFiltro(filtro)}
+	{#if !cargando && proveedores.length === 0}
+		<Tarjeta>
+			<EstadoVacio
+				icono="proveedores"
+				titulo="Todavía no hay proveedores en este filtro"
+				descripcion="Creá el primero para poder registrar compras."
 			>
-				<option value="all">Todos</option>
-				<option value="true">Activos</option>
-				<option value="false">Inactivos</option>
-			</select>
-		</label>
-	</div>
-
-	{#if cargando}
-		<p class="py-6 text-center text-sm text-slate-500">Cargando proveedores...</p>
-	{:else if proveedores.length === 0}
-		<div class="rounded border border-dashed border-slate-300 bg-white px-6 py-10 text-center">
-			<p class="text-sm font-medium text-slate-700">Todavía no hay proveedores en este filtro.</p>
-			<p class="mt-1 text-sm text-slate-500">
-				Creá el primero para poder registrar compras.
-			</p>
-			<button
-				class="mt-4 rounded bg-slate-800 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700"
-				onclick={abrirAlta}
-			>
-				Crear el primer proveedor
-			</button>
-		</div>
+				<Boton icono="mas" onclick={abrirAlta}>Crear el primer proveedor</Boton>
+			</EstadoVacio>
+		</Tarjeta>
 	{:else}
-		<ProveedorTabla
-			{proveedores}
-			onEditar={abrirEdicion}
-			onAlternarEstado={(proveedor) => void alternarEstado(proveedor)}
-		/>
-		<div class="flex flex-wrap items-center justify-between gap-2">
-			<p class="text-xs text-slate-500">
-				{proveedores.length} de {total} proveedor{total === 1 ? '' : 'es'} · página {pagina} de
-				{paginas}
-			</p>
-			<div class="flex items-center gap-2">
-				<button
-					class="rounded border border-slate-300 px-3 py-1 text-sm text-slate-600 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-40"
-					disabled={pagina <= 1}
-					onclick={() => void irAPagina(pagina - 1)}
-				>
-					Anterior
-				</button>
-				<button
-					class="rounded border border-slate-300 px-3 py-1 text-sm text-slate-600 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-40"
-					disabled={pagina >= paginas}
-					onclick={() => void irAPagina(pagina + 1)}
-				>
-					Siguiente
-				</button>
-			</div>
+		<Tarjeta densa={true}>
+			<ProveedorTabla
+				{proveedores}
+				{cargando}
+				onEditar={abrirEdicion}
+				onAlternarEstado={(proveedor) => void alternarEstado(proveedor)}
+			/>
+		</Tarjeta>
+		<div class="pie">
+			<Paginacion {pagina} {total} porPagina={POR_PAGINA} onCambiar={irAPagina} />
 		</div>
 	{/if}
 </div>
@@ -236,3 +211,25 @@
 		onCerrar={cerrarModal}
 	/>
 {/if}
+
+<style>
+	.pagina {
+		display: flex;
+		flex-direction: column;
+		gap: 14px;
+	}
+
+	.filtros {
+		display: flex;
+		align-items: flex-end;
+		gap: 12px;
+	}
+
+	.filtros :global(.campo) {
+		min-width: 200px;
+	}
+
+	.pie {
+		padding: 0 2px;
+	}
+</style>

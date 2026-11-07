@@ -10,8 +10,8 @@ páginas y componentes consumen tokens semánticos; no declaran colores de marca
 ```css
 /* frontend/src/lib/diseno/tokens.css */
 :root {
-  --fuente-sans: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto,
-    'Helvetica Neue', Arial, sans-serif;
+  --fuente-sans: 'Outfit Variable', 'Outfit', ui-sans-serif, system-ui, -apple-system,
+    'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
   --fuente-mono: ui-monospace, 'SFMono-Regular', 'Cascadia Mono', Menlo, Consolas, monospace;
 
   --fondo: #f1f4f9;
@@ -20,29 +20,34 @@ páginas y componentes consumen tokens semánticos; no declaran colores de marca
   --superficie-2: #f5f7fb;
   --superficie-3: #eaeff7;
   --sidebar: #ffffff;
-  --topbar: #ffffff;
+  --topbar: #1f2a44;          /* barra superior azul marino de light-2 (FR-099) */
 
   --borde: #e3e8f0;
   --borde-fuerte: #c9d3e0;
 
   --texto: #1b2432;
   --texto-suave: #5f6f86;
-  --texto-tenue: #93a1b5;
+  --texto-tenue: #5a6b83;
   --texto-inverso: #ffffff;
 
-  --primario: #2f6bed;
-  --primario-hover: #2459d1;
-  --primario-suave: #e9f0ff;
+  --primario: #1f3bb3;        /* azul real de light-2 (FR-099) */
+  --primario-hover: #182f94;
+  --primario-suave: #e8ecfb;
+  --primario-texto: #1f3bb3;
   --primario-contraste: #ffffff;
 
   --teal: #14b8bd;
   --teal-suave: #e3f8f8;
+  --teal-texto: #0f7f84;
   --ambar: #f0a63a;
   --ambar-suave: #fdf3e2;
+  --ambar-texto: #8a5a12;
   --exito: #22a45d;
   --exito-suave: #e7f7ee;
+  --exito-texto: #167a45;
   --peligro: #dc3d43;
   --peligro-suave: #fdecec;
+  --peligro-texto: #b42318;
   --info: #2f6bed;
   --info-suave: #e9f0ff;
 
@@ -82,22 +87,27 @@ html[data-tema='dark'] {
 
   --texto: #e8edf6;
   --texto-suave: #9aa9bf;
-  --texto-tenue: #6c7c93;
+  --texto-tenue: #8f9db1;
   --texto-inverso: #0d1320;
 
-  --primario: #4c8dff;
-  --primario-hover: #6ba1ff;
-  --primario-suave: #1c2b48;
-  --primario-contraste: #0d1320;
+  --primario: #3f5efb;        /* azul eléctrico de dark-2 (FR-099) */
+  --primario-hover: #5872ff;
+  --primario-suave: #1f2752;
+  --primario-texto: #93a5ff;
+  --primario-contraste: #ffffff;
 
   --teal: #2fd0d6;
   --teal-suave: #123639;
+  --teal-texto: #2fd0d6;
   --ambar: #f3b45c;
   --ambar-suave: #3a2c17;
+  --ambar-texto: #f3b45c;
   --exito: #3ecf7a;
   --exito-suave: #12301f;
+  --exito-texto: #3ecf7a;
   --peligro: #ff6b6e;
   --peligro-suave: #3a1a1d;
+  --peligro-texto: #ff8a8c;
   --info: #4c8dff;
   --info-suave: #1c2b48;
 
@@ -119,7 +129,9 @@ html[data-tema='dark'] {
 | `metrica` | 28px / 700 / 1.1, `font-variant-numeric: tabular-nums` | KPI |
 | `mono` | 12px / 500 / 1.3, `--fuente-mono` | SKU, IDs, fechas técnicas |
 
-**Regla**: los números de métricas y tablas usan `tabular-nums`; no se cargan fuentes externas.
+**Regla**: la fuente sans es **Outfit** (FR-098), autoalojada con `@fontsource-variable/outfit`
+e importada desde `routes/layout.css`; no se cargan fuentes desde CDN. Los números de métricas y
+tablas usan `tabular-nums`. La monoespaciada se reserva para SKU, IDs y valores técnicos.
 
 ## 3. Espaciado, radios y sombras
 
@@ -143,10 +155,18 @@ html[data-tema='dark'] {
 |---|---|---|---|
 | `--texto` sobre `--superficie` | `#1b2432` / `#ffffff` | `#e8edf6` / `#1b2230` | 4.5:1 |
 | `--texto-suave` sobre `--superficie` | `#5f6f86` / `#ffffff` | `#9aa9bf` / `#1b2230` | 4.5:1 |
-| `--primario-contraste` sobre `--primario` | `#ffffff` / `#2f6bed` | `#0d1320` / `#4c8dff` | 4.5:1 |
-| `--peligro` sobre `--peligro-suave` | `#dc3d43` / `#fdecec` | `#ff6b6e` / `#3a1a1d` | 4.5:1 |
-| `--exito` sobre `--exito-suave` | `#22a45d` / `#e7f7ee` | `#3ecf7a` / `#12301f` | 4.5:1 |
+| `--texto-tenue` sobre `--superficie-3` | `#5a6b83` / `#eaeff7` | `#8f9db1` / `#2a3447` | 4.5:1 |
+| `--primario-contraste` sobre `--primario` | `#ffffff` / `#1f3bb3` (8.99) | `#ffffff` / `#3f5efb` (4.99) | 4.5:1 |
+| `--primario-texto` sobre `--superficie` | `#1f3bb3` / `#ffffff` (8.99) | `#93a5ff` / `#1b2230` (6.88) | 4.5:1 |
+| Texto de `.zona-oscura` sobre `--topbar` (solo claro) | `#f1f4fb` / `#1f2a44` (12.95); suave `#b7c1d6` (7.88) | — (topbar = fondo) | 4.5:1 |
+| `--peligro` sobre `--peligro-suave` | `#b42318` / `#fdecec` | `#ff8a8c` / `#3a1a1d` | 4.5:1 |
+| `--exito` sobre `--exito-suave` | `#167a45` / `#e7f7ee` | `#3ecf7a` / `#12301f` | 4.5:1 |
 | `--ambar` sobre `--ambar-suave` | `#8a5a12` / `#fdf3e2` | `#f3b45c` / `#3a2c17` | 4.5:1 |
+
+**Zona oscura (FR-099)**: en tema claro la barra superior lleva la clase `.zona-oscura`, que
+redefine localmente `--texto`, `--texto-suave`, `--texto-tenue`, `--superficie*`, `--borde` y
+`--primario-suave/-texto` con valores oscuros; así `BotonTema` y `MenuUsuario` se adaptan sin
+estilos propios. En tema oscuro la clase no aplica y la barra usa el fondo de la página.
 
 **Nota**: para texto sobre fondos suaves se usa una variante oscurecida del acento (p. ej. ámbar
 `#8a5a12` en claro) si el acento puro no alcanza 4.5:1; la verificación real se hace con el

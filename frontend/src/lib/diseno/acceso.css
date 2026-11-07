@@ -1,0 +1,112 @@
+/**
+ * Estilos compartidos del lienzo de acceso (spec 018, FR-081/FR-083/FR-094).
+ * Las pantallas de login, cambio obligatorio, registro y verificación usan
+ * estas clases dentro de `LienzoAcceso`.
+ */
+
+@layer components {
+	.acceso-panel {
+		width: 100%;
+		max-width: 420px;
+	}
+
+	.acceso-contenido {
+		display: flex;
+		flex-direction: column;
+		gap: 14px;
+	}
+
+	.acceso-encabezado {
+		display: flex;
+		align-items: center;
+		gap: 12px;
+	}
+
+	.acceso-marca {
+		display: inline-flex;
+		flex: none;
+		align-items: center;
+		justify-content: center;
+		width: 38px;
+		height: 38px;
+		border-radius: 10px;
+		background: var(--primario);
+		color: var(--primario-contraste);
+	}
+
+	.acceso-kicker {
+		margin: 0;
+		color: var(--primario-texto);
+		font-family: var(--fuente-sans);
+		font-size: 11px;
+		font-weight: 500;
+		letter-spacing: 0.12em;
+		line-height: 1.2;
+		text-transform: uppercase;
+	}
+
+	.acceso-titulo {
+		margin: 2px 0 0;
+		color: var(--texto);
+		font-size: 24px;
+		font-weight: 700;
+		letter-spacing: -0.035em;
+		line-height: 1.1;
+	}
+
+	.acceso-subtitulo {
+		margin: 0;
+		color: var(--texto-suave);
+		font-size: 13.5px;
+		line-height: 1.45;
+	}
+
+	.acceso-form {
+		display: flex;
+		flex-direction: column;
+		gap: 13px;
+	}
+
+	.acceso-secundarios {
+		display: flex;
+		flex-direction: column;
+		gap: 8px;
+		margin-top: 16px;
+	}
+
+	.acceso-acciones {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 8px;
+	}
+
+	.acceso-pie {
+		margin: 16px 0 0;
+		color: var(--texto-suave);
+		font-size: 13px;
+		line-height: 1.4;
+		text-align: center;
+	}
+
+	.acceso-enlace {
+		color: var(--primario-texto);
+		font-weight: 500;
+		text-decoration: underline;
+		text-underline-offset: 3px;
+	}
+
+	.acceso-enlace:hover {
+		color: var(--texto);
+	}
+
+	.acceso-sin-sso {
+		margin: 0;
+		color: var(--texto-tenue);
+		font-family: var(--fuente-sans);
+		font-size: 11px;
+		letter-spacing: 0.06em;
+		line-height: 1.4;
+		text-align: center;
+		text-transform: uppercase;
+	}
+}

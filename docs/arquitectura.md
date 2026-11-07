@@ -48,6 +48,11 @@ PostgreSQL (migrations/)
   - contraseña temporal → `/login` (cambio obligatorio);
   - rutas `/admin/*` → solo familia `GESTION`; `OPERACION` va a `/caja`.
 - **Alias**: `#lib/*` (SvelteKit 3), no `$lib`.
+- **Interfaz de escritorio (spec 018)**: tokens semánticos claro/oscuro en
+  `src/lib/diseno/tokens.css`, primitivas en `src/lib/components/ui`, marco en
+  `src/lib/components/marco`, navegación por rol en `src/lib/navegacion/navegacion.ts` y evidencia
+  de aceptación en `specs/018-rediseno-visual-desktop/evidencia/`. Sin librerías de UI, gráficos ni
+  iconos externos.
 
 ## Datos
 

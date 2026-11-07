@@ -1,5 +1,4 @@
 <script lang="ts">
-	import { goto } from '$app/navigation';
 	import { ApiError } from '#lib/api/client';
 	import {
 		actualizarDeposito,
@@ -21,6 +20,14 @@
 	import type { Deposito, TipoUbicacion, Ubicacion } from '#lib/schemas/depositos';
 	import type { Producto } from '#lib/schemas/productos';
 	import { sesion } from '#lib/stores/sesion';
+	import Aviso from '#lib/components/ui/Aviso.svelte';
+	import Boton from '#lib/components/ui/Boton.svelte';
+	import Campo from '#lib/components/ui/Campo.svelte';
+	import EncabezadoPagina from '#lib/components/ui/EncabezadoPagina.svelte';
+	import Esqueleto from '#lib/components/ui/Esqueleto.svelte';
+	import EstadoVacio from '#lib/components/ui/EstadoVacio.svelte';
+	import EtiquetaEstado from '#lib/components/ui/EtiquetaEstado.svelte';
+	import Tarjeta from '#lib/components/ui/Tarjeta.svelte';
 
 	const TIPOS: { valor: TipoUbicacion; etiqueta: string }[] = [
 		{ valor: 'PASILLO', etiqueta: 'Pasillo' },
@@ -75,12 +82,6 @@
 	const opcionesPadre = $derived(
 		arbol.filter((nodo) => nodo.ubicacion.id !== editandoUbicacion?.id)
 	);
-
-	$effect(() => {
-		if ($sesion.estado === 'activa' && $sesion.usuario.familia_rol !== 'GESTION') {
-			void goto('/');
-		}
-	});
 
 	$effect(() => {
 		if (
@@ -394,373 +395,570 @@
 	<title>Depósitos · Stockmante</title>
 </svelte:head>
 
-<div class="flex flex-col gap-4">
-	<div>
-		<h1 class="text-xl font-semibold">Depósitos y ubicaciones</h1>
-		<p class="text-sm text-slate-500">
-			Jerarquía física del stock. El borrado físico solo se permite sin dependencias; la baja
-			lógica conserva la historia.
-		</p>
-	</div>
+<div class="pagina">
+	<EncabezadoPagina
+		titulo="Depósitos y ubicaciones"
+		descripcion="Jerarquía física del stock. El borrado físico solo se permite sin dependencias; la baja lógica conserva la historia."
+	/>
 
-	{#if error}
-		<p class="rounded border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>
-	{/if}
-	{#if aviso}
-		<p class="rounded border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700">
-			{aviso}
-		</p>
-	{/if}
+	{#if error}<Aviso variante="error">{error}</Aviso>{/if}
+	{#if aviso}<Aviso variante="exito">{aviso}</Aviso>{/if}
 
-	<div class="grid grid-cols-1 gap-4 lg:grid-cols-2">
-		<section class="rounded border border-slate-200 bg-white p-4">
-			<h2 class="mb-3 text-base font-semibold">
-				{editandoDeposito ? 'Editar depósito' : 'Nuevo depósito'}
-			</h2>
+	<div class="grid-principal">
+		<Tarjeta titulo={editandoDeposito ? 'Editar depósito' : 'Nuevo depósito'}>
 			<form
-				class="grid grid-cols-1 gap-3 sm:grid-cols-2"
-				onsubmit={(e) => {
-					e.preventDefault();
+				class="grilla"
+				onsubmit={(event) => {
+					event.preventDefault();
 					void guardarDeposito();
 				}}
 			>
-				<label class="flex flex-col gap-1 text-sm sm:col-span-2">
-					<span class="font-medium">Nombre</span>
-					<input
-						class="rounded border border-slate-300 px-3 py-2"
-						bind:value={nombreDeposito}
-						maxlength="120"
-						required
+				<div class="ancho">
+					<Campo
+						etiqueta="Nombre"
+						nombre="nombre-deposito"
+						maxlength={120}
+						bind:valor={nombreDeposito}
+						requerido={true}
 					/>
-				</label>
-				<label class="flex flex-col gap-1 text-sm">
-					<span class="font-medium">Identificador</span>
-					<input
-						class="rounded border border-slate-300 px-3 py-2 uppercase"
-						bind:value={identificador}
-						maxlength="40"
-						required
-					/>
-				</label>
-				<label class="flex flex-col gap-1 text-sm">
-					<span class="font-medium">Dirección (opcional)</span>
-					<input
-						class="rounded border border-slate-300 px-3 py-2"
-						bind:value={direccion}
-						maxlength="500"
-					/>
-				</label>
-				<div class="flex justify-end gap-2 sm:col-span-2">
+				</div>
+				<Campo
+					etiqueta="Identificador"
+					nombre="identificador"
+					maxlength={40}
+					bind:valor={identificador}
+					requerido={true}
+				/>
+				<Campo
+					etiqueta="Dirección"
+					nombre="direccion"
+					maxlength={500}
+					bind:valor={direccion}
+				/>
+				<div class="acciones ancho">
 					{#if editandoDeposito}
-						<button
-							type="button"
-							class="rounded border border-slate-300 px-3 py-2 text-sm hover:bg-slate-100"
+						<Boton
+							variante="secundario"
+							deshabilitado={guardando}
 							onclick={limpiarFormularioDeposito}
-							disabled={guardando}
 						>
 							Cancelar
-						</button>
+						</Boton>
 					{/if}
-					<button
-						type="submit"
-						class="rounded bg-slate-800 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700 disabled:opacity-60"
-						disabled={guardando || !nombreDeposito.trim() || !identificador.trim()}
+					<Boton
+						tipo="submit"
+						cargando={guardando}
+						deshabilitado={!nombreDeposito.trim() || !identificador.trim()}
 					>
 						{guardando ? 'Guardando…' : editandoDeposito ? 'Guardar cambios' : 'Crear depósito'}
-					</button>
+					</Boton>
 				</div>
 			</form>
 
-			<div class="mt-4 border-t border-slate-100 pt-3">
-				<h3 class="mb-2 text-sm font-semibold text-slate-600">Depósitos cargados</h3>
+			<div class="lista-depositos">
+				<h3>Depósitos cargados</h3>
 				{#if cargando}
-					<p class="text-sm text-slate-500">Cargando…</p>
+					<Esqueleto alto="40px" />
 				{:else if depositos.length === 0}
-					<p class="text-sm text-slate-500">Todavía no hay depósitos.</p>
+					<EstadoVacio
+						icono="depositos"
+						titulo="Todavía no hay depósitos"
+						descripcion="Creá el primero con el formulario de arriba."
+					/>
 				{:else}
-					<ul class="divide-y divide-slate-100">
+					<ul class="depositos">
 						{#each depositos as deposito (deposito.id)}
-							<li
-								class="flex flex-wrap items-center gap-2 py-2 text-sm"
-								class:bg-slate-50={seleccionado?.id === deposito.id}
-							>
+							<li class="deposito" class:activo={seleccionado?.id === deposito.id}>
 								<button
 									type="button"
-									class="min-w-0 flex-1 text-left"
+									class="deposito-info"
 									onclick={() => void seleccionar(deposito)}
 								>
-									<span class="font-medium">{deposito.nombre}</span>
-									<span class="ml-2 font-mono text-xs text-slate-500">
-										{deposito.identificador}
+									<span class="deposito-nombre">
+										{deposito.nombre}
+										<span class="mono">{deposito.identificador}</span>
 									</span>
-									{#if deposito.direccion}
-										<span class="block text-xs text-slate-500">{deposito.direccion}</span>
-									{/if}
+									{#if deposito.direccion}<small>{deposito.direccion}</small>{/if}
 								</button>
-								<span
-									class="rounded px-1.5 py-0.5 text-xs {deposito.activo
-										? 'bg-emerald-50 text-emerald-700'
-										: 'bg-slate-100 text-slate-500'}"
-								>
+								<EtiquetaEstado variante={deposito.activo ? 'exito' : 'neutro'}>
 									{deposito.activo ? 'Activo' : 'Inactivo'}
-								</span>
-								<button
-									type="button"
-									class="rounded px-2 py-1 text-xs text-slate-600 hover:bg-slate-100"
-									onclick={() => editarDeposito(deposito)}
-								>
-									Editar
-								</button>
-								<button
-									type="button"
-									class="rounded px-2 py-1 text-xs text-slate-600 hover:bg-slate-100"
-									onclick={() => void alternarEstadoDeposito(deposito)}
-								>
-									{deposito.activo ? 'Desactivar' : 'Reactivar'}
-								</button>
-								<button
-									type="button"
-									class="rounded px-2 py-1 text-xs text-red-600 hover:bg-red-50"
-									onclick={() => void borrarDeposito(deposito)}
-								>
-									Borrar
-								</button>
+								</EtiquetaEstado>
+								<div class="acciones-fila">
+									<Boton variante="fantasma" tamano="sm" onclick={() => editarDeposito(deposito)}>
+										Editar
+									</Boton>
+									<Boton
+										variante="fantasma"
+										tamano="sm"
+										onclick={() => void alternarEstadoDeposito(deposito)}
+									>
+										{deposito.activo ? 'Desactivar' : 'Reactivar'}
+									</Boton>
+									<Boton variante="fantasma" tamano="sm" onclick={() => void borrarDeposito(deposito)}>
+										Borrar
+									</Boton>
+								</div>
 							</li>
 						{/each}
 					</ul>
 				{/if}
 			</div>
-		</section>
+		</Tarjeta>
 
-		<section class="rounded border border-slate-200 bg-white p-4">
-			<h2 class="mb-1 text-base font-semibold">
-				Ubicaciones{seleccionado ? ` de ${seleccionado.nombre}` : ''}
-			</h2>
+		<Tarjeta titulo={`Ubicaciones${seleccionado ? ` de ${seleccionado.nombre}` : ''}`}>
 			{#if !seleccionado}
-				<p class="text-sm text-slate-500">Elegí un depósito de la lista para ver su árbol.</p>
+				<EstadoVacio
+					icono="depositos"
+					titulo="Elegí un depósito"
+					descripcion="Seleccioná un depósito de la lista para ver y editar su árbol de ubicaciones."
+				/>
 			{:else}
-				<p class="mb-3 text-xs text-slate-500">
+				<p class="ayuda">
 					El tipo es un enum simple; la profundidad es libre y el padre debe pertenecer al mismo
 					depósito.
 				</p>
 				<form
-					class="grid grid-cols-1 gap-3 sm:grid-cols-2"
-					onsubmit={(e) => {
-						e.preventDefault();
+					class="grilla"
+					onsubmit={(event) => {
+						event.preventDefault();
 						void guardarUbicacion();
 					}}
 				>
-					<label class="flex flex-col gap-1 text-sm sm:col-span-2">
-						<span class="font-medium">Nombre</span>
-						<input
-							class="rounded border border-slate-300 px-3 py-2"
-							bind:value={nombreUbicacion}
-							maxlength="80"
-							required
+					<div class="ancho">
+						<Campo
+							etiqueta="Nombre"
+							nombre="nombre-ubicacion"
+							maxlength={80}
+							bind:valor={nombreUbicacion}
+							requerido={true}
 						/>
-					</label>
-					<label class="flex flex-col gap-1 text-sm">
-						<span class="font-medium">Tipo</span>
-						<select class="rounded border border-slate-300 px-3 py-2" bind:value={tipoUbicacion}>
-							{#each TIPOS as tipo (tipo.valor)}
-								<option value={tipo.valor}>{tipo.etiqueta}</option>
-							{/each}
-						</select>
-					</label>
-					<label class="flex flex-col gap-1 text-sm">
-						<span class="font-medium">Padre</span>
-						<select class="rounded border border-slate-300 px-3 py-2" bind:value={padreUbicacion}>
-							<option value="">Sin padre (raíz)</option>
-							{#each opcionesPadre as nodo (nodo.ubicacion.id)}
-								<option value={String(nodo.ubicacion.id)}>
-									{'—'.repeat(nodo.profundidad)}{nodo.ubicacion.nombre}
-								</option>
-							{/each}
-						</select>
-					</label>
-					<div class="flex justify-end gap-2 sm:col-span-2">
+					</div>
+					<Campo
+						etiqueta="Tipo"
+						nombre="tipo-ubicacion"
+						tipo="select"
+						opciones={TIPOS}
+						bind:valor={tipoUbicacion}
+					/>
+					<Campo
+						etiqueta="Padre"
+						nombre="padre-ubicacion"
+						tipo="select"
+						opciones={[
+							{ valor: '', etiqueta: 'Sin padre (raíz)' },
+							...opcionesPadre.map((nodo) => ({
+								valor: String(nodo.ubicacion.id),
+								etiqueta: `${'—'.repeat(nodo.profundidad)}${nodo.ubicacion.nombre}`
+							}))
+						]}
+						bind:valor={padreUbicacion}
+					/>
+					<div class="acciones ancho">
 						{#if editandoUbicacion}
-							<button
-								type="button"
-								class="rounded border border-slate-300 px-3 py-2 text-sm hover:bg-slate-100"
+							<Boton
+								variante="secundario"
+								deshabilitado={guardando}
 								onclick={limpiarFormularioUbicacion}
-								disabled={guardando}
 							>
 								Cancelar
-							</button>
+							</Boton>
 						{/if}
-						<button
-							type="submit"
-							class="rounded bg-slate-800 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700 disabled:opacity-60"
-							disabled={guardando || !nombreUbicacion.trim()}
-						>
+						<Boton tipo="submit" cargando={guardando} deshabilitado={!nombreUbicacion.trim()}>
 							{guardando
 								? 'Guardando…'
 								: editandoUbicacion
 									? 'Guardar cambios'
 									: 'Agregar ubicación'}
-						</button>
+						</Boton>
 					</div>
 				</form>
 
 				{#if arbol.length === 0}
-					<p class="mt-3 rounded border border-slate-200 bg-slate-50 px-3 py-4 text-sm text-slate-500">
-						Este depósito todavía no tiene ubicaciones.
-					</p>
+					<EstadoVacio
+						icono="depositos"
+						titulo="Sin ubicaciones"
+						descripcion="Este depósito todavía no tiene ubicaciones."
+					/>
 				{:else}
-					<ul class="mt-3 divide-y divide-slate-100">
+					<ul class="arbol">
 						{#each arbol as nodo (nodo.ubicacion.id)}
-							<li class="flex flex-wrap items-center gap-2 py-2 text-sm">
-								<span
-									class="min-w-0 flex-1"
-									style="padding-left: {nodo.profundidad * 16}px"
-								>
-									<span class="font-medium">{nodo.ubicacion.nombre}</span>
-									<span class="ml-2 rounded bg-slate-100 px-1.5 py-0.5 text-xs text-slate-600">
-										{nodo.ubicacion.tipo}
-									</span>
+							<li class="nodo" style:padding-left={`${nodo.profundidad * 16}px`}>
+								<div class="nodo-info">
+									<span class="nodo-nombre">{nodo.ubicacion.nombre}</span>
+									<EtiquetaEstado variante="info">{nodo.ubicacion.tipo}</EtiquetaEstado>
 									{#if !nodo.ubicacion.activo}
-										<span class="ml-2 text-xs text-slate-400">Inactiva</span>
+										<EtiquetaEstado variante="neutro">Inactiva</EtiquetaEstado>
 									{/if}
-								</span>
-								<button
-									type="button"
-									class="rounded px-2 py-1 text-xs text-slate-600 hover:bg-slate-100"
-									onclick={() => agregarHija(nodo.ubicacion)}
-								>
-									+ Hija
-								</button>
-								<button
-									type="button"
-									class="rounded px-2 py-1 text-xs text-slate-600 hover:bg-slate-100"
-									onclick={() => editarUbicacion(nodo.ubicacion)}
-								>
-									Editar
-								</button>
-								<button
-									type="button"
-									class="rounded px-2 py-1 text-xs text-slate-600 hover:bg-slate-100"
-									onclick={() => void alternarEstadoUbicacion(nodo.ubicacion)}
-								>
-									{nodo.ubicacion.activo ? 'Desactivar' : 'Reactivar'}
-								</button>
-								<button
-									type="button"
-									class="rounded px-2 py-1 text-xs text-red-600 hover:bg-red-50"
-									onclick={() => void borrarUbicacion(nodo.ubicacion)}
-								>
-									Borrar
-								</button>
+								</div>
+								<div class="acciones-fila">
+									<Boton variante="fantasma" tamano="sm" onclick={() => agregarHija(nodo.ubicacion)}>
+										+ Hija
+									</Boton>
+									<Boton variante="fantasma" tamano="sm" onclick={() => editarUbicacion(nodo.ubicacion)}>
+										Editar
+									</Boton>
+									<Boton
+										variante="fantasma"
+										tamano="sm"
+										onclick={() => void alternarEstadoUbicacion(nodo.ubicacion)}
+									>
+										{nodo.ubicacion.activo ? 'Desactivar' : 'Reactivar'}
+									</Boton>
+									<Boton variante="fantasma" tamano="sm" onclick={() => void borrarUbicacion(nodo.ubicacion)}>
+										Borrar
+									</Boton>
+								</div>
 							</li>
 						{/each}
 					</ul>
 				{/if}
 			{/if}
-		</section>
+		</Tarjeta>
 	</div>
 
-	<section class="rounded border border-slate-200 bg-white p-4">
-		<h2 class="text-base font-semibold">Ubicaciones permitidas por producto</h2>
-		<p class="mb-3 text-sm text-slate-500">
-			El producto solo podrá recibir stock en las ubicaciones marcadas. Se reemplaza el conjunto
-			completo.
-		</p>
-
+	<Tarjeta
+		titulo="Ubicaciones permitidas por producto"
+		descripcion="El producto solo podrá recibir stock en las ubicaciones marcadas. Se reemplaza el conjunto completo."
+	>
 		<form
-			class="flex flex-wrap items-end gap-2"
-			onsubmit={(e) => {
-				e.preventDefault();
+			class="buscador"
+			onsubmit={(event) => {
+				event.preventDefault();
 				void buscar();
 			}}
 		>
-			<label class="flex min-w-64 flex-1 flex-col gap-1 text-sm">
-				<span class="font-medium">Buscar producto</span>
-				<input
-					class="rounded border border-slate-300 px-3 py-2"
-					bind:value={busqueda}
-					placeholder="SKU, código o nombre"
+			<div class="campo-busqueda">
+				<Campo
+					etiqueta="Buscar producto"
+					nombre="busqueda-producto"
+					tipo="search"
+					marcador="SKU, código o nombre"
+					bind:valor={busqueda}
 				/>
-			</label>
-			<button
-				type="submit"
-				class="rounded border border-slate-300 px-3 py-2 text-sm hover:bg-slate-100 disabled:opacity-60"
-				disabled={buscando || busqueda.trim() === ''}
+			</div>
+			<Boton
+				tipo="submit"
+				variante="secundario"
+				cargando={buscando}
+				deshabilitado={busqueda.trim() === ''}
 			>
-				{buscando ? 'Buscando…' : 'Buscar'}
-			</button>
+				Buscar
+			</Boton>
 		</form>
 
 		{#if resultados.length > 0}
-			<ul class="mt-3 divide-y divide-slate-100 rounded border border-slate-200">
+			<ul class="resultados">
 				{#each resultados as encontrado (encontrado.id)}
-					<li class="flex items-center gap-2 px-3 py-2 text-sm">
-						<span class="min-w-0 flex-1">
-							<span class="font-medium">{encontrado.nombre}</span>
-							<span class="ml-2 font-mono text-xs text-slate-500">{encontrado.sku}</span>
+					<li>
+						<span class="resultado-info">
+							<strong>{encontrado.nombre}</strong>
+							<span class="mono">{encontrado.sku}</span>
 						</span>
-						<button
-							type="button"
-							class="rounded bg-slate-800 px-3 py-1 text-xs font-medium text-white hover:bg-slate-700"
-							onclick={() => void elegirProducto(encontrado)}
-						>
+						<Boton variante="secundario" tamano="sm" onclick={() => void elegirProducto(encontrado)}>
 							Elegir
-						</button>
+						</Boton>
 					</li>
 				{/each}
 			</ul>
 		{/if}
 
 		{#if producto}
-			<div class="mt-4">
-				<p class="text-sm">
-					Producto: <span class="font-medium">{producto.nombre}</span>
-					<span class="ml-2 font-mono text-xs text-slate-500">{producto.sku}</span>
-				</p>
-				{#if cargandoAsignacion}
-					<p class="mt-2 text-sm text-slate-500">Cargando ubicaciones…</p>
-				{:else if grupos.length === 0}
-					<p class="mt-2 text-sm text-slate-500">
-						No hay ubicaciones activas en depósitos activos.
-					</p>
-				{:else}
-					<div class="mt-2 grid grid-cols-1 gap-3 md:grid-cols-2">
-						{#each grupos as grupo (grupo.deposito.id)}
-							<fieldset class="rounded border border-slate-200 p-3">
-								<legend class="px-1 text-sm font-medium">{grupo.deposito.nombre}</legend>
-								{#each grupo.ubicaciones as ubicacion (ubicacion.id)}
-									<label class="flex items-center gap-2 py-0.5 text-sm">
-										<input
-											type="checkbox"
-											class="h-4 w-4"
-											checked={seleccion.includes(ubicacion.id)}
-											onchange={(e) =>
-												alternarSeleccion(
-													ubicacion.id,
-													(e.currentTarget as HTMLInputElement).checked
-												)}
-										/>
-										{ubicacion.nombre}
-										<span class="text-xs text-slate-400">{ubicacion.tipo}</span>
-									</label>
-								{/each}
-							</fieldset>
-						{/each}
-					</div>
-					<div class="mt-3 flex items-center justify-between gap-2">
-						<p class="text-xs text-slate-500">
-							{seleccion.length} ubicación{seleccion.length === 1 ? '' : 'es'} seleccionada{seleccion.length === 1 ? '' : 's'}
-						</p>
-						<button
-							type="button"
-							class="rounded bg-slate-800 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700 disabled:opacity-60"
-							onclick={() => void guardarAsignacion()}
-							disabled={guardando}
-						>
-							{guardando ? 'Guardando…' : 'Guardar ubicaciones'}
-						</button>
-					</div>
-				{/if}
+			<div class="producto-seleccionado">
+				<span>
+					Producto: <strong>{producto.nombre}</strong>
+					<span class="mono">{producto.sku}</span>
+				</span>
 			</div>
+			{#if cargandoAsignacion}
+				<Esqueleto alto="80px" />
+			{:else if grupos.length === 0}
+				<EstadoVacio
+					icono="depositos"
+					titulo="Sin ubicaciones activas"
+					descripcion="No hay ubicaciones activas en depósitos activos."
+				/>
+			{:else}
+				<div class="grupos">
+					{#each grupos as grupo (grupo.deposito.id)}
+						<fieldset class="grupo">
+							<legend>{grupo.deposito.nombre}</legend>
+							{#each grupo.ubicaciones as ubicacion (ubicacion.id)}
+								<label class="check">
+									<input
+										type="checkbox"
+										checked={seleccion.includes(ubicacion.id)}
+										onchange={(event) =>
+											alternarSeleccion(ubicacion.id, event.currentTarget.checked)}
+									/>
+									<span>{ubicacion.nombre}</span>
+									<span class="tipo">{ubicacion.tipo}</span>
+								</label>
+							{/each}
+						</fieldset>
+					{/each}
+				</div>
+				<div class="pie-asignacion">
+					<span>
+						{seleccion.length} ubicación{seleccion.length === 1 ? '' : 'es'} seleccionada{seleccion.length === 1 ? '' : 's'}
+					</span>
+					<Boton cargando={guardando} onclick={() => void guardarAsignacion()}>
+						Guardar ubicaciones
+					</Boton>
+				</div>
+			{/if}
 		{/if}
-	</section>
+	</Tarjeta>
 </div>
+
+<style>
+	.pagina {
+		display: flex;
+		flex-direction: column;
+		gap: 14px;
+	}
+
+	.grid-principal {
+		display: grid;
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+		gap: 14px;
+		align-items: start;
+	}
+
+	.grilla {
+		display: grid;
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+		gap: 12px;
+	}
+
+	.ancho {
+		grid-column: 1 / -1;
+	}
+
+	.acciones {
+		display: flex;
+		justify-content: flex-end;
+		gap: 8px;
+		margin-top: 2px;
+	}
+
+	.lista-depositos {
+		margin-top: 18px;
+		padding-top: 14px;
+		border-top: 1px solid var(--borde);
+	}
+
+	h3 {
+		margin: 0 0 8px;
+		color: var(--texto-suave);
+		font-size: 11px;
+		font-weight: 600;
+		letter-spacing: 0.06em;
+		text-transform: uppercase;
+	}
+
+	.depositos,
+	.arbol {
+		display: flex;
+		flex-direction: column;
+		margin: 0;
+		padding: 0;
+		list-style: none;
+	}
+
+	.deposito,
+	.nodo {
+		display: flex;
+		align-items: flex-start;
+		gap: 8px;
+		padding: 9px 8px;
+		border-bottom: 1px solid var(--borde);
+	}
+
+	.deposito:last-child,
+	.nodo:last-child {
+		border-bottom: 0;
+	}
+
+	.deposito.activo {
+		border-radius: var(--radio-control);
+		background: var(--primario-suave);
+	}
+
+	.deposito-info {
+		display: flex;
+		flex: 1;
+		flex-direction: column;
+		min-width: 0;
+		border: 0;
+		background: transparent;
+		color: var(--texto);
+		text-align: left;
+		cursor: pointer;
+		padding: 0;
+	}
+
+	.deposito-nombre {
+		font-size: 13px;
+		font-weight: 500;
+	}
+
+	.deposito-info small {
+		color: var(--texto-tenue);
+		font-size: 11.5px;
+	}
+
+	.mono {
+		margin-left: 6px;
+		color: var(--texto-tenue);
+		font-family: var(--fuente-mono);
+		font-size: 10.5px;
+	}
+
+	.acciones-fila {
+		display: flex;
+		flex-wrap: wrap;
+		justify-content: flex-end;
+		gap: 2px;
+	}
+
+	.ayuda {
+		margin: 0 0 10px;
+		color: var(--texto-suave);
+		font-size: 12.5px;
+		line-height: 1.45;
+	}
+
+	.nodo {
+		flex-wrap: wrap;
+		align-items: center;
+	}
+
+	.nodo-info {
+		display: flex;
+		flex: 1;
+		align-items: center;
+		gap: 6px;
+		min-width: 0;
+	}
+
+	.nodo-nombre {
+		font-size: 13px;
+		font-weight: 500;
+	}
+
+	.buscador {
+		display: flex;
+		align-items: flex-end;
+		gap: 10px;
+		flex-wrap: wrap;
+		margin-bottom: 12px;
+	}
+
+	.campo-busqueda {
+		flex: 1;
+		min-width: 240px;
+	}
+
+	.resultados {
+		display: flex;
+		flex-direction: column;
+		margin: 0 0 12px;
+		padding: 0;
+		list-style: none;
+		border: 1px solid var(--borde);
+		border-radius: var(--radio-control);
+	}
+
+	.resultados li {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: 10px;
+		padding: 8px 12px;
+		border-bottom: 1px solid var(--borde);
+	}
+
+	.resultados li:last-child {
+		border-bottom: 0;
+	}
+
+	.resultado-info {
+		display: flex;
+		align-items: baseline;
+		gap: 6px;
+		min-width: 0;
+		font-size: 13px;
+	}
+
+	.producto-seleccionado {
+		padding: 9px 12px;
+		border-radius: var(--radio-control);
+		background: var(--primario-suave);
+		color: var(--primario-texto);
+		font-size: 13px;
+		margin-bottom: 12px;
+	}
+
+	.grupos {
+		display: grid;
+		grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+		gap: 12px;
+	}
+
+	.grupo {
+		margin: 0;
+		padding: 10px 12px;
+		border: 1px solid var(--borde);
+		border-radius: var(--radio-control);
+	}
+
+	.grupo legend {
+		padding: 0 4px;
+		color: var(--texto);
+		font-size: 12.5px;
+		font-weight: 600;
+	}
+
+	.check {
+		display: flex;
+		align-items: center;
+		gap: 7px;
+		padding: 3px 0;
+		color: var(--texto);
+		font-size: 12.5px;
+	}
+
+	.check input {
+		accent-color: var(--primario);
+	}
+
+	.tipo {
+		color: var(--texto-tenue);
+		font-size: 10.5px;
+		text-transform: uppercase;
+		letter-spacing: 0.04em;
+	}
+
+	.pie-asignacion {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: 10px;
+		flex-wrap: wrap;
+		margin-top: 12px;
+		color: var(--texto-suave);
+		font-size: 12.5px;
+	}
+
+	@media (max-width: 1100px) {
+		.grid-principal {
+			grid-template-columns: 1fr;
+		}
+	}
+
+	@media (max-width: 560px) {
+		.grilla {
+			grid-template-columns: 1fr;
+		}
+	}
+</style>
