@@ -55,15 +55,18 @@ export function producto(id: number, nombre: string, sku: string, descripcion = 
 }
 
 export function stockDe(id: number, nombre: string, sku: string, desglose: Array<[number, string, number]>) {
+	const total = desglose.reduce((t, [, , c]) => t + c, 0);
 	return {
 		producto_id: id,
 		nombre,
 		sku,
 		unidad_medida: 'UNIDAD',
 		activo: true,
-		stock_actual: desglose.reduce((t, [, , c]) => t + c, 0),
+		stock_actual: total,
 		stock_minimo: 5,
-		bajo_minimo: false,
+		bajo_minimo: total < 5,
+		// 010: el detalle trae `faltante`; el listado agrega `costo`/`valorizado` (null en OPERACION).
+		faltante: Math.max(5 - total, 0),
 		desglose: desglose.map(([deposito_id, deposito_nombre, cantidad]) => ({
 			deposito_id,
 			deposito_nombre,

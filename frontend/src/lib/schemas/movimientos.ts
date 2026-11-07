@@ -18,6 +18,23 @@ export const MotivoMovimientoSchema = z.enum([
 ]);
 export type MotivoMovimiento = z.infer<typeof MotivoMovimientoSchema>;
 
+/**
+ * Motivos del alta manual por tipo (007, ampliación 2026-11-07). Los reservados
+ * (`TRANSFERENCIA`, `INVENTARIO`, `IMPORTACION`) los registran otros flujos y no
+ * se ofrecen. Espejo de `models/movimiento.rs::motivos_para_tipo`.
+ */
+export const MOTIVOS_POR_TIPO: Record<TipoMovimiento, readonly MotivoMovimiento[]> = {
+	ENTRADA: ['COMPRA', 'DEVOLUCION', 'OTRO'],
+	SALIDA: ['VENTA', 'DEVOLUCION', 'OTRO'],
+	MERMA: ['MERMA', 'OTRO'],
+	AJUSTE: ['AJUSTE', 'OTRO']
+};
+
+/** Motivo inicial coherente con el tipo. */
+export function motivoPorDefecto(tipo: TipoMovimiento): MotivoMovimiento {
+	return MOTIVOS_POR_TIPO[tipo][0];
+}
+
 const DepositoBreveSchema = z.object({
 	id: z.number().int(),
 	nombre: z.string()
@@ -96,7 +113,13 @@ export const StockItemSchema = z.object({
 	stock_actual: z.number().int(),
 	stock_minimo: z.number().int(),
 	bajo_minimo: z.boolean(),
-	stock_deposito: z.number().int().nullable()
+	stock_deposito: z.number().int().nullable(),
+	/** max(stock_minimo − stock_actual, 0) (010). */
+	faltante: z.number().int(),
+	/** Solo GESTION; `null` para OPERACION. */
+	costo: z.number().nullable(),
+	/** costo × (stock_deposito ?? stock_actual); `null` para OPERACION. */
+	valorizado: z.number().nullable()
 });
 export type StockItem = z.infer<typeof StockItemSchema>;
 
@@ -126,6 +149,7 @@ export const StockProductoSchema = z.object({
 	stock_actual: z.number().int(),
 	stock_minimo: z.number().int(),
 	bajo_minimo: z.boolean(),
+	faltante: z.number().int(),
 	desglose: z.array(DesgloseStockSchema)
 });
 export type StockProducto = z.infer<typeof StockProductoSchema>;

@@ -42,7 +42,10 @@ const stockItem = {
 	stock_actual: 10,
 	stock_minimo: 5,
 	bajo_minimo: false,
-	stock_deposito: 3
+	stock_deposito: 3,
+	faltante: 0,
+	costo: null,
+	valorizado: null
 };
 
 describe('cliente de movimientos', () => {
@@ -101,7 +104,7 @@ describe('cliente de movimientos', () => {
 					{
 						error: {
 							codigo: 'stock_insuficiente',
-							mensaje: 'Stock insuficiente en Principal: 3 disponibles, 5 solicitadas.'
+							mensaje: 'Stock insuficiente en Principal: 3 disponibles, 5 solicitadas. Reducí la cantidad o registrá antes una entrada en ese depósito.'
 						}
 					},
 					409
@@ -181,6 +184,7 @@ describe('cliente de stock', () => {
 				stock_actual: 10,
 				stock_minimo: 5,
 				bajo_minimo: false,
+				faltante: 0,
 				desglose: [
 					{
 						deposito_id: 1,

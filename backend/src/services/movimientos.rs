@@ -23,7 +23,16 @@ pub struct NuevoMovimiento {
     pub deposito_id: i32,
     pub motivo: String,
     pub observacion: Option<String>,
-    pub lineas: Vec<LineaNueva>,
+    pub lineas: Vec<LineaCruda>,
+}
+
+/// Línea tal como llega en el JSON: la cantidad se valida como entero en el
+/// paso del modelo puro, después del control de permisos (7.10, 7.11).
+#[derive(Debug, Clone)]
+pub struct LineaCruda {
+    pub producto_id: i32,
+    pub ubicacion_id: Option<i32>,
+    pub cantidad_delta: serde_json::Number,
 }
 
 /// Filtros del historial.
@@ -72,14 +81,26 @@ pub async fn crear(
     nuevo: NuevoMovimiento,
     usuario: &Usuario,
 ) -> Result<MovimientoDetalle, AppError> {
+    // Orden de evaluación (plan, decisión 11): tipo → permiso → modelo puro → servicio.
     let tipo = movimiento::validar_tipo(&nuevo.tipo)?;
-    let motivo = movimiento::validar_motivo(&nuevo.motivo)?;
-    let observacion = movimiento::validar_observacion(nuevo.observacion.as_deref(), &motivo)?;
-    movimiento::validar_lineas(&tipo, &nuevo.lineas)?;
-
     if tipo == "AJUSTE" && usuario.familia_rol != "GESTION" {
         return Err(AppError::SinPermisos);
     }
+    let motivo = movimiento::validar_motivo(&nuevo.motivo)?;
+    movimiento::validar_motivo_para_tipo(&tipo, &motivo)?;
+    let observacion = movimiento::validar_observacion(nuevo.observacion.as_deref(), &motivo)?;
+    let lineas = nuevo
+        .lineas
+        .iter()
+        .map(|linea| {
+            Ok(LineaNueva {
+                producto_id: linea.producto_id,
+                ubicacion_id: linea.ubicacion_id,
+                cantidad_delta: movimiento::cantidad_entera(&linea.cantidad_delta)?,
+            })
+        })
+        .collect::<Result<Vec<_>, AppError>>()?;
+    movimiento::validar_lineas(&tipo, &lineas)?;
 
     let mut tx = pool.begin().await?;
 
@@ -89,13 +110,20 @@ pub async fn crear(
     .bind(nuevo.deposito_id)
     .fetch_optional(&mut *tx)
     .await?
-    .ok_or_else(|| AppError::Validacion("El depósito indicado no existe.".into()))?;
+    .ok_or_else(|| {
+        AppError::Validacion(format!(
+            "El depósito {} no existe. Elegí uno de la lista de Depósitos.",
+            nuevo.deposito_id
+        ))
+    })?;
 
     if !deposito.activo {
-        return Err(AppError::Validacion("El depósito está inactivo.".into()));
+        return Err(AppError::Validacion(
+            "El depósito está inactivo. Reactivalo desde Depósitos o elegí otro.".into(),
+        ));
     }
 
-    let mut productos: Vec<i32> = nuevo.lineas.iter().map(|l| l.producto_id).collect();
+    let mut productos: Vec<i32> = lineas.iter().map(|l| l.producto_id).collect();
     productos.sort_unstable();
     productos.dedup();
 
@@ -106,10 +134,13 @@ pub async fn crear(
     .fetch_all(&mut *tx)
     .await?;
 
-    if filas.len() != productos.len() {
-        return Err(AppError::Validacion(
-            "Alguno de los productos indicados no existe.".into(),
-        ));
+    if let Some(faltante) = productos
+        .iter()
+        .find(|id| !filas.iter().any(|fila| fila.id == **id))
+    {
+        return Err(AppError::Validacion(format!(
+            "El producto {faltante} no existe. Elegí otro o quitá la línea."
+        )));
     }
     if let Some(inactivo) = filas.iter().find(|fila| !fila.activo) {
         tracing::debug!(producto_id = inactivo.id, "movimiento rechazado por producto inactivo");
@@ -119,7 +150,7 @@ pub async fn crear(
     let nombres: HashMap<i32, String> =
         filas.iter().map(|fila| (fila.id, fila.nombre.clone())).collect();
 
-    for linea in &nuevo.lineas {
+    for linea in &lineas {
         let Some(ubicacion_id) = linea.ubicacion_id else {
             continue;
         };
@@ -129,15 +160,22 @@ pub async fn crear(
         .bind(ubicacion_id)
         .fetch_optional(&mut *tx)
         .await?
-        .ok_or_else(|| AppError::Validacion("La ubicación indicada no existe.".into()))?;
+        .ok_or_else(|| {
+            AppError::Validacion(
+                "La ubicación indicada no existe. Elegí una del depósito o dejala vacía.".into(),
+            )
+        })?;
 
         if ubicacion.deposito_id != nuevo.deposito_id {
             return Err(AppError::Validacion(
-                "La ubicación no pertenece al depósito del movimiento.".into(),
+                "La ubicación no pertenece al depósito del movimiento. Elegí una de ese depósito o dejala vacía.".into(),
             ));
         }
         if !ubicacion.activo {
-            return Err(AppError::Validacion("La ubicación está inactiva.".into()));
+            return Err(AppError::Validacion(
+                "La ubicación está inactiva. Elegí otra o dejala vacía para imputar al depósito."
+                    .into(),
+            ));
         }
 
         let permitida: bool = sqlx::query_scalar(
@@ -155,7 +193,7 @@ pub async fn crear(
                 .map(String::as_str)
                 .unwrap_or("el producto");
             return Err(AppError::Validacion(format!(
-                "La ubicación no está permitida para {nombre}."
+                "La ubicación no está permitida para {nombre}. Asignala desde Productos o elegí una permitida."
             )));
         }
     }
@@ -173,7 +211,7 @@ pub async fn crear(
     .fetch_one(&mut *tx)
     .await?;
 
-    for linea in &nuevo.lineas {
+    for linea in &lineas {
         // Asegura la fila (cantidad 0) sin pisar una existente ni chocar en concurrencia.
         sqlx::query(
             r#"INSERT INTO stock_por_deposito (producto_id, deposito_id, ubicacion_id, cantidad)
@@ -199,7 +237,10 @@ pub async fn crear(
         .await?;
 
         let resultante = actual.checked_add(linea.cantidad_delta).ok_or_else(|| {
-            AppError::Validacion("La cantidad resultante es demasiado grande.".into())
+            AppError::Validacion(
+                "La cantidad resultante supera el máximo admitido. Dividí el movimiento o revisá la cantidad."
+                    .into(),
+            )
         })?;
 
         if resultante < 0 {

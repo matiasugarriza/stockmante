@@ -233,7 +233,7 @@ async fn salida_sin_stock_responde_409_y_no_cambia_nada() {
     .expect("nombre del depósito");
     assert_eq!(
         body["error"]["mensaje"],
-        format!("Stock insuficiente en {nombre_deposito}: 3 disponibles, 5 solicitadas.")
+        format!("Stock insuficiente en {nombre_deposito}: 3 disponibles, 5 solicitadas. Reducí la cantidad o registrá antes una entrada en ese depósito.")
     );
 
     // SC-013: el stock no cambió.
@@ -326,7 +326,7 @@ async fn ajuste_reservado_a_gestion() {
         Some(json!({
             "tipo": "AJUSTE",
             "deposito_id": deposito,
-            "motivo": "INVENTARIO",
+            "motivo": "AJUSTE",
             "lineas": [{
                 "producto_id": producto,
                 "ubicacion_id": null,
@@ -347,7 +347,7 @@ async fn ajuste_reservado_a_gestion() {
         Some(json!({
             "tipo": "AJUSTE",
             "deposito_id": deposito,
-            "motivo": "INVENTARIO",
+            "motivo": "AJUSTE",
             "lineas": [{
                 "producto_id": producto,
                 "ubicacion_id": null,
@@ -588,7 +588,7 @@ async fn entidades_inactivas_rechazan_el_movimiento() {
     assert_eq!(body["error"]["codigo"], "producto_inactivo");
     assert_eq!(
         body["error"]["mensaje"],
-        "El producto está inactivo y no admite movimientos."
+        "El producto está inactivo y no admite movimientos. Reactivalo desde Productos o quitalo de la operación."
     );
 
     // Reactivar para el caso del depósito.
@@ -778,4 +778,401 @@ async fn sin_sesion_los_nuevos_endpoints_respoden_401() {
         assert_eq!(status, StatusCode::UNAUTHORIZED, "{metodo} {uri}: {body_resp}");
         assert_eq!(body_resp["error"]["codigo"], "no_autenticado");
     }
+}
+
+// --- Ampliación 2026-11-07: T022–T025, T031–T033. ---
+
+async fn movimiento(
+    app: &Router,
+    cookie: &str,
+    tipo: &str,
+    motivo: &str,
+    deposito_id: i32,
+    lineas: Value,
+) -> (StatusCode, Value) {
+    pedir(
+        app,
+        cookie,
+        "POST",
+        "/api/movimientos",
+        Some(json!({
+            "tipo": tipo,
+            "deposito_id": deposito_id,
+            "motivo": motivo,
+            "lineas": lineas,
+        })),
+    )
+    .await
+}
+
+async fn movimientos_del_deposito(pool: &PgPool, deposito_id: i32) -> i64 {
+    sqlx::query_scalar("SELECT count(*) FROM movimientos WHERE deposito_id = $1")
+        .bind(deposito_id)
+        .fetch_one(pool)
+        .await
+        .expect("conteo de movimientos")
+}
+
+async fn nombre_deposito(pool: &PgPool, deposito_id: i32) -> String {
+    sqlx::query_scalar("SELECT nombre FROM depositos WHERE id = $1")
+        .bind(deposito_id)
+        .fetch_one(pool)
+        .await
+        .expect("nombre del depósito")
+}
+
+/// T022 (7.9): motivo incoherente o reservado → 422 sin escribir nada.
+#[tokio::test]
+async fn motivo_incoherente_o_reservado_responde_422_sin_escritura() {
+    let (app, pool, _correo) = app_de_test().await;
+    let cookie = sesion_gestion(&pool).await;
+    let categoria = crear_categoria(&app, &cookie).await;
+    let producto = crear_producto(&app, &cookie, categoria).await;
+    let deposito = crear_deposito(&app, &cookie).await;
+    let lineas = json!([{ "producto_id": producto, "ubicacion_id": null, "cantidad_delta": 4 }]);
+
+    let (status, body) =
+        movimiento(&app, &cookie, "ENTRADA", "VENTA", deposito, lineas.clone()).await;
+    assert_eq!(status, StatusCode::UNPROCESSABLE_ENTITY, "{body}");
+    assert_eq!(body["error"]["codigo"], "validacion");
+    assert_eq!(
+        body["error"]["mensaje"],
+        "El motivo VENTA no corresponde a una ENTRADA. Motivos válidos: COMPRA, DEVOLUCION u OTRO."
+    );
+
+    let (status, body) =
+        movimiento(&app, &cookie, "ENTRADA", "TRANSFERENCIA", deposito, lineas).await;
+    assert_eq!(status, StatusCode::UNPROCESSABLE_ENTITY, "{body}");
+    assert_eq!(
+        body["error"]["mensaje"],
+        "El motivo TRANSFERENCIA lo registra el flujo de transferencias."
+    );
+
+    assert_eq!(movimientos_del_deposito(&pool, deposito).await, 0);
+    assert_eq!(stock_en_deposito(&pool, producto, deposito).await, None);
+    assert_eq!(cache_del_producto(&pool, producto).await, 0);
+}
+
+/// T023 (7.4): `AJUSTE` negativo mayor que el stock → 409 con el literal nuevo.
+#[tokio::test]
+async fn ajuste_negativo_mayor_que_el_stock_responde_409() {
+    let (app, pool, _correo) = app_de_test().await;
+    let cookie = sesion_gestion(&pool).await;
+    let categoria = crear_categoria(&app, &cookie).await;
+    let producto = crear_producto(&app, &cookie, categoria).await;
+    let deposito = crear_deposito(&app, &cookie).await;
+    let (status, _) = entrada(&app, &cookie, deposito, producto, 2).await;
+    assert_eq!(status, StatusCode::CREATED);
+
+    let (status, body) = movimiento(
+        &app,
+        &cookie,
+        "AJUSTE",
+        "AJUSTE",
+        deposito,
+        json!([{ "producto_id": producto, "ubicacion_id": null, "cantidad_delta": -5 }]),
+    )
+    .await;
+    assert_eq!(status, StatusCode::CONFLICT, "{body}");
+    assert_eq!(body["error"]["codigo"], "stock_insuficiente");
+    let nombre = nombre_deposito(&pool, deposito).await;
+    assert_eq!(
+        body["error"]["mensaje"],
+        format!(
+            "Stock insuficiente en {nombre}: 2 disponibles, 5 solicitadas. Reducí la cantidad o registrá antes una entrada en ese depósito."
+        )
+    );
+    assert_eq!(stock_en_deposito(&pool, producto, deposito).await, Some(2));
+    assert_eq!(cache_del_producto(&pool, producto).await, 2);
+}
+
+/// T024 (FR-028, Principio III): mensajes con siguiente paso.
+#[tokio::test]
+async fn mensajes_de_validacion_indican_el_siguiente_paso() {
+    let (app, pool, _correo) = app_de_test().await;
+    let cookie = sesion_gestion(&pool).await;
+    let categoria = crear_categoria(&app, &cookie).await;
+    let producto = crear_producto(&app, &cookie, categoria).await;
+    let deposito = crear_deposito(&app, &cookie).await;
+    let linea = |p: i32, u: Option<i32>| json!([{ "producto_id": p, "ubicacion_id": u, "cantidad_delta": 1 }]);
+
+    // Depósito inexistente, nombrando el id.
+    let (status, body) =
+        movimiento(&app, &cookie, "ENTRADA", "COMPRA", 999_999, linea(producto, None)).await;
+    assert_eq!(status, StatusCode::UNPROCESSABLE_ENTITY, "{body}");
+    assert_eq!(
+        body["error"]["mensaje"],
+        "El depósito 999999 no existe. Elegí uno de la lista de Depósitos."
+    );
+
+    // Producto inexistente, nombrando el id.
+    let (status, body) =
+        movimiento(&app, &cookie, "ENTRADA", "COMPRA", deposito, linea(999_999, None)).await;
+    assert_eq!(status, StatusCode::UNPROCESSABLE_ENTITY, "{body}");
+    assert_eq!(
+        body["error"]["mensaje"],
+        "El producto 999999 no existe. Elegí otro o quitá la línea."
+    );
+
+    // Depósito inactivo.
+    let inactivo = crear_deposito_inactivo(&pool).await;
+    let (status, body) =
+        movimiento(&app, &cookie, "ENTRADA", "COMPRA", inactivo, linea(producto, None)).await;
+    assert_eq!(status, StatusCode::UNPROCESSABLE_ENTITY, "{body}");
+    assert_eq!(
+        body["error"]["mensaje"],
+        "El depósito está inactivo. Reactivalo desde Depósitos o elegí otro."
+    );
+
+    // Ubicación inexistente.
+    let (status, body) = movimiento(
+        &app,
+        &cookie,
+        "ENTRADA",
+        "COMPRA",
+        deposito,
+        linea(producto, Some(999_999)),
+    )
+    .await;
+    assert_eq!(status, StatusCode::UNPROCESSABLE_ENTITY, "{body}");
+    assert_eq!(
+        body["error"]["mensaje"],
+        "La ubicación indicada no existe. Elegí una del depósito o dejala vacía."
+    );
+
+    // Ubicación de otro depósito.
+    let otro = crear_deposito(&app, &cookie).await;
+    let (status, ub) = pedir(
+        &app,
+        &cookie,
+        "POST",
+        "/api/ubicaciones",
+        Some(json!({ "deposito_id": otro, "nombre": "Ajena", "tipo": "PASILLO" })),
+    )
+    .await;
+    assert_eq!(status, StatusCode::CREATED, "{ub}");
+    let ajena = ub["id"].as_i64().expect("id") as i32;
+    let (status, body) =
+        movimiento(&app, &cookie, "ENTRADA", "COMPRA", deposito, linea(producto, Some(ajena))).await;
+    assert_eq!(status, StatusCode::UNPROCESSABLE_ENTITY, "{body}");
+    assert_eq!(
+        body["error"]["mensaje"],
+        "La ubicación no pertenece al depósito del movimiento. Elegí una de ese depósito o dejala vacía."
+    );
+
+    // Ubicación propia pero no asignada al producto.
+    let (status, ub) = pedir(
+        &app,
+        &cookie,
+        "POST",
+        "/api/ubicaciones",
+        Some(json!({ "deposito_id": deposito, "nombre": "Propia", "tipo": "PASILLO" })),
+    )
+    .await;
+    assert_eq!(status, StatusCode::CREATED, "{ub}");
+    let propia = ub["id"].as_i64().expect("id") as i32;
+    let (status, body) =
+        movimiento(&app, &cookie, "ENTRADA", "COMPRA", deposito, linea(producto, Some(propia))).await;
+    assert_eq!(status, StatusCode::UNPROCESSABLE_ENTITY, "{body}");
+    assert_eq!(
+        body["error"]["mensaje"],
+        "La ubicación no está permitida para Producto de movimientos. Asignala desde Productos o elegí una permitida."
+    );
+
+    // Ubicación inactiva (asignada y luego desactivada).
+    let (status, _) = pedir(
+        &app,
+        &cookie,
+        "PUT",
+        &format!("/api/productos/{producto}/ubicaciones"),
+        Some(json!({ "ubicacion_ids": [propia] })),
+    )
+    .await;
+    assert_eq!(status, StatusCode::NO_CONTENT);
+    let (status, _) = pedir(
+        &app,
+        &cookie,
+        "POST",
+        &format!("/api/ubicaciones/{propia}/desactivar"),
+        None,
+    )
+    .await;
+    assert_eq!(status, StatusCode::NO_CONTENT);
+    let (status, body) =
+        movimiento(&app, &cookie, "ENTRADA", "COMPRA", deposito, linea(producto, Some(propia))).await;
+    assert_eq!(status, StatusCode::UNPROCESSABLE_ENTITY, "{body}");
+    assert_eq!(
+        body["error"]["mensaje"],
+        "La ubicación está inactiva. Elegí otra o dejala vacía para imputar al depósito."
+    );
+
+    assert_eq!(movimientos_del_deposito(&pool, deposito).await, 0);
+}
+
+/// T031 (7.10): el 403 de AJUSTE gana sobre el motivo y el producto inactivo;
+/// para GESTION gana el motivo incoherente sobre el producto inactivo.
+#[tokio::test]
+async fn precedencia_de_errores_del_alta() {
+    let (app, pool, _correo) = app_de_test().await;
+    let gestion = sesion_gestion(&pool).await;
+    let operacion = sesion_operacion(&pool).await;
+    let categoria = crear_categoria(&app, &gestion).await;
+    let producto = crear_producto(&app, &gestion, categoria).await;
+    let deposito = crear_deposito(&app, &gestion).await;
+    let (status, _) = pedir(
+        &app,
+        &gestion,
+        "POST",
+        &format!("/api/productos/{producto}/desactivar"),
+        None,
+    )
+    .await;
+    assert_eq!(status, StatusCode::NO_CONTENT);
+
+    let (status, body) = movimiento(
+        &app,
+        &operacion,
+        "AJUSTE",
+        "VENTA",
+        deposito,
+        json!([{ "producto_id": producto, "ubicacion_id": null, "cantidad_delta": 1 }]),
+    )
+    .await;
+    assert_eq!(status, StatusCode::FORBIDDEN, "{body}");
+    assert_eq!(body["error"]["codigo"], "sin_permisos");
+
+    let (status, body) = movimiento(
+        &app,
+        &gestion,
+        "ENTRADA",
+        "VENTA",
+        deposito,
+        json!([{ "producto_id": producto, "ubicacion_id": null, "cantidad_delta": 1 }]),
+    )
+    .await;
+    assert_eq!(status, StatusCode::UNPROCESSABLE_ENTITY, "{body}");
+    assert_eq!(body["error"]["codigo"], "validacion");
+    assert_eq!(movimientos_del_deposito(&pool, deposito).await, 0);
+}
+
+/// T032 (7.11): cantidad no entera → 422 específico, nada escrito.
+#[tokio::test]
+async fn cantidad_no_entera_responde_422_especifico() {
+    let (app, pool, _correo) = app_de_test().await;
+    let cookie = sesion_gestion(&pool).await;
+    let categoria = crear_categoria(&app, &cookie).await;
+    let producto = crear_producto(&app, &cookie, categoria).await;
+    let deposito = crear_deposito(&app, &cookie).await;
+    let (status, body) = movimiento(
+        &app,
+        &cookie,
+        "ENTRADA",
+        "COMPRA",
+        deposito,
+        json!([{ "producto_id": producto, "ubicacion_id": null, "cantidad_delta": 2.5 }]),
+    )
+    .await;
+    assert_eq!(status, StatusCode::UNPROCESSABLE_ENTITY, "{body}");
+    assert_eq!(
+        body["error"]["mensaje"],
+        "La cantidad de cada línea debe ser un número entero distinto de cero."
+    );
+    assert_eq!(movimientos_del_deposito(&pool, deposito).await, 0);
+}
+
+/// T025 (SC-014, W-005): dos altas simultáneas del mismo producto en ubicaciones
+/// distintas no pierden unidades en el cache.
+#[tokio::test]
+async fn altas_concurrentes_mantienen_el_cache_coherente() {
+    let (app, pool, _correo) = app_de_test().await;
+    let cookie = sesion_gestion(&pool).await;
+    let categoria = crear_categoria(&app, &cookie).await;
+    let producto = crear_producto(&app, &cookie, categoria).await;
+    let deposito = crear_deposito(&app, &cookie).await;
+    let mut ubicaciones = Vec::new();
+    for nombre in ["A", "B"] {
+        let (status, ub) = pedir(
+            &app,
+            &cookie,
+            "POST",
+            "/api/ubicaciones",
+            Some(json!({ "deposito_id": deposito, "nombre": nombre, "tipo": "PASILLO" })),
+        )
+        .await;
+        assert_eq!(status, StatusCode::CREATED, "{ub}");
+        ubicaciones.push(ub["id"].as_i64().expect("id") as i32);
+    }
+    let (status, _) = pedir(
+        &app,
+        &cookie,
+        "PUT",
+        &format!("/api/productos/{producto}/ubicaciones"),
+        Some(json!({ "ubicacion_ids": ubicaciones })),
+    )
+    .await;
+    assert_eq!(status, StatusCode::NO_CONTENT);
+
+    for _ in 0..5 {
+        let alta = |ubicacion: i32| {
+            movimiento(
+                &app,
+                &cookie,
+                "ENTRADA",
+                "COMPRA",
+                deposito,
+                json!([{ "producto_id": producto, "ubicacion_id": ubicacion, "cantidad_delta": 3 }]),
+            )
+        };
+        let ((s1, b1), (s2, b2)) = tokio::join!(alta(ubicaciones[0]), alta(ubicaciones[1]));
+        assert_eq!(s1, StatusCode::CREATED, "{b1}");
+        assert_eq!(s2, StatusCode::CREATED, "{b2}");
+    }
+
+    let suma: i64 = sqlx::query_scalar(
+        "SELECT COALESCE(sum(cantidad), 0)::bigint FROM stock_por_deposito WHERE producto_id = $1",
+    )
+    .bind(producto)
+    .fetch_one(&pool)
+    .await
+    .expect("suma del desglose");
+    assert_eq!(suma, 30);
+    assert_eq!(i64::from(cache_del_producto(&pool, producto).await), suma);
+}
+
+/// T033 (FR-029, W-005): `GET /api/stock?categoria_id=` solo devuelve esa categoría.
+#[tokio::test]
+async fn listado_de_stock_filtra_por_categoria() {
+    let (app, pool, _correo) = app_de_test().await;
+    let cookie = sesion_gestion(&pool).await;
+    let categoria = crear_categoria(&app, &cookie).await;
+    let otra = crear_categoria(&app, &cookie).await;
+    let producto = crear_producto(&app, &cookie, categoria).await;
+    let ajeno = crear_producto(&app, &cookie, otra).await;
+
+    let (status, body) = pedir(
+        &app,
+        &cookie,
+        "GET",
+        &format!("/api/stock?categoria_id={categoria}"),
+        None,
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK, "{body}");
+    let items = body["items"].as_array().expect("items");
+    assert!(items.iter().any(|i| i["producto_id"] == producto), "{body}");
+    assert!(!items.iter().any(|i| i["producto_id"] == ajeno), "{body}");
+    let categorias_ok: i64 = sqlx::query_scalar(
+        "SELECT count(*) FROM productos WHERE id = ANY($1) AND categoria_id <> $2",
+    )
+    .bind(
+        items
+            .iter()
+            .filter_map(|i| i["producto_id"].as_i64().map(|v| v as i32))
+            .collect::<Vec<i32>>(),
+    )
+    .bind(categoria)
+    .fetch_one(&pool)
+    .await
+    .expect("categorías del listado");
+    assert_eq!(categorias_ok, 0);
 }

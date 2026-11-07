@@ -87,7 +87,7 @@ describe('cliente de transferencias', () => {
 					{
 						error: {
 							codigo: 'stock_insuficiente',
-							mensaje: 'Stock insuficiente en Principal: 3 disponibles, 5 solicitadas.'
+							mensaje: 'Stock insuficiente en Principal: 3 disponibles, 5 solicitadas. Reducí la cantidad o registrá antes una entrada en ese depósito.'
 						}
 					},
 					409

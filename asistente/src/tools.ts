@@ -26,6 +26,14 @@ const MOTIVO_POR_TIPO: Record<TipoMovimiento, Motivo> = {
 	AJUSTE: 'AJUSTE'
 };
 
+/** Matriz tipo ↔ motivo del alta manual (007, ampliación 2026-11-07). */
+export const MOTIVOS_POR_TIPO: Record<TipoMovimiento, readonly Motivo[]> = {
+	ENTRADA: ['COMPRA', 'DEVOLUCION', 'OTRO'],
+	SALIDA: ['VENTA', 'DEVOLUCION', 'OTRO'],
+	MERMA: ['MERMA', 'OTRO'],
+	AJUSTE: ['AJUSTE', 'OTRO']
+};
+
 interface ProductoApi {
 	id: number;
 	nombre: string;
@@ -230,6 +238,12 @@ export function crearTools(
 			const delta = calcularDelta(tipo, cantidad);
 			if ('mensaje' in delta) return delta.mensaje;
 			const motivoFinal = motivo ?? MOTIVO_POR_TIPO[tipo];
+			if (!MOTIVOS_POR_TIPO[tipo].includes(motivoFinal)) {
+				return (
+					`El motivo ${motivoFinal} no corresponde a una ${tipo}. ` +
+					`Motivos válidos: ${MOTIVOS_POR_TIPO[tipo].join(', ')}. Pedile al usuario que elija uno.`
+				);
+			}
 			const observacionFinal = observacion?.trim() ? observacion.trim() : null;
 			if (motivoFinal === 'OTRO' && !observacionFinal) {
 				return 'Con motivo OTRO hace falta una observación. Pedile al usuario que la indique.';

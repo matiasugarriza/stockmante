@@ -60,6 +60,65 @@ pub fn validar_motivo(valor: &str) -> Result<String, AppError> {
     }
 }
 
+/// Motivos admitidos en el alta manual por tipo (ampliación 2026-11-07, 7.9).
+///
+/// Los flujos de 008, 009, 012, 013 y 016 insertan sus movimientos con su propio
+/// SQL y no pasan por esta matriz.
+pub fn motivos_para_tipo(tipo: &str) -> &'static [&'static str] {
+    match tipo {
+        "ENTRADA" => &["COMPRA", "DEVOLUCION", "OTRO"],
+        "SALIDA" => &["VENTA", "DEVOLUCION", "OTRO"],
+        "MERMA" => &["MERMA", "OTRO"],
+        "AJUSTE" => &["AJUSTE", "OTRO"],
+        _ => &[],
+    }
+}
+
+/// Coherencia tipo ↔ motivo del alta manual; los motivos reservados nombran su flujo.
+pub fn validar_motivo_para_tipo(tipo: &str, motivo: &str) -> Result<(), AppError> {
+    let reservado = match motivo {
+        "TRANSFERENCIA" => Some("el flujo de transferencias"),
+        "INVENTARIO" => Some("el cierre de conteos"),
+        "IMPORTACION" => Some("la importación masiva"),
+        _ => None,
+    };
+    if let Some(flujo) = reservado {
+        return Err(AppError::Validacion(format!(
+            "El motivo {motivo} lo registra {flujo}."
+        )));
+    }
+    let admitidos = motivos_para_tipo(tipo);
+    if admitidos.contains(&motivo) {
+        return Ok(());
+    }
+    let lista = match admitidos.split_last() {
+        Some((ultimo, resto)) if !resto.is_empty() => format!("{} u {ultimo}", resto.join(", ")),
+        Some((ultimo, _)) => (*ultimo).to_string(),
+        None => String::new(),
+    };
+    Err(AppError::Validacion(format!(
+        "El motivo {motivo} no corresponde a una {tipo}. Motivos válidos: {lista}."
+    )))
+}
+
+/// Convierte la cantidad recibida como número JSON a `i32` (7.11).
+pub fn cantidad_entera(valor: &serde_json::Number) -> Result<i32, AppError> {
+    let fuera_de_rango = || {
+        AppError::Validacion(
+            "La cantidad de cada línea supera el máximo admitido. Revisá el valor.".into(),
+        )
+    };
+    if let Some(v) = valor.as_i64() {
+        return i32::try_from(v).map_err(|_| fuera_de_rango());
+    }
+    if valor.as_u64().is_some() {
+        return Err(fuera_de_rango());
+    }
+    Err(AppError::Validacion(
+        "La cantidad de cada línea debe ser un número entero distinto de cero.".into(),
+    ))
+}
+
 /// Observación opcional; con motivo `OTRO` es obligatoria (FR-024).
 pub fn validar_observacion(
     valor: Option<&str>,
@@ -126,7 +185,7 @@ pub fn validar_lineas(tipo: &str, lineas: &[LineaNueva]) -> Result<(), AppError>
     for linea in lineas {
         if linea.producto_id <= 0 {
             return Err(AppError::Validacion(
-                "El producto de cada línea es obligatorio.".into(),
+                "El producto de cada línea es obligatorio. Elegí un producto o quitá la línea.".into(),
             ));
         }
         if let Some(ubicacion_id) = linea.ubicacion_id {

@@ -42,6 +42,7 @@ describe('tools de lectura (FR-066)', () => {
 		const datos = JSON.parse(salida);
 		expect(datos.items[0].desglose[0]).toMatchObject({ deposito_nombre: 'Principal', cantidad: 12 });
 		expect(datos.items[0].stock_minimo).toBe(5);
+		expect(datos.items[0].faltante).toBe(0); // 010: el campo nuevo pasa intacto
 		expect(llamadas.every((l) => l.cookie === COOKIE)).toBe(true);
 		expect(registro.tools).toContain('consultar_stock');
 	});
@@ -81,6 +82,37 @@ describe('tools de lectura (FR-066)', () => {
 });
 
 describe('proponer_movimiento (FR-067, 17.2, 17.3, 17.10)', () => {
+	it('rechaza un motivo incoherente con el tipo sin armar propuesta (007, 7.9)', async () => {
+		const { tool, registro, llamadas } = armar(GERENTE);
+		const salida = String(
+			await tool('proponer_movimiento').invoke({
+				tipo: 'ENTRADA',
+				producto: 'Yerba Suave 1 kg',
+				deposito: 'principal',
+				cantidad: 2,
+				motivo: 'VENTA'
+			})
+		);
+		expect(salida).toContain('no corresponde a una ENTRADA');
+		expect(registro.propuesta).toBeNull();
+		expect(llamadas).toHaveLength(0);
+	});
+
+	it('rechaza un motivo reservado (TRANSFERENCIA) en la propuesta', async () => {
+		const { tool, registro } = armar(GERENTE);
+		const salida = String(
+			await tool('proponer_movimiento').invoke({
+				tipo: 'SALIDA',
+				producto: 'Yerba Suave 1 kg',
+				deposito: 'principal',
+				cantidad: 1,
+				motivo: 'TRANSFERENCIA'
+			})
+		);
+		expect(salida).toContain('Motivos válidos');
+		expect(registro.propuesta).toBeNull();
+	});
+
 	it('arma una MERMA con delta negativo y no escribe nada', async () => {
 		const { tool, registro, llamadas } = armar(OPERARIO);
 		const salida = String(

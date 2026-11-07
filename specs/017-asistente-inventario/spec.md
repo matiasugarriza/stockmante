@@ -55,7 +55,7 @@ operación y su valor depende de que 007–014 estén cerradas.
   Principal, −2, motivo "vencimiento") que el usuario confirma o cancela en la interfaz.
 - **Y** al confirmar, la interfaz llama a `POST /api/movimientos` con la sesión del usuario y
   muestra producto, depósito y stock resultante; si el permiso o el stock no alcanzan, muestra el
-  error real de la API (`"Stock insuficiente en Principal: 1 disponible, 2 solicitadas."`).
+  error real de la API (`"Stock insuficiente en Principal: 1 disponibles, 2 solicitadas. Reducí la cantidad o registrá antes una entrada en ese depósito."`).
 - **Y** al cancelar, no se llama a ninguna API de escritura.
 
 **Escenario 17.3 — Escritura reservada a gestión**

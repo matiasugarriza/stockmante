@@ -121,7 +121,7 @@ describe('cliente del asistente (017)', () => {
 	});
 
 	it('confirmarPropuesta propaga el stock insuficiente de la API', async () => {
-		const mensaje = 'Stock insuficiente en Principal: 1 disponibles, 2 solicitadas.';
+		const mensaje = 'Stock insuficiente en Principal: 1 disponibles, 2 solicitadas. Reducí la cantidad o registrá antes una entrada en ese depósito.';
 		vi.stubGlobal('fetch', vi.fn(async () => jsonResponse({ error: { codigo: 'stock_insuficiente', mensaje } }, 409)));
 		await expect(confirmarPropuesta(propuesta)).rejects.toMatchObject({ status: 409, message: mensaje });
 	});

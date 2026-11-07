@@ -447,6 +447,6 @@ async fn propuesta_confirmada_queda_auditada_con_el_operario_y_sin_stock_muestra
     assert_eq!(status, StatusCode::CONFLICT, "{error}");
     assert_eq!(
         error["error"]["mensaje"],
-        format!("Stock insuficiente en {nombre_deposito}: 1 disponibles, 2 solicitadas.")
+        format!("Stock insuficiente en {nombre_deposito}: 1 disponibles, 2 solicitadas. Reducí la cantidad o registrá antes una entrada en ese depósito.")
     );
 }

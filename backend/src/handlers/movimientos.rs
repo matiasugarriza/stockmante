@@ -9,9 +9,8 @@ use crate::auth::extractors::AuthUsuario;
 use crate::docs::ErrorRespuesta;
 use crate::error::AppError;
 use crate::extractores::{JsonValido, PathValido, QueryValida};
-use crate::models::movimiento::LineaNueva;
 use crate::models::stock::{ListaMovimientos, MovimientoDetalle};
-use crate::services::movimientos::{self, FiltrosMovimientos, NuevoMovimiento};
+use crate::services::movimientos::{self, FiltrosMovimientos, LineaCruda, NuevoMovimiento};
 use axum::{
     extract::State,
     http::StatusCode,
@@ -36,8 +35,9 @@ pub struct LineaMovimientoDto {
     /// Opcional; si falta, el stock se imputa al depósito.
     pub ubicacion_id: Option<i32>,
     /// `ENTRADA > 0`, `SALIDA`/`MERMA < 0`, `AJUSTE ≠ 0`.
-    #[schema(example = 10)]
-    pub cantidad_delta: i32,
+    /// Se recibe como número JSON y se valida como entero (7.11).
+    #[schema(value_type = i32, example = 10)]
+    pub cantidad_delta: serde_json::Number,
 }
 
 #[derive(Debug, Deserialize, ToSchema)]
@@ -82,7 +82,7 @@ pub async fn crear(
         lineas: dto
             .lineas
             .into_iter()
-            .map(|linea| LineaNueva {
+            .map(|linea| LineaCruda {
                 producto_id: linea.producto_id,
                 ubicacion_id: linea.ubicacion_id,
                 cantidad_delta: linea.cantidad_delta,

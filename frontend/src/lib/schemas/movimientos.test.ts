@@ -5,7 +5,9 @@ import {
 	ListaStockSchema,
 	MovimientoDetalleSchema,
 	StockProductoSchema,
-	TipoMovimientoSchema
+	MOTIVOS_POR_TIPO,
+	TipoMovimientoSchema,
+	motivoPorDefecto
 } from './movimientos';
 
 const movimiento = {
@@ -40,7 +42,10 @@ const stockItem = {
 	stock_actual: 10,
 	stock_minimo: 5,
 	bajo_minimo: false,
-	stock_deposito: null
+	stock_deposito: null,
+	faltante: 0,
+	costo: null,
+	valorizado: null
 };
 
 describe('TipoMovimientoSchema', () => {
@@ -149,6 +154,7 @@ describe('ListaStockSchema y StockProductoSchema', () => {
 			stock_actual: 10,
 			stock_minimo: 5,
 			bajo_minimo: false,
+			faltante: 0,
 			desglose: [
 				{
 					deposito_id: 1,
@@ -160,5 +166,55 @@ describe('ListaStockSchema y StockProductoSchema', () => {
 			]
 		});
 		expect(r.success).toBe(true);
+	});
+});
+
+describe('StockItemSchema con faltante y valorizado (010)', () => {
+	it('acepta costo y valorizado numéricos (GESTION) o null (OPERACION)', () => {
+		const lista = (item: object) =>
+			ListaStockSchema.safeParse({ items: [item], total: 1, pagina: 1, por_pagina: 20 });
+		expect(lista({ ...stockItem, faltante: 7, costo: 150.5, valorizado: 451.5 }).success).toBe(true);
+		expect(lista({ ...stockItem, faltante: 7, costo: null, valorizado: null }).success).toBe(true);
+	});
+
+	it('exige faltante entero en el item y en el detalle', () => {
+		const { faltante: _f, ...sinFaltante } = stockItem;
+		expect(
+			ListaStockSchema.safeParse({ items: [sinFaltante], total: 1, pagina: 1, por_pagina: 20 })
+				.success
+		).toBe(false);
+		const detalle = {
+			producto_id: 10,
+			nombre: 'Yerba',
+			sku: 'Y',
+			unidad_medida: 'UNIDAD',
+			activo: true,
+			stock_actual: 3,
+			stock_minimo: 5,
+			bajo_minimo: true,
+			desglose: []
+		};
+		expect(StockProductoSchema.safeParse(detalle).success).toBe(false);
+		expect(StockProductoSchema.safeParse({ ...detalle, faltante: 2 }).success).toBe(true);
+	});
+});
+
+describe('MOTIVOS_POR_TIPO', () => {
+	it('sigue la matriz del alta manual y excluye los motivos reservados', () => {
+		expect(MOTIVOS_POR_TIPO.ENTRADA).toEqual(['COMPRA', 'DEVOLUCION', 'OTRO']);
+		expect(MOTIVOS_POR_TIPO.SALIDA).toEqual(['VENTA', 'DEVOLUCION', 'OTRO']);
+		expect(MOTIVOS_POR_TIPO.MERMA).toEqual(['MERMA', 'OTRO']);
+		expect(MOTIVOS_POR_TIPO.AJUSTE).toEqual(['AJUSTE', 'OTRO']);
+		const todos = Object.values(MOTIVOS_POR_TIPO).flat();
+		for (const reservado of ['TRANSFERENCIA', 'INVENTARIO', 'IMPORTACION']) {
+			expect(todos).not.toContain(reservado);
+		}
+	});
+
+	it('elige un motivo por defecto coherente con el tipo', () => {
+		expect(motivoPorDefecto('ENTRADA')).toBe('COMPRA');
+		expect(motivoPorDefecto('SALIDA')).toBe('VENTA');
+		expect(motivoPorDefecto('MERMA')).toBe('MERMA');
+		expect(motivoPorDefecto('AJUSTE')).toBe('AJUSTE');
 	});
 });

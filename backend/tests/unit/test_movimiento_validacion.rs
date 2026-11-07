@@ -152,3 +152,75 @@ fn hay_un_tope_de_lineas() {
     let error = validar_lineas("ENTRADA", &excedidas).expect_err("demasiadas líneas");
     assert!(mensaje(error).contains("no puede superar"));
 }
+
+// --- Ampliación 2026-11-07 (T021): matriz tipo ↔ motivo y cantidades enteras. ---
+
+use stockmante_backend::models::movimiento::{cantidad_entera, validar_motivo_para_tipo};
+
+#[test]
+fn matriz_tipo_motivo_admite_las_combinaciones_del_plan() {
+    let admitidas = [
+        ("ENTRADA", ["COMPRA", "DEVOLUCION", "OTRO"].as_slice()),
+        ("SALIDA", ["VENTA", "DEVOLUCION", "OTRO"].as_slice()),
+        ("MERMA", ["MERMA", "OTRO"].as_slice()),
+        ("AJUSTE", ["AJUSTE", "OTRO"].as_slice()),
+    ];
+    for (tipo, motivos) in admitidas {
+        for motivo in motivos {
+            assert!(
+                validar_motivo_para_tipo(tipo, motivo).is_ok(),
+                "{tipo} + {motivo} debe admitirse"
+            );
+        }
+    }
+}
+
+#[test]
+fn matriz_tipo_motivo_rechaza_una_combinacion_por_tipo() {
+    let casos = [
+        ("ENTRADA", "VENTA", "COMPRA, DEVOLUCION u OTRO"),
+        ("SALIDA", "COMPRA", "VENTA, DEVOLUCION u OTRO"),
+        ("MERMA", "VENTA", "MERMA u OTRO"),
+        ("AJUSTE", "COMPRA", "AJUSTE u OTRO"),
+    ];
+    for (tipo, motivo, lista) in casos {
+        let error = validar_motivo_para_tipo(tipo, motivo).err().map(mensaje);
+        assert_eq!(
+            error.as_deref(),
+            Some(format!("El motivo {motivo} no corresponde a una {tipo}. Motivos válidos: {lista}.").as_str())
+        );
+    }
+}
+
+#[test]
+fn motivos_reservados_nombran_su_flujo() {
+    let casos = [
+        ("TRANSFERENCIA", "El motivo TRANSFERENCIA lo registra el flujo de transferencias."),
+        ("INVENTARIO", "El motivo INVENTARIO lo registra el cierre de conteos."),
+        ("IMPORTACION", "El motivo IMPORTACION lo registra la importación masiva."),
+    ];
+    for tipo in TIPOS_MOVIMIENTO {
+        for (motivo, esperado) in casos {
+            let error = validar_motivo_para_tipo(tipo, motivo).err().map(mensaje);
+            assert_eq!(error.as_deref(), Some(esperado), "{tipo} + {motivo}");
+        }
+    }
+}
+
+#[test]
+fn cantidad_entera_acepta_enteros_y_rechaza_decimales_y_desbordes() {
+    let entero: serde_json::Number = serde_json::from_str("-7").unwrap_or(0.into());
+    assert_eq!(cantidad_entera(&entero).ok(), Some(-7));
+
+    let decimal: serde_json::Number = serde_json::from_str("2.5").unwrap_or(0.into());
+    assert_eq!(
+        cantidad_entera(&decimal).err().map(mensaje).as_deref(),
+        Some("La cantidad de cada línea debe ser un número entero distinto de cero.")
+    );
+
+    let grande: serde_json::Number = serde_json::from_str("3000000000").unwrap_or(0.into());
+    assert_eq!(
+        cantidad_entera(&grande).err().map(mensaje).as_deref(),
+        Some("La cantidad de cada línea supera el máximo admitido. Revisá el valor.")
+    );
+}
