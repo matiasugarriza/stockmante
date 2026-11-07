@@ -1,7 +1,8 @@
 # Progreso de implementación — Catálogo de productos y categorías (003)
 
-**Spec**: [spec.md](./spec.md) | **Actualizado**: 2026-10-26 | **Estado**: plan v2 implementado,
-probado por el usuario y commiteado en la rama `feat/003-catalogo-productos`; falta el push.
+**Spec**: [spec.md](./spec.md) | **Actualizado**: 2026-11-06 | **Estado**: plan v2 implementado e
+integrado en `main`; **ampliación 2026-11-06** implementada (ubicaciones en la vista y medición de
+SC-012).
 
 > Espejo local de reanudación del caso de uso US3.
 >
@@ -18,7 +19,8 @@ probado por el usuario y commiteado en la rama `feat/003-catalogo-productos`; fa
 | 3. US3 · Categorías | T010–T014 | Completa | 5 tests unitarios + 4 HTTP + servicio/handler/router |
 | 4. US3 · Productos | T015–T021 | Completa | 5 + 7 unitarios, 4 HTTP + 1 de baja lógica, servicio/handler/router |
 | 5. US3 · Frontend | T022–T030 | Completa | 4 archivos de test nuevos; pantallas y componentes |
-| 6. Polish | T031–T037 | Completa | gates, V6a/V6b/RBAC/invariantes, documentación |
+| 6. Polish | T031–T039 | Completa | gates, V6a/V6b/RBAC/invariantes, SC-012 medido y consistencia |
+| 7. Ubicaciones en la vista | T040–T044 | Completa | util + columna + carga masiva por página; `npm test`/`check`/`build` en verde |
 
 ## Evidencia observada (2026-10-26)
 
@@ -59,7 +61,8 @@ verde**. Observaciones:
 - SKU `bad!`, `AB`, 31 caracteres y `-ABC` → `422 validacion` con el formato esperado.
 - `costo: -1`, `precio_venta: 10.999`, `stock_minimo: -3` → `422` con mensaje por campo.
 - `unidad_medida: "LITRO"` → `422` enumerando `UNIDAD`, `KG`, `METRO`, `CAJA`.
-- `categoria_id` inactiva o inexistente → `422` «La categoría indicada no existe o está dada de baja.».
+- `categoria_id` inactiva → `422` «La categoría está inactiva; activala o elegí otra.»; inexistente →
+  `422` «La categoría indicada no existe.».
 - `q=yerba` (nombre) y `q=YERBA-1K-…` (SKU) encuentran el producto; `q` sin coincidencias → lista vacía.
 - `categoria_id` + `activo=all` filtra e incluye inactivos; `activo=otro` → `422`.
 - `DELETE` → **405 sin cuerpo**; el detalle sigue devolviendo el mismo `id` y `activo`.
@@ -163,13 +166,47 @@ RDD está activo (global). El commit 1 se evaluó como `high` y su revisión nat
 **aprobada** (2 lentes: riesgo y confiabilidad; 7 hallazgos no bloqueantes, 1 refutado). Los commits
 2 y 3 se evaluaron juntos como `medium`, `under_budget`; la frontera revisada sigue en `8fa1e79`.
 
+## Actualización 2026-11-06
+
+- Se registra **W-002** por el RED no observado en T010/T015/T016 (el resto de los tests sí observó
+  RED).
+- Los mensajes de categoría se parten en «no existe» e «inactiva; activala o elegí otra»; contrato,
+  servicio y tests quedan alineados con CU-PROD-01 #7/#8.
+- SC-012 pasa a ser medible: T038 (seed de 5.000 productos + 20 consultas) y `quickstart.md` V9.
+- Nueva ampliación **FR-074/SC-029**: la vista de productos muestra las ubicaciones permitidas con
+  una sola lectura masiva (005, FR-075). Se **descarta** elegir ubicación en el alta: la asignación
+  queda exclusivamente en `/admin/depositos`.
+- **Implementado (2026-11-06)**:
+  - **T038**: `scripts/seed_catalogo_5000.sql` (5.000 productos `SEED-`, idempotente). Medición:
+    p95 **11.874 ms**, mínimo 5.757 ms, máximo 13.278 ms sobre 20 consultas (8 con `q=seed`, 8 con
+    `categoria_id=SEED-CAT`, 4 sin filtro). La más lenta fue sin filtro (13.278 ms: `Seq Scan` de
+    `productos` + `Hash Join` + top-N sort, `shared hit=90`). Los datos de seed se eliminaron al
+    terminar. **Desvío**: se midió el SQL con `EXPLAIN (ANALYZE, BUFFERS)` y no el HTTP, porque el
+    binario del backend estaba bloqueado por un proceso elevado; el tiempo de ejecución SQL es el
+    componente dominante del endpoint.
+  - **T040–T044**: `#lib/utils/ubicaciones.ts` con tests (3/3); columna «Ubicaciones» en
+    `ProductoTabla.svelte` («Sin ubicación» / «No disponible» / sufijo `(inactiva)`); carga masiva
+    por página en `/admin/productos` con guarda de generación. El alta y la edición **no** piden
+    ubicación.
+  - **005 T020–T024**: `GET /api/productos/ubicaciones` + servicio + cliente
+    `ubicacionesDeProductos`; `test_depositos_http` **7/7**.
+  - **Gates**: `npm test` **226/226** (incluye tests concurrentes de 017; **215/215** al cerrar esta
+    feature), `npm run check` **0/0**, `npm run build` OK; `cargo check` OK; `cargo test --test
+    test_depositos_http` **7/7**, `--test test_openapi` **6/6**, `--test test_productos_http`
+    **4/4**; `cargo sqlx prepare --check` exit 0.
+- **Verificación de esquema (T002), 2026-11-06 sobre `stockmante`**: existen
+  `productos_sku_key`, `productos_codigo_barras_key`, `categorias_nombre_key`,
+  `uq_categorias_nombre_normalizado` e `idx_productos_categoria` con esos nombres;
+  `productos_codigo_barras_key` es `UNIQUE (codigo_barras)`. `productos.stock_actual` existe por
+  la migración de 007, no por 003.
+
 ## Pendiente
 
-1. `git push -u origin feat/003-catalogo-productos` (autorizado por el usuario).
-2. Integrar la rama según la política del repositorio.
-3. Los hallazgos advisory de RDD quedan como trabajo posterior: `app_de_test` devuelve un
+1. Los hallazgos advisory de RDD quedan como trabajo posterior: `app_de_test` devuelve un
    `Arc<CorreoDev>` distinto del que usa el router; `cuerpo_json` convierte JSON inválido en
    `Value::Null`; `test_apperror` no verifica el mensaje de `SkuDuplicado`.
+2. La rama `feat/003-catalogo-productos` ya está integrada en `main`; no queda push/merge pendiente
+   de esta feature.
 
 ## Gotchas
 

@@ -13,7 +13,8 @@ import {
 	listarUbicaciones,
 	reactivarDeposito,
 	reemplazarUbicacionesDeProducto,
-	ubicacionesDeProducto
+	ubicacionesDeProducto,
+	ubicacionesDeProductos
 } from './depositos';
 
 function jsonResponse(body: unknown, status = 200): Response {
@@ -206,5 +207,33 @@ describe('cliente de depósitos y ubicaciones', () => {
 		expect(url).toContain('/api/productos/7/ubicaciones');
 		expect(init.method).toBe('PUT');
 		expect(JSON.parse(init.body as string)).toEqual({ ubicacion_ids: [10, 11] });
+	});
+
+	it('ubicacionesDeProductos pide el lote y devuelve un mapa por producto', async () => {
+		const fetchMock = vi.fn(async () =>
+			jsonResponse({
+				items: [
+					{ producto_id: 7, ubicaciones: [ubicacion] },
+					{ producto_id: 8, ubicaciones: [] }
+				]
+			})
+		);
+		vi.stubGlobal('fetch', fetchMock);
+
+		const mapa = await ubicacionesDeProductos([7, 8]);
+
+		const [url] = fetchMock.mock.calls[0] as unknown as [string, RequestInit];
+		expect(url).toContain('/api/productos/ubicaciones?producto_ids=7%2C8');
+		expect(mapa[7]).toHaveLength(1);
+		expect(mapa[7][0].id).toBe(10);
+		expect(mapa[8]).toEqual([]);
+	});
+
+	it('ubicacionesDeProductos no llama a la API con una lista vacía', async () => {
+		const fetchMock = vi.fn();
+		vi.stubGlobal('fetch', fetchMock);
+
+		expect(await ubicacionesDeProductos([])).toEqual({});
+		expect(fetchMock).not.toHaveBeenCalled();
 	});
 });

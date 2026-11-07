@@ -4,6 +4,10 @@
 
 **Creado**: 2026-10-12 (dividida de `001-user-auth-catalog`) | **Replanteada**: 2026-10-25 | **Implementada**: 2026-10-26; verificada por la suite automatizada e incluida en el commit único de cierre del Módulo 1
 
+**Ampliada e implementada 2026-11-06**: la vista de productos muestra las ubicaciones permitidas de
+cada producto (FR-074), consumiendo la lectura masiva de 005 (FR-075). El alta **no** pide ni asigna
+ubicación: la asignación se gestiona exclusivamente en 005.
+
 **Versión 2 — supersede la v1.** Esta versión reemplaza por completo la anterior (estado
 "Replanteo pendiente — WIP de backend deshecho") porque: (a) el requerimiento vigente amplía las
 categorías a CRUD completo con descripción y estado; (b) prohíbe el borrado físico de productos
@@ -18,6 +22,10 @@ sesiones, `AppError` y guards RBAC (FR-003, FR-008a).
 **Consumida por**: [004-busqueda-caja](../004-busqueda-caja/spec.md) (FR-011, FR-013),
 [005-depositos-ubicaciones](../005-depositos-ubicaciones/spec.md) (asignación producto–ubicación)
 y [006-rbac-auditoria](../006-rbac-auditoria/spec.md) (FR-019).
+
+**Consume de**: [005-depositos-ubicaciones](../005-depositos-ubicaciones/spec.md) — lectura masiva
+`GET /api/productos/ubicaciones?producto_ids=` (FR-075) para mostrar la columna de ubicaciones. No
+consume la asignación: crear o editar un producto no asigna ubicaciones.
 
 **Entrada** (requerimiento del usuario, verbatim — fuente de verdad del alcance):
 
@@ -101,6 +109,17 @@ almacén."
   módulo; la lista se valida en la aplicación (no hay `CHECK` en la base) para poder ampliarla sin
   migración.
 
+### Session 2026-11-06
+
+- Q: ¿Se elige una ubicación al crear el producto? → A: **No.** Se descarta la extensión evaluada:
+  el alta y la edición no ofrecen ubicación ni interpretan `ubicacion_id`. La asignación se gestiona
+  exclusivamente en 005 (`PUT /api/productos/{id}/ubicaciones`) y 003 solo **lee** las asignaciones
+  para mostrarlas. Hacerlo en dos pasos desde el alta dejaría un producto creado sin ubicación que
+  no se puede revertir (FR-012 prohíbe el borrado físico).
+- Q: ¿Cómo se obtienen las ubicaciones para la tabla de productos? → A: Con una lectura masiva por
+  página (`GET /api/productos/ubicaciones?producto_ids=`, FR-075 de 005), no con una llamada por
+  fila. Si la lectura falla se muestra «No disponible» y el listado sigue usable.
+
 ## Escenarios de Usuario y Pruebas *(obligatorio)*
 
 ### User Story 3 - Catálogo de productos y categorías (Prioridad: P2)
@@ -128,6 +147,9 @@ depender de depósitos ni de movimientos de stock.
 3. **Dado** un producto activo, **Cuando** el Administrador lo da de baja, **Entonces** deja de
    aparecer en el listado estándar, sigue siendo consultable por detalle y conserva su fila,
    su SKU y sus referencias.
+4. **Dado** un producto con ubicaciones permitidas y otro sin ninguna, **Cuando** el Administrador
+   abre la vista de productos, **Entonces** cada fila muestra sus ubicaciones (depósito y nombre) o
+   el estado explícito «Sin ubicación», y la asignación se sigue gestionando desde Depósitos.
 
 Los criterios detallados, caso de uso por caso de uso, están en la sección siguiente.
 
@@ -382,9 +404,8 @@ Actor: usuario autenticado de la familia **GESTION**.
    con `activo: false`.
 2. **Dado** el producto recién dado de baja, **Cuando** se consulta
    `GET /api/productos/{id}`, **Entonces** responde 200 con todos sus datos.
-3. **Dado** un producto inactivo, **Cuando** el módulo de movimientos (posterior a 003, aún sin
-   spec) intenta registrar una entrada, salida, merma, ajuste o transferencia, **Entonces** la
-   operación se rechaza con 409
+3. **Dado** un producto inactivo, **Cuando** el módulo de movimientos (007) intenta registrar una
+   entrada, salida, merma, ajuste o transferencia, **Entonces** la operación se rechaza con 409
    `producto_inactivo` y no se escribe ningún movimiento ni se altera el stock; la verificación de
    `activo = TRUE` ocurre dentro de la misma transacción del movimiento.
 4. **Dado** un producto inactivo con movimientos históricos, **Cuando** un reporte histórico lo
@@ -414,6 +435,27 @@ Actor: usuario autenticado de la familia **GESTION**.
 4. **Dado** un usuario de la familia OPERACION o un `id` inexistente, **Cuando** intenta
    reactivar, **Entonces** responde 403 `sin_permisos` o 404 `recurso_no_encontrado`,
    respectivamente.
+
+#### CU-PROD-07 — Ubicaciones en la vista de productos
+
+Actor: usuario autenticado de la familia **GESTION**.
+
+**Criterios de aceptación**:
+
+1. **Dado** un producto con 2 ubicaciones permitidas, **Cuando** se abre `/admin/productos`,
+   **Entonces** su fila muestra las 2 como `depósito · nombre`; un producto sin asignaciones muestra
+   «Sin ubicación» (ni vacío ni «—»).
+2. **Dado** una página con 20 productos, **Cuando** se carga la vista, **Entonces** las ubicaciones
+   se obtienen con **una sola** llamada `GET /api/productos/ubicaciones?producto_ids=…`, no con una
+   por fila.
+3. **Dado** un producto con una ubicación asignada que luego fue desactivada, **Cuando** se muestra
+   la fila, **Entonces** la ubicación aparece con el sufijo `(inactiva)`.
+4. **Dado** que la consulta masiva falla, **Cuando** se muestra la tabla, **Entonces** la columna
+   indica «No disponible» (sin afirmar «Sin ubicación») y el listado sigue usable.
+5. **Dado** el alta o la edición de un producto, **Cuando** se abre el formulario, **Entonces** no
+   se ofrece ningún selector de ubicación: la asignación se gestiona solo en `/admin/depositos`.
+6. **Dado** un usuario de la familia OPERACION, **Cuando** abre la vista de productos, **Entonces**
+   es redirigido; sin sesión, la API responde 401.
 
 #### CU-RET-01 — Retiro sin borrado físico
 
@@ -469,7 +511,7 @@ Actor: usuario autenticado de la familia **GESTION**. Es el contrato que protege
 - **FR-009**: El sistema DEBE permitir CRUD de productos con: nombre, SKU (obligatorio, único y con
   formato mayúsculas/dígitos/guiones, 3–30 caracteres, normalizado a mayúsculas), código de barras
   (opcional y único si se informa), categoría, unidad de medida, costo, precio de venta y stock
-  mínimo de seguridad.
+  mínimo de seguridad. El `stock_minimo` es opcional en el alta: si se omite, se persiste `0`.
 - **FR-010**: El sistema DEBE permitir el CRUD completo de categorías con **nombre** (obligatorio,
   1–80 caracteres, único en todo el sistema sin distinguir mayúsculas ni espacios sobrantes),
   **descripción** (opcional, hasta 255 caracteres) y **estado activo/inactivo**; además DEBE
@@ -500,9 +542,9 @@ Actor: usuario autenticado de la familia **GESTION**. Es el contrato que protege
 
 - **FR-020**: El sistema DEBE listar el catálogo de productos de forma paginada y filtrable por:
   texto libre `q` (comparado contra el nombre como subcadena y contra el SKU, ambos sin distinguir
-  mayúsculas, con los extremos recortados); `categoria_id`; y estado
-  (`activo=true|false|all`, por defecto solo activos). Los filtros DEBEN ser combinables (AND) y el
-  orden DEBE ser estable (nombre ascendente, desempate por `id`).
+  mayúsculas, con los extremos recortados y un máximo de 160 caracteres; más → 422); `categoria_id`;
+  y estado (`activo=true|false|all`, por defecto solo activos). Los filtros DEBEN ser combinables
+  (AND) y el orden DEBE ser estable (nombre ascendente, desempate por `id`).
 
   > FR-011 (004) sigue siendo la búsqueda de caja por SKU, código de barras, nombre y categoría con
   > los tiempos de SC-002. FR-020 es el listado de gestión, con contrato y filtros propios.
@@ -526,18 +568,27 @@ Actor: usuario autenticado de la familia **GESTION**. Es el contrato que protege
   Conservar la categoría actual no exige que esté activa: un producto cuya categoría fue
   desactivada sigue siendo editable en los demás campos.
 
+- **FR-074**: La vista de gestión de productos DEBE mostrar las ubicaciones permitidas de cada
+  producto (depósito y nombre), con una sola lectura masiva por página (FR-075 de 005). La
+  asignación de ubicaciones se gestiona **solo** en 005: el alta y la edición de un producto NO
+  DEBEN ofrecer selector de ubicación ni interpretar `ubicacion_id` en su cuerpo (se ignora como
+  cualquier campo desconocido de serde). Si la lectura masiva
+  falla, la vista DEBE mostrar «No disponible» sin bloquear el listado. La ubicación mostrada es una
+  **ubicación permitida** (habilitación para recibir stock), no un saldo de stock.
+
 > **Numeración**: FR-001 a FR-008a pertenecen a 001/002; FR-011 y FR-013 a 004; FR-015 a FR-018 a
 > 005; y FR-019 a 006. Por eso los requisitos nuevos de esta spec empiezan en FR-020 y no se
-> reutiliza ningún ID.
+> reutiliza ningún ID. FR-074 es la ampliación 2026-11-06 (la numeración global continúa después de
+> FR-073).
 
 ### Contrato de inactividad para módulos consumidores
 
-Este contrato lo hará cumplir el módulo de stock (posterior a 003, aún sin spec) y 004 lo consume en
+Este contrato lo cumple el módulo de stock (007-movimientos-stock) y 004 lo consume en
 su búsqueda por el estado del producto; **no se implementa en 003**.
 
 | Consumidor | Regla | Resultado esperado |
 |---|---|---|
-| Movimientos (módulo de stock, futuro) | Verificar `productos.activo = TRUE` dentro de la transacción del movimiento | 409 `producto_inactivo`; sin escritura de stock |
+| Movimientos (007-movimientos-stock) | Verificar `productos.activo = TRUE` dentro de la transacción del movimiento | 409 `producto_inactivo`; sin escritura de stock |
 | Búsqueda de caja (004) | Excluir `activo = FALSE` por defecto (FR-013) | El producto inactivo no se ofrece para venta ni carga |
 | Gestión (003) | Listados y detalle sin filtro de estado | Producto inactivo visible para consulta y corrección |
 | Reportes históricos (stock / auditoría 006) | Consultar sin filtro de `activo` | El producto inactivo sigue apareciendo con su `id` y SKU |
@@ -571,8 +622,13 @@ su búsqueda por el estado del producto; **no se implementa en 003**.
 - **SC-011**: El 100% de los productos dados de baja sigue accesible por
   `GET /api/productos/{id}` y por `GET /api/productos?activo=all` inmediatamente después de la
   baja, y ninguno aparece en el listado por defecto.
-- **SC-012**: El 95% de las consultas de listado con filtro de texto y de categoría responde en
-  1 segundo o menos con 5.000 productos cargados en el entorno de desarrollo.
+- **SC-012**: Con 5.000 productos activos sembrados en el entorno de desarrollo, el percentil 95 de
+  20 consultas de `GET /api/productos` (mezcla: 8 con `q`, 8 con `categoria_id`, 4 sin filtro,
+  definida en `quickstart.md` V9) DEBE ser ≤ 1 segundo. La evidencia (p95 y `EXPLAIN` de la consulta
+  más lenta) se registra en `progress.md`.
+- **SC-029**: La vista de productos muestra las ubicaciones de todos los productos de una página con
+  una sola llamada adicional al backend; el 100 % de los productos sin asignaciones muestra
+  «Sin ubicación» y una consulta fallida muestra «No disponible» sin bloquear el listado.
 
 ## Supuestos
 
@@ -587,6 +643,10 @@ su búsqueda por el estado del producto; **no se implementa en 003**.
   reactivado no recupera stock ni movimientos: solo vuelve a estar disponible.
 - **Edición de inactivos**: un producto inactivo puede corregirse en sus datos; la baja no lo
   congela.
+- **Ubicaciones**: la vista de productos solo **lee** las ubicaciones permitidas; no las crea, no
+  las edita y no las asigna. El alta de un producto no pide ubicación (decisión 2026-11-06): la
+  asignación se hace en `/admin/depositos` con la API de 005. La lectura es masiva por página para
+  no generar una consulta por fila.
 - **Categoría inactiva con productos**: se permite; no hay cascada ni bloqueo de la baja.
 - **Paginación y orden**: `pagina >= 1`; `1 <= por_pagina <= 100` con default 20; listado de
   productos por `nombre ASC, id ASC`; listado de categorías por `nombre ASC` y sin paginar (su
@@ -603,7 +663,9 @@ su búsqueda por el estado del producto; **no se implementa en 003**.
 - **Movimientos de stock** (entradas, salidas, mermas, ajustes, transferencias) y ventas: esta spec
   define el contrato de inactividad que esos módulos deben cumplir, pero no los implementa.
 - **Búsqueda de caja** (`GET /api/productos/buscar`, índice trigram, tiempos de SC-002) → 004.
-- **Depósitos, ubicaciones jerárquicas y asignación producto–ubicación** → 005.
+- **API de depósitos, ubicaciones jerárquicas y asignación producto–ubicación** → 005. Acá solo se
+  consume la lectura masiva (FR-075) para mostrar la columna de la vista de productos; la
+  asignación, el stock por ubicación y los movimientos quedan fuera de 003.
 - **Verificación transversal de la matriz RBAC y auditoría** → 006. Acá solo se declaran las filas
   de permisos de los endpoints del catálogo.
 - **Reportes históricos** como pantalla o consulta: acá solo se garantiza que las filas y los
@@ -622,10 +684,11 @@ su búsqueda por el estado del producto; **no se implementa en 003**.
 | FR-020 a FR-023 | **Nuevos** | Filtros del listado, reactivación (FR-021, apoyada en supuesto), contrato de inactividad para movimientos y asignación a categoría activa |
 | SC-006 | **Ampliado** | La unicidad se mide sobre todo el catálogo, incluidos los inactivos |
 | SC-009 a SC-012 | **Nuevos** | Unicidad de categorías, no borrado, visibilidad del histórico y latencia del filtro |
+| FR-074 / SC-029 | **Nuevos (2026-11-06)** | Ubicaciones permitidas visibles en la vista de productos, con lectura masiva de 005 (FR-075); sin asignación en el alta ni en la edición |
 | Escenarios de SKU y código de barras | Se conservan | Con la precisión de unicidad global frente a inactivos |
 
 **Retirado respecto de la v1 y del contrato anterior** (los archivos `contracts/*.md`, `plan.md` y
-`quickstart.md` deben alinearse; esta spec no los edita):
+`quickstart.md` quedaron alineados con el plan v2 del 2026-10-26):
 
 | Artefacto | Situación anterior | Situación vigente |
 |---|---|---|
@@ -644,14 +707,15 @@ su búsqueda por el estado del producto; **no se implementa en 003**.
 - `descripcion` en el ítem y en el alta/edición de categoría.
 - `activo` por defecto `true` en `GET /api/productos` y `GET /api/categorias`.
 - `METRO` en la lista de unidades de medida.
-- 409 `producto_inactivo` en los movimientos (lo emitirá el módulo de stock, aún sin spec; 003
-  define el contrato).
+- 409 `producto_inactivo` en los movimientos (lo implementa 007-movimientos-stock; 003 define el
+  contrato).
+- La vista de productos consume `GET /api/productos/ubicaciones?producto_ids=` de 005 (FR-075); 003
+  no agrega rutas propias para ubicaciones.
 
-**Pendiente en `plan.md` / `tasks.md`** (fuera de esta entrega): rehacer la tabla de endpoints, la
-estructura de servicios (CRUD de categorías con descripción, baja lógica sin `DELETE`), la
-migración `0006`, la actualización de `contracts/api.md` y `contracts/validation.md`, el ledger de
-migraciones de `specs/README.md` (que además tiene desactualizadas las reservas de `0005` y
-`0006`) y el paso 6 de `quickstart.md` (V6a).
+**Estado de alineación documental (2026-11-06)**: `plan.md` v2, `contracts/api.md`,
+`contracts/validation.md`, `quickstart.md` y el ledger de `specs/README.md` ya están actualizados
+(T005, T036, T037). No queda trabajo documental pendiente de esta entrega; la ampliación de
+ubicaciones de la vista de productos está en «Trazabilidad» (FR-074, SC-029).
 
 ## Preguntas abiertas
 

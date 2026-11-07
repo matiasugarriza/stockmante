@@ -15,9 +15,9 @@ conservan **verbatim**; solo se distribuyeron por caso de uso.
 |---|---|---|---|---|---|
 | [001-autenticacion-sesion](./001-autenticacion-sesion/spec.md) | Login, sesión única y cambio obligatorio de contraseña | FR-001, FR-002, FR-003, FR-008a, FR-070 ... FR-073 | SC-003, SC-004, SC-026 ... SC-028 | Implementado; ajustes 2026-11 (registro, SSO, credenciales) en revisión | — |
 | [002-gestion-usuarios](./002-gestion-usuarios/spec.md) | Alta, edición, baja lógica y reactivación de usuarios | FR-004, FR-005, FR-006, FR-007, FR-008, FR-008b | SC-001 | Implementado (retro-documentado); ajustes 2026-11 en Phase 2 | 001 |
-| [003-catalogo-productos](./003-catalogo-productos/spec.md) | CRUD de productos y categorías, baja lógica | FR-009, FR-010, FR-012, FR-014, FR-020 … FR-023 | SC-006, SC-009 … SC-012 | Implementado y verificado; incluido en el commit de cierre | 001 |
+| [003-catalogo-productos](./003-catalogo-productos/spec.md) | CRUD de productos y categorías, baja lógica | FR-009, FR-010, FR-012, FR-014, FR-020 … FR-023, FR-074 | SC-006, SC-009 … SC-012, SC-029 | Implementado y verificado; ampliación de ubicaciones implementada y verificada (2026-11-06) | 001 |
 | [004-busqueda-caja](./004-busqueda-caja/spec.md) | Búsqueda rápida por SKU, código, nombre y categoría | FR-011, FR-013 | SC-002 | Implementado y verificado (2026-10-26) | 001, 003 |
-| [005-depositos-ubicaciones](./005-depositos-ubicaciones/spec.md) | Depósitos, ubicaciones jerárquicas y asignación a producto | FR-015, FR-016, FR-017, FR-018 | SC-005 | Implementado y verificado (2026-10-26) | 001 (003 para asignación) |
+| [005-depositos-ubicaciones](./005-depositos-ubicaciones/spec.md) | Depósitos, ubicaciones jerárquicas y asignación a producto | FR-015, FR-016, FR-017, FR-018, FR-075 | SC-005 | Implementado y verificado (2026-10-26); lectura masiva ampliada y verificada 2026-11-06 | 001 (003 para asignación) |
 | [006-rbac-auditoria](./006-rbac-auditoria/spec.md) | Verificación transversal de RBAC y auditoría básica | FR-003 (verificación), FR-019 (derivado) | SC-007, SC-008 | Implementado y verificado (2026-10-26) | 001–005 |
 | [007-movimientos-stock](./007-movimientos-stock/spec.md) | Entradas, salidas, mermas y ajustes con stock por depósito | FR-024 … FR-030 | SC-013 … SC-015 | Implementado y verificado (2026-10-28) | 001, 003, 005, 006 |
 | [008-transferencias-depositos](./008-transferencias-depositos/spec.md) | Transferencias atómicas entre depósitos | FR-031 … FR-033 | SC-016 | Especificado | 007 |
@@ -112,6 +112,8 @@ Cada FR tiene **un solo dueño**. Los demás specs lo referencian, no lo repiten
 | FR-071 | 001 | SSO Google/Microsoft con `GET /auth/sso/config` y ocultado si faltan credenciales o falla la salud |
 | FR-072 | 001 | Vinculación/desvinculación de identidades externas |
 | FR-073 | 001 | Provisión de familia `OPERACION` por defecto en cuentas SSO |
+| FR-074 | 003 | Ubicaciones permitidas visibles en la vista de productos (solo lectura) |
+| FR-075 | 005 | Lectura masiva de ubicaciones asignadas por producto |
 
 ## Partición de criterios de éxito
 
@@ -145,6 +147,7 @@ Cada FR tiene **un solo dueño**. Los demás specs lo referencian, no lo repiten
 | SC-026 | 001 | Registro con verificación por correo y sin enumeración |
 | SC-027 | 001 | Botones SSO ocultos sin credenciales; flujo completo con ellas |
 | SC-028 | 001 | Credenciales (correo + contraseña) visibles en pantalla al crear usuario (criterio compartido con SC-001/002; evidencia del módulo en 002 Phase 2, ver dueños §FR-008a/FR-008b) |
+| SC-029 | 003 | Una llamada masiva por página y «Sin ubicación» explícito en la vista de productos |
 
 ## Ledger de migraciones
 
@@ -189,7 +192,7 @@ Cada FR tiene **un solo dueño**. Los demás specs lo referencian, no lo repiten
 - Las specs creadas después del split reinician en `T001` y llevan una tabla de trazabilidad
   con el ID anterior cuando aplica.
 - 001 conserva los IDs originales `T001–T025`; 002 renumera `T026–T031` → `T001–T006` con
-  trazabilidad; 003 renumera `T032–T036` → `T001–T005` con trazabilidad.
+  trazabilidad; 003 usa `T001–T037` y la ampliación de ubicaciones continúa en `T038+`.
 - Cada spec cierra con sus gates: `cargo test`, `cargo sqlx prepare --check`, `npm test`,
   `npm run check`, `npm run build` cuando corresponda.
 

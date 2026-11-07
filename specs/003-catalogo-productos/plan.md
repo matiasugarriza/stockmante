@@ -6,7 +6,9 @@
 
 **Estado**: plan v2 — reemplaza el plan del WIP deshecho (2026-10-25). Diffs respecto del anterior:
 sin `DELETE` en ningún caso, `activo` fuera del `PUT`, `descripcion` de categoría, filtros `q` y
-`categoria_id`, endpoints `/reactivar`, migración `0006` en lugar de `0004`.
+`categoria_id`, endpoints `/reactivar`, migración `0006` en lugar de `0004`. **Ampliado 2026-11-06**:
+columna de ubicaciones permitidas en la vista de productos (solo lectura, FR-074) y medición de
+SC-012; el alta no pide ubicación.
 
 ## Summary
 
@@ -37,7 +39,7 @@ sqlx prepare --check`, `npm test` (vitest), `npm run check`, `npm run build`.
 **Project Type**: aplicación web (backend `backend/` + frontend `frontend/`).
 
 **Performance Goals**: listado de gestión paginado (20 por defecto, máximo 100) sobre catálogos de
-miles de productos; sin objetivos de latencia propios (los de caja son de 004).
+miles de productos; SC-012 exige p95 ≤ 1 s con 5.000 productos y se verifica con la medición de T038.
 
 **Constraints**: sin `unwrap`/`panic!`/`expect` en producción; toda falla como `Result<T, AppError>`;
 unicidad resuelta por índice (mapeo `23505`), no por pre-chequeo; importes `NUMERIC(12,2)` con
@@ -74,7 +76,7 @@ specs/003-catalogo-productos/
 │   ├── api.md
 │   └── validation.md
 ├── spec.md
-├── tasks.md             # Fase 2 (/speckit.tasks) — generado, T001–T037 marcadas
+├── tasks.md             # Fase 2 (/speckit.tasks) — T001–T037 marcadas + T038–T044 de la ampliación
 └── progress.md          # Bitácora de la implementación v2 y su evidencia
 ```
 
@@ -104,6 +106,7 @@ frontend/src/
 ├── lib/schemas/productos.ts
 ├── lib/api/categorias.ts
 ├── lib/api/productos.ts
+├── lib/utils/ubicaciones.ts    # formato de la columna de ubicaciones (ampliación 2026-11-06)
 ├── lib/components/categorias/{CategoriaForm,CategoriaTabla}.svelte
 ├── lib/components/productos/{ProductoForm,ProductoTabla,FiltrosCatalogo}.svelte
 └── routes/admin/{categorias,productos}/+page.svelte
@@ -138,7 +141,8 @@ temporal FR-008a).
 | POST | `/api/productos/{id}/desactivar` | `RequiereGestion` | 204 | idempotente |
 | POST | `/api/productos/{id}/reactivar` | `RequiereGestion` | 204 | idempotente |
 
-Fuera de este plan: `GET /api/productos/buscar` (004) y la asignación de ubicaciones (005).
+Contratos de otros módulos: `GET /api/productos/buscar` (004), la asignación de ubicaciones (005) y
+la lectura masiva `GET /api/productos/ubicaciones` que 003 consume de 005 (FR-075).
 
 ## Migración y esquema (0006)
 
@@ -195,7 +199,7 @@ ocupado por `0005_sesion_unica.sql`, por eso `0006`.
 | Integración HTTP | 201/200/204/401/403/404/405/409/422 por endpoint; `DELETE` no altera la fila |
 | Invariantes | Un rechazo no persiste ni modifica filas; N productos con `codigo_barras = NULL` conviven; bajar no cambia conteos |
 | Regresión | `GET /api/usuarios` sin `activo` sigue devolviendo todos tras centralizar `parsear_activo` |
-| Frontend | Zod de categoría/producto; cliente API con `ApiError`; filtros y paginación |
+| Frontend | Zod de categoría/producto; cliente API con `ApiError`; filtros y paginación; formato de ubicaciones (`#lib/utils/ubicaciones.ts`) |
 | SQLx | `cargo sqlx prepare --check` sin diferencias |
 
 Convenciones: claves únicas derivadas de UUID para tests en paralelo; RED→GREEN por regla de
@@ -210,16 +214,36 @@ dominio; datos de prueba sin limpieza destructiva.
 | Búsqueda por texto sin índice trigram | Aceptado para escala de gestión; el trigram es de 004 y no se adelanta |
 | `ProductoConReferencias` eliminado rompe `test_apperror` | Se actualiza el test en la misma unidad de trabajo |
 | `parsear_activo` compartido cambia el default de usuarios | Firma con `por_defecto` explícito + test de regresión |
+| La lectura masiva de ubicaciones falla y la columna miente | Estado «No disponible» diferenciado de «Sin ubicación» + test de degradación |
+| Acoplar 003 al esquema de 005 | Solo se consume `GET /api/productos/ubicaciones`; 003 no toca modelos, DTOs ni rutas de 005 |
 
 ## Fases
 
-1. **T001–T002** (RED): tests de normalización/validación de SKU, código de barras, montos y nombre
-   de categoría; tests de unicidad y baja lógica.
-2. **T003**: migración `0006` + modelos + servicios de categorías y productos.
-3. **T004**: handlers, `parsear_activo`, routers, `[[test]]` e integración HTTP.
-4. **T005**: frontend (schemas, clientes, rutas, formularios, filtros).
-5. Gates completos (`cargo test`, `cargo sqlx prepare --check`, `npm test`, `npm run check`,
-   `npm run build`) y regeneración de `tasks.md`/`progress.md`.
+1. **Setup y foundational — T001–T009**: dependencia `rust_decimal`, verificación de esquema,
+   contrato de `AppError`, migración `0006`, modelos y funciones puras, `parsear_activo` y helpers
+   de test.
+2. **Categorías — T010–T014**: tests RED de normalización y HTTP, servicio, handler y router.
+3. **Productos — T015–T021**: tests RED de SKU/validación/filtros/baja lógica, servicio, handler y
+   router.
+4. **Frontend — T022–T030**: schemas Zod, clientes API, componentes, pantallas y navegación.
+5. **Cierre — T031–T037**: gates, RBAC/quickstart, `progress.md`, ledger y pasada de consistencia.
+6. **Cierre ampliado — T038–T044**: medición de SC-012 (T038), re-verificación de consistencia
+   (T039) y ubicaciones permitidas en la vista de productos (T040–T044, FR-074).
+
+## Ampliación 2026-11-06 — Ubicaciones en la vista de productos (FR-074)
+
+- **Alcance**: la tabla de `/admin/productos` muestra las ubicaciones permitidas de cada producto
+  (`depósito · nombre`, sufijo `(inactiva)`), o «Sin ubicación». El alta y la edición **no** piden
+  ni asignan ubicación: se decidió descartar esa extensión y dejar la asignación exclusivamente en
+  `/admin/depositos` (005).
+- **Consumo**: `GET /api/productos/ubicaciones?producto_ids=` (005, FR-075), una sola llamada por
+  página. No se agregan rutas, DTOs, modelos ni migraciones a 003.
+- **Frontend**: `#lib/utils/ubicaciones.ts` (formato), `ProductoTabla.svelte` (columna),
+  `/admin/productos/+page.svelte` (carga masiva con guarda de generación y estado «No disponible»).
+- **Degradación**: si la lectura masiva falla, la columna muestra «No disponible» y el listado sigue
+  usable; no se debe afirmar «Sin ubicación» sin dato.
+- **Sin atomicidad pendiente**: al no asignarse ubicación desde el alta, no existe el estado
+  parcial producto-creado-sin-ubicación que se había evaluado en la propuesta anterior.
 
 ## Complexity Tracking
 
@@ -232,3 +256,12 @@ dominio; datos de prueba sin limpieza destructiva.
 Re-evaluado tras Fase 1: PASS. El diseño no agrega capas ni dependencias más allá de
 `rust_decimal` (justificada en R9); no hay borrado físico que comprometa integridad; toda regla de
 negocio tiene un test determinista asignado; los mensajes de error son específicos y accionables.
+
+**Ampliación 2026-11-06**: PASS. Solo agrega una lectura adicional de 005 (`GET /productos/ubicaciones`),
+sin modelos, rutas, migraciones ni dependencias nuevas en 003. El consumo queda centralizado en
+`#lib/api/depositos.ts` y la lógica de formato en `#lib/utils/ubicaciones.ts`, con tests.
+
+**Deudas conocidas (análisis 2026-11-06)**: (a) los servicios de 003 usan `sqlx::query_as` en
+runtime, por lo que `cargo sqlx prepare --check` no cubre esas consultas; la verificación de esquema
+es T002 + integración HTTP, y se documenta como límite del gate; (b) `DELETE` responde 405 sin
+cuerpo (R15) y se acepta por Principio I, sin waiver; el cliente real nunca lo invoca.

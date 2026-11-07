@@ -1,21 +1,16 @@
 <!-- Sync Impact Report
-- Version change: 1.2.0 → 1.3.0 (MINOR)
-  - MINOR y no MAJOR: no se elimina ni se redefine ningún principio. Se amplía el alcance de la
-    excepción anti-enumeración del Principio III para incluir `POST /api/auth/registro` (correo ya
-    registrado responde el mismo mensaje genérico que un registro exitoso), además de
-    `POST /api/auth/login`. El núcleo normativo de I–V se conserva íntegro.
-  - MINOR y no PATCH: la ampliación cambia una regla operativa (qué endpoints pueden devolver
-    mensajes genéricos por seguridad); no es una corrección de redacción.
-- Modified principles:
-  - III. Claridad en Mensajes — se amplía la excepción de seguridad anti-enumeración para incluir
-    `POST /api/auth/registro` (además de `POST /api/auth/login`), documentada en la spec 001
-    enmendada (registro + SSO Google/Microsoft).
-- Added sections: none
-- Removed sections: none
+- Version change: 1.3.0 → 1.3.1 (PATCH)
+  - PATCH: se registra el waiver W-002 (RED no observado en tres tests unitarios de 003). No se
+    agrega, elimina ni redefine ningún principio; el núcleo normativo I–V se conserva íntegro.
+- Modified principles: ninguno
+- Added sections: ninguno
+- Removed sections: ninguno
 - Other changes:
-  - La spec 001 se enmendó para agregar registro por correo y SSO (Google/Microsoft); la excepción
-    anti-enumeración se extiende al endpoint de registro.
-- Follow-up TODOs: regenerar plan/tasks de 001 e implementar registro/SSO.
+  - Se agrega W-002 a «Waivers registrados», con alcance acotado a T010/T015/T016 de
+    `specs/003-catalogo-productos/tasks.md`.
+  - Se conserva el registro histórico del cambio 1.2.0 → 1.3.0 (excepción anti-enumeración de
+    registro, spec 001).
+- Follow-up TODOs: ninguno.
 -->
 
 # Stockmante Constitution
@@ -117,4 +112,6 @@ Un waiver es una excepción histórica y acotada, aprobada y registrada. NO modi
 
 - **W-001 — P-IV: RED no observado en T017–T019 (aprobado 2026-10-25)**: los tests de US1 (`test_auth_login`, `test_sesion_unica`, `test_cambio_password`) se escribieron junto con el servicio y no registraron el fallo previo. Alcance: solo esas tres tareas de `specs/001-autenticacion-sesion/tasks.md` (T032). Condición de cierre: suite de backend en verde y `cargo sqlx prepare --check` sin diferencias, verificado el 2026-10-25. Desde `003-catalogo-productos` en adelante el RED es obligatorio y no existe waiver preventivo.
 
-**Version**: 1.3.0 | **Ratified**: 2026-10-11 | **Last Amended**: 2026-10-28
+- **W-002 — P-IV: RED no observado en T010/T015/T016 de 003 (aprobado 2026-11-06)**: los tests unitarios de normalización/validación (`test_categoria_normalizacion`, `test_sku`, `test_producto_validacion`) se escribieron después de T006 y quedaron verdes en su primera corrida; `progress.md` lo registra. El RED sí se observó en los tests HTTP de T011/T017/T018. Alcance: solo esas tres tareas de `specs/003-catalogo-productos/tasks.md`. No se reconstruye un RED artificial. Condición de cierre: suite de backend en verde y `cargo sqlx prepare --check` sin diferencias, verificado el 2026-11-06.
+
+**Version**: 1.3.1 | **Ratified**: 2026-10-11 | **Last Amended**: 2026-11-06

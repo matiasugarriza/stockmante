@@ -14,9 +14,10 @@
 use crate::error::AppError;
 use crate::models::deposito::{
     validar_direccion, validar_identificador, validar_nombre_deposito, validar_nombre_ubicacion,
-    validar_tipo_ubicacion, Deposito, Ubicacion,
+    validar_tipo_ubicacion, Deposito, Ubicacion, UbicacionesDeProducto,
 };
 use sqlx::{PgConnection, PgPool};
+use std::collections::HashMap;
 
 /// Alta de depósito; el servicio valida cada campo.
 #[derive(Debug)]
@@ -552,6 +553,78 @@ pub async fn ubicaciones_de_producto(
     .fetch_all(pool)
     .await?;
     Ok(ubicaciones)
+}
+
+/// FR-075: ubicaciones permitidas de varios productos en un solo lote.
+///
+/// Devuelve una entrada por producto existente (`[]` si no tiene asignaciones);
+/// los ids desconocidos se omiten. Orden: producto, depósito, nombre e id.
+pub async fn ubicaciones_de_productos(
+    pool: &PgPool,
+    producto_ids: Vec<i32>,
+) -> Result<Vec<UbicacionesDeProducto>, AppError> {
+    let mut ids = producto_ids;
+    ids.sort_unstable();
+    ids.dedup();
+    if ids.is_empty() {
+        return Ok(Vec::new());
+    }
+
+    let existentes: Vec<i32> =
+        sqlx::query_scalar("SELECT id FROM productos WHERE id = ANY($1) ORDER BY id")
+            .bind(&ids)
+            .fetch_all(pool)
+            .await?;
+
+    let filas = sqlx::query_as::<_, UbicacionAsignadaFila>(
+        r#"SELECT p.producto_id, u.id, u.deposito_id, u.padre_id, u.nombre, u.tipo, u.activo
+             FROM producto_ubicacion_permitida p
+             JOIN ubicaciones u ON u.id = p.ubicacion_id
+             JOIN depositos d ON d.id = u.deposito_id
+            WHERE p.producto_id = ANY($1)
+            ORDER BY p.producto_id ASC, d.nombre ASC, u.nombre ASC, u.id ASC"#,
+    )
+    .bind(&ids)
+    .fetch_all(pool)
+    .await?;
+
+    let mut por_producto: HashMap<i32, Vec<Ubicacion>> = existentes
+        .into_iter()
+        .map(|producto_id| (producto_id, Vec::new()))
+        .collect();
+    for fila in filas {
+        if let Some(lista) = por_producto.get_mut(&fila.producto_id) {
+            lista.push(Ubicacion {
+                id: fila.id,
+                deposito_id: fila.deposito_id,
+                padre_id: fila.padre_id,
+                nombre: fila.nombre,
+                tipo: fila.tipo,
+                activo: fila.activo,
+            });
+        }
+    }
+
+    let mut items: Vec<UbicacionesDeProducto> = por_producto
+        .into_iter()
+        .map(|(producto_id, ubicaciones)| UbicacionesDeProducto {
+            producto_id,
+            ubicaciones,
+        })
+        .collect();
+    items.sort_unstable_by_key(|item| item.producto_id);
+    Ok(items)
+}
+
+#[derive(sqlx::FromRow)]
+struct UbicacionAsignadaFila {
+    producto_id: i32,
+    id: i32,
+    deposito_id: i32,
+    padre_id: Option<i32>,
+    nombre: String,
+    tipo: String,
+    activo: bool,
 }
 
 /// FR-017: reemplaza el conjunto permitido; vacío lo limpia.

@@ -103,7 +103,8 @@ Reglas del contrato:
 | SKU repetido | 409 | `sku_duplicado` | Ya existe un producto con el SKU {sku}. Elegí otro. |
 | Código de barras repetido | 409 | `codigo_barras_duplicado` | Ya existe un producto con ese código de barras. |
 | Nombre de categoría repetido | 409 | `categoria_duplicada` | Ya existe una categoría con ese nombre. |
-| Categoría inexistente o inactiva al asignar | 422 | `validacion` | La categoría indicada no existe o está dada de baja. |
+| Categoría inexistente al asignar | 422 | `validacion` | La categoría indicada no existe. |
+| Categoría inactiva al asignar | 422 | `validacion` | La categoría está inactiva; activala o elegí otra. |
 | Unidad de medida fuera de la lista | 422 | `validacion` | La unidad de medida debe ser UNIDAD, KG, METRO o CAJA. |
 | Monto negativo, con más de 2 decimales o ≥ 10¹⁰ | 422 | `validacion` | Mensaje por campo. |
 | `stock_minimo` negativo o no entero | 422 | `validacion` | El stock mínimo debe ser un entero mayor o igual a 0. |
@@ -130,5 +131,7 @@ Reglas del contrato:
 - `GET /productos/buscar` y la exclusión de inactivos en caja → [004](../../004-busqueda-caja/spec.md).
 - `PUT /productos/{id}/ubicaciones` → [005](../../005-depositos-ubicaciones/spec.md).
 - Verificación transversal de la matriz RBAC → [006](../../006-rbac-auditoria/spec.md).
-- El rechazo de movimientos sobre productos inactivos lo implementa el módulo de stock (futuro);
+- El rechazo de movimientos sobre productos inactivos lo implementa el módulo de stock (007);
   esta spec solo fija el contrato (FR-022).
+- La vista de productos consume `GET /api/productos/ubicaciones?producto_ids=` de 005 (FR-075) para
+  la columna de ubicaciones; 003 no agrega rutas ni escrituras de ubicaciones.

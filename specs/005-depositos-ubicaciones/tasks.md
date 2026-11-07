@@ -6,6 +6,9 @@
 **Tests**: sí. TDD en validadores puros; integración HTTP para jerarquía, dependencias y RBAC;
 schemas/cliente en el frontend.
 
+**Ampliación 2026-11-06**: la Fase 6 (T020–T024) agrega la lectura masiva de asignaciones para la
+vista de productos de 003; no hay migración ni cambio de esquema.
+
 ## Fase 1 — Modelos y validadores
 
 - [X] T001 Crear `models/deposito.rs`: `Deposito`, `Ubicacion`, `ListaUbicaciones`, constantes de
@@ -55,6 +58,29 @@ schemas/cliente en el frontend.
   los mensajes en español.
 - [X] T019 Escribir `progress.md` y actualizar `specs/README.md` y `docs/api.md`.
 
+## Fase 6 — Lectura masiva de asignaciones (FR-075)
+
+- [X] T020 [US5] RED: `backend/tests/integration/test_depositos_http.rs` — dos productos (uno sin
+  asignaciones), ids desconocidos, `producto_ids=` vacío, ausente, 101 ids, `0` y no entero → 422;
+  RBAC 401/403. **Aceptación**: los casos fallan antes del handler.
+- [X] T021 [US5] `backend/src/services/depositos.rs`: `ubicaciones_de_productos(pool, ids)` con dos
+  consultas (productos existentes + asignaciones), agrupación, `[]` para los que no tienen y orden
+  estable (`producto_id`, depósito, nombre).
+- [X] T022 [US5] `backend/src/handlers/productos.rs`: `GET /api/productos/ubicaciones` con
+  `RequiereGestion`, `QueryValida` y `utoipa`; registrar la ruta estática antes de `/{id}` y el
+  schema en `backend/src/docs.rs`. **Aceptación**: un test confirma que no cae en `/{id}`.
+- [X] T023 [US5] `frontend/src/lib/schemas/depositos.ts` y `frontend/src/lib/api/depositos.ts`:
+  `ListaUbicacionesPorProductoSchema`, `ubicacionesDeProductos(ids)` y tests de query, parse y `[]`
+  (sin llamada cuando la lista está vacía).
+- [X] T024 [US5] Actualizar `specs/005-depositos-ubicaciones/contracts/api.md`,
+  `specs/005-depositos-ubicaciones/quickstart.md` y `specs/005-depositos-ubicaciones/progress.md`;
+  correr los gates del backend y del frontend. **Aceptación**: contrato y evidencia coinciden.
+
+## Dependencias
+
+- **Fase 6**: depende de la Fase 3 (router/handlers) y de la Fase 4 (schemas/cliente). T020 (RED)
+  antes de T021–T022; T023 puede ir en paralelo con T021–T022; T024 cierra con gates y evidencia.
+
 ## Trazabilidad
 
 | Requisito | Tareas |
@@ -63,4 +89,5 @@ schemas/cliente en el frontend.
 | FR-016 | T001, T005, T009, T012, T015 |
 | FR-017 | T006, T010, T012, T015 |
 | FR-018 | T004, T005, T007, T012 |
+| FR-075 | T020–T024 |
 | SC-005 | T003, T005, T018 |

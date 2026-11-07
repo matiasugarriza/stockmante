@@ -10,14 +10,15 @@
 > esquema es de esta spec**. Esta versión reemplaza el modelo anterior: agrega
 > `categorias.descripcion`, fija la forma final de `productos.codigo_barras` y elimina el borrado
 > físico como vía de retiro. El DDL existente se cita como evidencia; **acá no se escribe el SQL de
-> la migración nueva**.
+> la migración nueva**. La ampliación 2026-11-06 no cambia el esquema: solo lee
+> `producto_ubicacion_permitida` (005).
 
 ## Diagrama de relaciones (texto)
 
 ```text
 categorias 1────* productos
 productos  1────* producto_ubicacion_permitida *────1 ubicaciones        (005)
-productos  1────* movimientos / líneas de venta                          (futuro; sin spec)
+productos  1────* movimientos / líneas de venta                          (007 / 013)
 ```
 
 > Toda tabla futura que referencie `productos.id` DEBE usar `ON DELETE RESTRICT`. Hoy la base no
@@ -111,7 +112,7 @@ borrado: la fila, su `id` y todas sus columnas se conservan; tampoco se archiva 
   `stock_minimo`, `creado_en` y `actualizado_en`.
 - El SKU y el código de barras quedan **reservados**: no se liberan para otro producto.
 - Las referencias existentes: asignaciones en `producto_ubicacion_permitida` (005) y los movimientos
-  históricos que genere el módulo de stock (posterior a 003, aún sin spec).
+  históricos que genera 007-movimientos-stock.
 - El nombre de la categoría queda reservado: otra categoría no puede reutilizarlo.
 
 ### Reactivación
@@ -129,7 +130,7 @@ borrado: la fila, su `id` y todas sus columnas se conservan; tampoco se archiva 
 | Listado de gestión (003) | Sin parámetro → `activo = TRUE` | Solo activos |
 | Listado de gestión con `?activo=false` / `?activo=all` | `FALSE` / sin filtro | Inactivos / todos |
 | Búsqueda de caja (004) | Excluye inactivos por defecto; `incluir_inactivos` solo GESTION | Solo activos en operación |
-| Movimientos nuevos (módulo de stock, futuro) | Exige `activo = TRUE` en la transacción | Rechazo 409 `producto_inactivo` |
+| Movimientos nuevos (007) | Exige `activo = TRUE` en la transacción | Rechazo 409 `producto_inactivo` |
 | Reportes históricos (stock / auditoría 006) | Sin filtro de `activo` | Todos, con sus identificadores originales |
 
 ## Transiciones de estado
@@ -168,10 +169,8 @@ filtrar.
 - **003 no crea un índice de texto.** Con el volumen previsto (`plan.md`: miles de productos), el
   recorrido se acota con `idx_productos_categoria` y el filtro de estado, y se mantiene dentro de
   SC-012. Adelantar un GIN trigram sin medición contradice el Principio I.
-- **El índice trigram pertenece a 004**: `FR-011` y `SC-002` lo justifican para la búsqueda de
-  caja. Su migración está pendiente y **su número debe redefinirse** porque el `0005` que el ledger
-  le reservaba ya está ocupado por `0005_sesion_unica.sql`. Cuando exista (GIN sobre `nombre`), la
-  consulta de 003 lo aprovecha sin cambiar el contrato.
+- **El índice trigram pertenece a 004 y ya existe**: `0007_busqueda_trgm.sql` creó `pg_trgm` y el
+  índice GIN sobre `productos.nombre`; la consulta de 003 lo aprovecha sin cambiar el contrato.
 - **SKU**: la igualdad exacta y la unicidad usan `productos_sku_key`. El filtro por subcadena de
   SKU no tiene índice dedicado en v1: comparte el recorrido acotado descrito arriba.
 
@@ -196,7 +195,7 @@ filtrar.
 | `unidad_medida` dentro de la lista v1 | app |
 | `activo` solo se cambia por `/desactivar` y `/reactivar` | app (el `PUT` no acepta el campo: 422) |
 | Sin borrado físico de productos ni categorías | app (no existe ruta) + prohibición de la spec |
-| Producto inactivo sin movimientos nuevos | servicio del **módulo de stock** (futuro, sin spec), dentro de la transacción |
+| Producto inactivo sin movimientos nuevos | servicio del **007-movimientos-stock**, dentro de la transacción |
 
 ## Reglas de unicidad
 
@@ -220,6 +219,17 @@ filtrar.
   - `total` cuenta las filas que cumplen los filtros, antes de paginar.
   - Orden: `nombre ASC, id ASC` (estable y reproducible).
 - `GET /api/categorias?activo=`: mismo default (solo activas), orden `nombre ASC`, sin paginar.
+
+## Lectura de ubicaciones (ampliación 2026-11-06)
+
+- **Sin cambios de esquema**: `producto_ubicacion_permitida` es de 005 y se lee por la PK
+  `(producto_id, ubicacion_id)`; el prefijo `producto_id` cubre `WHERE producto_id = ANY($1)`.
+- **Solo lectura**: 003 no crea, edita ni asigna ubicaciones; el alta y la edición de producto no
+  llevan `ubicacion_id`.
+- **Lectura masiva**: `GET /api/productos/ubicaciones?producto_ids=` (005, FR-075) devuelve una
+  entrada por producto existente, con `[]` si no tiene asignaciones; los ids inexistentes se omiten.
+- **Estado de UI**: sin asignaciones → «Sin ubicación»; consulta fallida → «No disponible»; una
+  asignación cuya ubicación fue desactivada se muestra con `(inactiva)`.
 
 ## Referencias y borrado
 

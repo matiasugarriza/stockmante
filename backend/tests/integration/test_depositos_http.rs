@@ -549,6 +549,170 @@ async fn asignacion_de_ubicaciones_a_producto() {
 }
 
 #[tokio::test]
+async fn lectura_masiva_de_ubicaciones_por_producto() {
+    let (app, pool, _correo) = app_de_test().await;
+    let cookie = sesion_gestion(&pool).await;
+    let marca = sufijo();
+    let categoria = crear_categoria(&app, &cookie).await;
+    let con_ubicaciones = crear_producto(&app, &cookie, categoria).await;
+    let sin_ubicaciones = crear_producto(&app, &cookie, categoria).await;
+
+    let deposito = crear_deposito(
+        &app,
+        &cookie,
+        &format!("Lote {marca}"),
+        &format!("LOTE-{marca}"),
+    )
+    .await["id"]
+        .as_i64()
+        .expect("id depósito") as i32;
+    let u1 = crear_ubicacion(&app, &cookie, deposito, None, "Estantería L1", "ESTANTERIA")
+        .await
+        .1["id"]
+        .as_i64()
+        .expect("u1") as i32;
+    let u2 = crear_ubicacion(&app, &cookie, deposito, None, "Estantería L2", "ESTANTERIA")
+        .await
+        .1["id"]
+        .as_i64()
+        .expect("u2") as i32;
+
+    let (status, body) = pedir(
+        &app,
+        &cookie,
+        "PUT",
+        &format!("/api/productos/{con_ubicaciones}/ubicaciones"),
+        Some(json!({ "ubicacion_ids": [u1, u2] })),
+    )
+    .await;
+    assert_eq!(status, StatusCode::NO_CONTENT, "{body}");
+
+    // Lote: una entrada por producto existente; el que no tiene asignaciones devuelve [].
+    let uri = format!(
+        "/api/productos/ubicaciones?producto_ids={con_ubicaciones},{sin_ubicaciones},999999999"
+    );
+    let (status, body) = pedir(&app, &cookie, "GET", &uri, None).await;
+    assert_eq!(status, StatusCode::OK, "{body}");
+    let items = body["items"].as_array().expect("items");
+    assert_eq!(items.len(), 2, "{body}");
+    let con = items
+        .iter()
+        .find(|item| item["producto_id"].as_i64() == Some(con_ubicaciones as i64))
+        .expect("producto con ubicaciones");
+    assert_eq!(
+        con["ubicaciones"]
+            .as_array()
+            .expect("ubicaciones")
+            .len(),
+        2,
+        "{body}"
+    );
+    let sin = items
+        .iter()
+        .find(|item| item["producto_id"].as_i64() == Some(sin_ubicaciones as i64))
+        .expect("producto sin ubicaciones");
+    assert!(
+        sin["ubicaciones"]
+            .as_array()
+            .expect("ubicaciones")
+            .is_empty(),
+        "{body}"
+    );
+
+    // Duplicados en la consulta no duplican la entrada.
+    let uri_dup = format!(
+        "/api/productos/ubicaciones?producto_ids={con_ubicaciones},{con_ubicaciones},{sin_ubicaciones}"
+    );
+    let (status, body) = pedir(&app, &cookie, "GET", &uri_dup, None).await;
+    assert_eq!(status, StatusCode::OK, "{body}");
+    assert_eq!(body["items"].as_array().expect("items").len(), 2, "{body}");
+
+    // Lista vacía y parámetro ausente.
+    let (status, body) = pedir(
+        &app,
+        &cookie,
+        "GET",
+        "/api/productos/ubicaciones?producto_ids=",
+        None,
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK, "{body}");
+    assert!(body["items"].as_array().expect("items").is_empty());
+
+    let (status, body) = pedir(&app, &cookie, "GET", "/api/productos/ubicaciones", None).await;
+    assert_eq!(status, StatusCode::UNPROCESSABLE_ENTITY, "{body}");
+    assert_eq!(body["error"]["codigo"], "validacion");
+
+    for invalido in ["0", "abc"] {
+        let (status, body) = pedir(
+            &app,
+            &cookie,
+            "GET",
+            &format!("/api/productos/ubicaciones?producto_ids={invalido}"),
+            None,
+        )
+        .await;
+        assert_eq!(status, StatusCode::UNPROCESSABLE_ENTITY, "{body}");
+    }
+
+    let muchos = (1..=101)
+        .map(|id| id.to_string())
+        .collect::<Vec<_>>()
+        .join(",");
+    let (status, body) = pedir(
+        &app,
+        &cookie,
+        "GET",
+        &format!("/api/productos/ubicaciones?producto_ids={muchos}"),
+        None,
+    )
+    .await;
+    assert_eq!(status, StatusCode::UNPROCESSABLE_ENTITY, "{body}");
+    assert!(
+        body["error"]["mensaje"]
+            .as_str()
+            .is_some_and(|mensaje| mensaje.contains("100")),
+        "{body}"
+    );
+
+    // Una ubicación asignada que luego se desactiva sigue apareciendo, con activo=false.
+    let (status, _) = pedir(
+        &app,
+        &cookie,
+        "POST",
+        &format!("/api/ubicaciones/{u2}/desactivar"),
+        None,
+    )
+    .await;
+    assert_eq!(status, StatusCode::NO_CONTENT);
+    let (status, body) = pedir(&app, &cookie, "GET", &uri, None).await;
+    assert_eq!(status, StatusCode::OK, "{body}");
+    let con = body["items"]
+        .as_array()
+        .expect("items")
+        .iter()
+        .find(|item| item["producto_id"].as_i64() == Some(con_ubicaciones as i64))
+        .expect("producto con ubicaciones");
+    let u2_json = con["ubicaciones"]
+        .as_array()
+        .expect("ubicaciones")
+        .iter()
+        .find(|ubicacion| ubicacion["id"].as_i64() == Some(u2 as i64))
+        .expect("u2 en el lote");
+    assert_eq!(u2_json["activo"], false, "{body}");
+
+    let (status, _) = pedir(
+        &app,
+        &cookie,
+        "POST",
+        &format!("/api/ubicaciones/{u2}/reactivar"),
+        None,
+    )
+    .await;
+    assert_eq!(status, StatusCode::NO_CONTENT);
+}
+
+#[tokio::test]
 async fn rbac_de_depositos_ubicaciones_y_asignaciones() {
     let (app, pool, _correo) = app_de_test().await;
     let cookie = sesion_operacion(&pool).await;
@@ -575,6 +739,11 @@ async fn rbac_de_depositos_ubicaciones_y_asignaciones() {
             "/api/productos/1/ubicaciones".to_string(),
             Some(json!({ "ubicacion_ids": [] })),
         ),
+        (
+            "GET",
+            "/api/productos/ubicaciones?producto_ids=1".to_string(),
+            None,
+        ),
     ] {
         let (status, respuesta) = pedir(&app, &cookie, metodo, &uri, body).await;
         assert_eq!(status, StatusCode::FORBIDDEN, "{metodo} {uri}: {respuesta}");
@@ -585,6 +754,7 @@ async fn rbac_de_depositos_ubicaciones_y_asignaciones() {
         "/api/depositos",
         "/api/depositos/1/ubicaciones",
         "/api/ubicaciones/1",
+        "/api/productos/ubicaciones?producto_ids=1",
     ] {
         let res = app
             .clone()

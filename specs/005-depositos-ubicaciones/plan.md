@@ -73,10 +73,24 @@ Todas las rutas exigen `RequiereGestion` (401 sin sesión, 403 fuera de GESTION)
 | POST | `/api/ubicaciones/{id}/reactivar` | 204 | 404 |
 | GET | `/api/productos/{id}/ubicaciones` | 200 `{ items }` | 404 |
 | PUT | `/api/productos/{id}/ubicaciones` | 204 | 404 ubicación inactiva/inexistente, 422 ids |
+| GET | `/api/productos/ubicaciones?producto_ids=` | 200 `{ items }` | 422 ids/límite |
 
 `PUT` es parcial: un campo ausente conserva su valor. `direccion: ""` limpia la dirección del
 depósito y `padre_id: null` mueve la ubicación a la raíz. `activo` no viaja por `PUT`: su sola
 presencia es 422 y el estado se cambia con `/desactivar` o `/reactivar`.
+
+## Ampliación 2026-11-06 — Lectura masiva de asignaciones (FR-075)
+
+- **Motivo**: la vista de productos de 003 muestra las ubicaciones de 20 filas por página; una
+  llamada por producto sería N+1. Se agrega una lectura por lote.
+- **Contrato**: `GET /api/productos/ubicaciones?producto_ids=` → `{ items: [{ producto_id, ubicaciones }] }`,
+  máximo 100 ids, deduplicados; ids inexistentes omitidos; `[]` para productos sin asignaciones.
+- **Implementación**: `services/depositos.rs::ubicaciones_de_productos` con dos consultas (productos
+  existentes + asignaciones) y agrupación en memoria; handler en `handlers/productos.rs` con
+  `RequiereGestion` y `utoipa`; ruta estática antes de `/{id}` (mismo patrón que `/buscar`).
+- **Sin cambios de esquema**: la PK `(producto_id, ubicacion_id)` cubre el `ANY($1)`.
+- **Rechazado**: incluir `ubicaciones` en `GET /api/productos` (acopla 003 al esquema de 005) y
+  hacer N llamadas desde el frontend (N+1 y latencia).
 
 ## Esquema (sin migración nueva)
 
@@ -131,6 +145,7 @@ presencia es 422 y el estado se cambia con `/desactivar` o `/reactivar`.
 3. Handlers, rutas y OpenAPI.
 4. Frontend: schemas, cliente, página y navegación.
 5. Tests, gates y documentación.
+6. Ampliación 2026-11-06: lectura masiva (FR-075), cliente `ubicacionesDeProductos` y tests.
 
 ## Complexity Tracking
 

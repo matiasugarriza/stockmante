@@ -141,3 +141,44 @@
 - **Alternatives considered**: renumerar `0005` (rompe `_sqlx_migrations` en bases existentes);
   usar `0004` (colisiona con el WIP y con cualquier base donde se haya aplicado).
 - **Seguimiento**: actualizar el ledger de `specs/README.md` en la fase de tareas, no acá.
+
+## R19 — Lectura masiva de ubicaciones para la vista de productos (2026-11-06)
+
+- **Decision**: consumir `GET /api/productos/ubicaciones?producto_ids=` (005, FR-075) una vez por
+  página, con tope de 100 ids, y mapear la respuesta a un `Record<producto_id, Ubicacion[]>` en la
+  página de productos.
+- **Rationale**: una llamada por fila sería N+1 (20 por página) y multiplicaría la latencia de una
+  vista de gestión; incluir `ubicaciones` en `GET /api/productos` acoplaría 003 al esquema de 005 y
+  cambiaría un contrato ya publicado. La ruta estática `/productos/ubicaciones` convive con
+  `/productos/{id}` igual que `/productos/buscar` (004).
+- **Alternatives considered**: N llamadas desde el frontend (descartada por latencia y carga);
+  extender `GET /api/productos` con `ubicaciones` (descartada por propiedad de módulos y contrato);
+  endpoint por depósito (no responde “qué ubicaciones tiene este producto”).
+- **Costo**: un endpoint de solo lectura en 005, sin migración; la PK
+  `(producto_id, ubicacion_id)` cubre la consulta.
+
+## R20 — Descartar ubicación en el alta de producto (2026-11-06)
+
+- **Decision**: el alta y la edición de productos **no** ofrecen ubicación. La asignación se
+  gestiona exclusivamente en `/admin/depositos` con `PUT /api/productos/{id}/ubicaciones` (005).
+- **Rationale**: el alta y la asignación son operaciones de módulos distintos; hacerlas en dos pasos
+  deja un estado parcial (producto creado sin ubicación) que no se puede revertir porque FR-012
+  prohíbe el borrado físico. Además, el pedido vigente pide **mostrar** ubicaciones en la vista, no
+  elegirlas al crear. Mantener una sola vía de asignación reduce la superficie y el testing.
+- **Alternatives considered**: `POST /api/productos` con `ubicacion_id` (acopla 003 a 005 y exige
+  transacción entre módulos); alta + `PUT` desde el formulario (estado parcial y mensaje
+  compensatorio); selector de solo lectura en el alta (no aporta).
+- **Consecuencia**: desaparece de la spec el escenario de “resultado parcial producto creado sin
+  ubicación” que se había evaluado; CU-PROD-07 lo excluye explícitamente.
+
+## R21 — Medición de SC-012 (2026-11-06)
+
+- **Decision**: sembrar 5.000 productos con `scripts/seed_catalogo_5000.sql` (idempotente por prefijo
+  `SEED-`) y medir 20 consultas (8 `q`, 8 `categoria_id`, 4 sin filtro) contra el backend real;
+  registrar p95 y `EXPLAIN (ANALYZE, BUFFERS)` de la más lenta en `progress.md`.
+- **Rationale**: SC-012 es medible solo con un volumen y una mezcla de consultas explícitos. Un test
+  de unidad o de integración no mide latencia de forma estable; la medición manual reproducible es
+  la evidencia aceptable para esta feature.
+- **Alternatives considered**: benchmark automatizado en CI (frágil por hardware y base compartida);
+  excluir SC-012 (deja un criterio de éxito sin verificación); medir solo la consulta sin filtro
+  (no representa el caso de uso).

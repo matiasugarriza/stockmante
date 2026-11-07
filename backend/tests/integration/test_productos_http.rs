@@ -144,6 +144,12 @@ async fn alta_normaliza_y_valida_unicidad_y_limites() {
     .await;
     assert_eq!(status, StatusCode::UNPROCESSABLE_ENTITY);
     assert_eq!(body["error"]["codigo"], "validacion");
+    assert!(
+        body["error"]["mensaje"]
+            .as_str()
+            .is_some_and(|mensaje| mensaje.contains("no existe")),
+        "falta el mensaje de categoría inexistente: {body}"
+    );
 
     let inactiva_nombre = nombre_categoria_unico("Inactiva");
     let inactiva = crear_categoria(&app, &cookie, &inactiva_nombre).await;
@@ -166,6 +172,12 @@ async fn alta_normaliza_y_valida_unicidad_y_limites() {
     .await;
     assert_eq!(status, StatusCode::UNPROCESSABLE_ENTITY);
     assert_eq!(body["error"]["codigo"], "validacion");
+    assert!(
+        body["error"]["mensaje"]
+            .as_str()
+            .is_some_and(|mensaje| mensaje.contains("inactiva")),
+        "falta el mensaje de categoría inactiva: {body}"
+    );
 
     // Montos, unidad, nombre y stock.
     let mut casos: Vec<(Value, &str)> = Vec::new();

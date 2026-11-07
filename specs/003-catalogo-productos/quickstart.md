@@ -75,6 +75,21 @@ observables de esta feature.
     precios y categoría intactos.
 15. `PUT /api/productos/{id}` con `{ "activo": false }`. **Esperado**: 422 y el producto sigue activo.
 
+## V6c — Ubicaciones en la vista de productos
+
+1. Crear un depósito y dos ubicaciones activas (005) y asignar una al producto desde
+   `/admin/depositos`.
+2. Abrir `/admin/productos`. **Esperado**: la fila del producto muestra `Depósito · Ubicación`; un
+   producto sin asignaciones muestra «Sin ubicación».
+3. En la pestaña de red, verificar **una** llamada a `/api/productos/ubicaciones?producto_ids=…`
+   por página, no una por producto.
+4. Desactivar la ubicación asignada y recargar. **Esperado**: la ubicación se muestra con
+   `(inactiva)`.
+5. Abrir el alta y la edición. **Esperado**: no hay selector de ubicación (decisión 2026-11-06);
+   la asignación se hace solo en Depósitos.
+6. Forzar un fallo de la lectura masiva (por ejemplo, cortar la red). **Esperado**: la columna
+   muestra «No disponible» y el listado sigue usable.
+
 ## RBAC
 
 | Acción | OPERACION | GESTION |
@@ -82,6 +97,7 @@ observables de esta feature.
 | `GET /categorias`, `GET /categorias/{id}` | 200 | 200 |
 | `GET /productos/{id}` | 200 | 200 |
 | `GET /productos` | 403 `sin_permisos` | 200 |
+| `GET /productos/ubicaciones` (lote) | 403 `sin_permisos` | 200 |
 | `POST` / `PUT` / `desactivar` / `reactivar` | 403 `sin_permisos` | 200/201/204 |
 | Cualquier ruta sin sesión | 401 `no_autenticado` | — |
 
@@ -104,9 +120,18 @@ cd frontend && npm test && npm run check && npm run build
 
 Todos en verde; sin `unwrap`/`panic!`/`expect` en rutas de producción.
 
+## V9 — Medición de SC-012
+
+1. Crear y ejecutar `scripts/seed_catalogo_5000.sql` contra la base de desarrollo (idempotente por
+   el prefijo `SEED-`).
+2. Con sesión GESTION, ejecutar 20 consultas sobre el backend real: 8 con `?q=seed`, 8 con
+   `?categoria_id=<id de SEED-CAT>`, 4 sin filtro; `por_pagina=20`.
+3. **Esperado**: p95 ≤ 1 s. Si no, guardar `EXPLAIN (ANALYZE, BUFFERS)` de la más lenta y la
+   decisión en `progress.md`.
+
 ## Fuera de esta guía
 
 - Búsqueda por SKU/código/nombre y tiempos de caja → [004](../004-busqueda-caja/spec.md).
 - Asignación de ubicaciones → [005](../005-depositos-ubicaciones/spec.md).
-- Rechazo de movimientos sobre productos inactivos → módulo de stock (futuro); contrato en
+- Rechazo de movimientos sobre productos inactivos → 007-movimientos-stock; contrato en
   [spec.md](./spec.md) FR-022.

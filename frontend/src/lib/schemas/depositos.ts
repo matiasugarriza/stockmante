@@ -31,6 +31,18 @@ export const ListaUbicacionesSchema = z.object({
 });
 export type ListaUbicaciones = z.infer<typeof ListaUbicacionesSchema>;
 
+/** Lectura masiva de ubicaciones por producto (005, FR-075). */
+export const UbicacionesDeProductoSchema = z.object({
+	producto_id: z.number().int(),
+	ubicaciones: z.array(UbicacionSchema)
+});
+export type UbicacionesDeProducto = z.infer<typeof UbicacionesDeProductoSchema>;
+
+export const ListaUbicacionesPorProductoSchema = z.object({
+	items: z.array(UbicacionesDeProductoSchema)
+});
+export type ListaUbicacionesPorProducto = z.infer<typeof ListaUbicacionesPorProductoSchema>;
+
 export const CrearDepositoSchema = z.object({
 	nombre: z.string().trim().min(1, 'El nombre es obligatorio').max(120),
 	identificador: z.string().trim().min(1, 'El identificador es obligatorio').max(40),

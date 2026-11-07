@@ -1,13 +1,17 @@
 <script lang="ts">
+	import type { Deposito, Ubicacion } from '#lib/schemas/depositos';
 	import type { Producto } from '#lib/schemas/productos';
+	import { textoUbicacion, textoUbicaciones } from '#lib/utils/ubicaciones';
 
 	interface Props {
 		productos: Producto[];
+		ubicacionesPorProducto: Record<number, Ubicacion[]>;
+		depositos: Deposito[];
 		onEditar: (producto: Producto) => void;
 		onAlternarEstado: (producto: Producto) => void;
 	}
 
-	let { productos, onEditar, onAlternarEstado }: Props = $props();
+	let { productos, ubicacionesPorProducto, depositos, onEditar, onAlternarEstado }: Props = $props();
 
 	const botonAccion =
 		'rounded border border-slate-300 px-2 py-1 text-xs hover:bg-slate-100 disabled:opacity-60';
@@ -24,6 +28,7 @@
 				<th class="px-4 py-2 font-medium">Nombre</th>
 				<th class="px-4 py-2 font-medium">SKU</th>
 				<th class="px-4 py-2 font-medium">Categoría</th>
+				<th class="px-4 py-2 font-medium">Ubicaciones</th>
 				<th class="px-4 py-2 text-right font-medium">Precio</th>
 				<th class="px-4 py-2 text-right font-medium">Stock mín.</th>
 				<th class="px-4 py-2 font-medium">Estado</th>
@@ -32,6 +37,7 @@
 		</thead>
 		<tbody class="divide-y divide-slate-100">
 			{#each productos as producto (producto.id)}
+				{@const listaUbicaciones = ubicacionesPorProducto[producto.id]}
 				<tr>
 					<td class="px-4 py-2">
 						<p class="font-medium">{producto.nombre}</p>
@@ -41,6 +47,23 @@
 					</td>
 					<td class="px-4 py-2 font-mono text-xs text-slate-600">{producto.sku}</td>
 					<td class="px-4 py-2 text-slate-600">{producto.categoria.nombre}</td>
+					<td class="px-4 py-2 text-xs text-slate-600">
+						{#if listaUbicaciones === undefined}
+							<span class="text-slate-400" title="No se pudieron cargar las ubicaciones">
+								No disponible
+							</span>
+						{:else if listaUbicaciones.length === 0}
+							<span class="text-amber-700">Sin ubicación</span>
+						{:else}
+							<span
+								title={listaUbicaciones
+									.map((ubicacion) => textoUbicacion(ubicacion, depositos))
+									.join('\n')}
+							>
+								{textoUbicaciones(listaUbicaciones, depositos)}
+							</span>
+						{/if}
+					</td>
 					<td class="px-4 py-2 text-right text-slate-600">
 						${monto(producto.precio_venta)}
 						<span class="block text-xs text-slate-400">{producto.unidad_medida}</span>
@@ -73,7 +96,7 @@
 			{/each}
 			{#if productos.length === 0}
 				<tr>
-					<td colspan="7" class="px-4 py-8 text-center text-slate-500">
+					<td colspan="8" class="px-4 py-8 text-center text-slate-500">
 						No hay productos para estos filtros.
 					</td>
 				</tr>

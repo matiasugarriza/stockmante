@@ -37,6 +37,9 @@ Login con un usuario GESTION y guardar la cookie (`-c cookies.txt`).
 15. Sin cookie → 401.
 16. Frontend: `/admin/depositos` como GESTION; crear depósito, agregar Pasillo → Estantería →
     Nivel, editar, desactivar; asignar dos ubicaciones a un producto y guardar.
+17. `GET /api/productos/ubicaciones?producto_ids=<p1>,<p2>` → 200 con una entrada por producto; el
+    producto sin asignaciones devuelve `ubicaciones: []`. Sin `producto_ids` o con 101 ids → 422;
+    `producto_ids=` vacío → `{ "items": [] }`.
 
 ## Verificación de integridad (SC-005)
 

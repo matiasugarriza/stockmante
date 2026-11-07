@@ -2,7 +2,9 @@
 
 **Spec**: `005-depositos-ubicaciones` | **Caso de uso**: US5 | **Prioridad**: P3
 
-**Creado**: 2026-10-25 | **Estado**: Especificado (sin `plan.md` ni `tasks.md`; se generan al arrancar)
+**Creado**: 2026-10-25 | **Estado**: Implementada el 2026-10-26 (plan, tasks y progress completos).
+**Ampliada e implementada 2026-11-06**: lectura masiva de asignaciones (FR-075) para la vista de
+productos de 003.
 
 **Origen**: dividida de la spec original del Módulo 1 (`001-user-auth-catalog`, 2026-10-12).
 Los textos de escenarios, requisitos y criterios se conservan **verbatim**.
@@ -32,6 +34,7 @@ Como **Administrador**, quiero registrar depósitos y ubicaciones anidadas (por 
 3. **Dado** un intento de crear una ubicación sin depósito padre o con un depósito inexistente, **Cuando** se envía, **Entonces** se rechaza (sin ubicaciones huérfanas).
 4. **Dado** un depósito con ubicaciones y productos asignados, **Cuando** se intenta eliminar el depósito, **Entonces** se impide el borrado físico mientras haya dependencias; se ofrece baja lógica si aplica.
 5. **Dado** un producto, **Cuando** el Administrador le asigna ubicaciones iniciales permitidas, **Entonces** el producto solo puede recibir stock en esas ubicaciones (regla que consumen los módulos de stock; aquí se define el registro de la asignación).
+6. **Dado** un conjunto de productos, **Cuando** una vista de catálogo los lista, **Entonces** obtiene sus ubicaciones permitidas en una sola llamada (FR-075), con `[]` para los que no tienen.
 
 ### Casos Borde
 
@@ -45,6 +48,7 @@ Como **Administrador**, quiero registrar depósitos y ubicaciones anidadas (por 
 - **FR-016**: El sistema DEBE permitir CRUD de ubicaciones jerárquicas bajo un depósito (ej. Depósito → Estantería → Nivel → Pasillo), impidiendo ubicaciones huérfanas (sin depósito válido).
 - **FR-017**: El sistema DEBE registrar la asignación de ubicaciones iniciales permitidas por producto; las ubicaciones de un producto DEBEN pertenecer a un depósito existente.
 - **FR-018**: No DEBE permitirse el borrado físico de un depósito con ubicaciones, productos o movimientos asociados.
+- **FR-075**: El sistema DEBE exponer una lectura masiva de ubicaciones asignadas para un conjunto de productos (`GET /api/productos/ubicaciones?producto_ids=1,2,3`), con tope de 100 ids, deduplicación, `422` si falta el parámetro o un id no es entero positivo, ids inexistentes omitidos y `[]` para productos existentes sin asignaciones. La respuesta DEBE agrupar por `producto_id` y ordenar por producto, depósito y nombre.
 
 ### Entidades Clave
 
@@ -82,13 +86,16 @@ Como **Administrador**, quiero registrar depósitos y ubicaciones anidadas (por 
 | POST | `/api/ubicaciones` | `{ deposito_id, padre_id?, nombre, tipo }` | 201 | 422 `ubicacion_huerfana` si `deposito_id` inválido o ≠ padre |
 | PUT/DELETE | `/api/ubicaciones/{id}` | DELETE solo sin hijos/asignaciones | 200/204 | 409 |
 | PUT | `/api/productos/{id}/ubicaciones` | `{ ubicacion_ids: number[] }` reemplaza el conjunto | 204 | 404 ubicación |
+| GET | `/api/productos/ubicaciones?producto_ids=` | — | 200 `{ items: [{ producto_id, ubicaciones }] }` | 422; 401; 403 |
 
 Todas las rutas con `RequiereGestion`.
 
-El contrato definitivo, el plan y las tareas se generan al arrancar la spec.
+El contrato definitivo está en `contracts/api.md`; el plan y las tareas viven en `plan.md` y `tasks.md`.
 
 ## Fuera de alcance
 
 - Movimientos y transferencias de stock.
 - Búsqueda de productos → 004.
 - Verificación transversal de RBAC → 006.
+- La vista de productos y su columna de ubicaciones → 003 (consume FR-075); acá solo se provee la
+  lectura masiva y la asignación.

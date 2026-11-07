@@ -1,7 +1,8 @@
 # Progreso de implementación — Depósitos y ubicaciones (005)
 
-**Spec**: [spec.md](./spec.md) | **Plan**: [plan.md](./plan.md) | **Actualizado**: 2026-10-26 |
-**Estado**: implementada y verificada; incluida en el commit único de cierre del Módulo 1 (2026-10-26).
+**Spec**: [spec.md](./spec.md) | **Plan**: [plan.md](./plan.md) | **Actualizado**: 2026-11-06 |
+**Estado**: implementada y verificada (2026-10-26); **ampliada 2026-11-06** con la lectura masiva de
+asignaciones (FR-075) para la vista de productos de 003.
 
 ## Estado por fase
 
@@ -12,6 +13,7 @@
 | 3. HTTP y contrato | T008–T012 | Completa | 15 rutas; `test_openapi` 6/6; `test_depositos_http` 6/6 |
 | 4. Frontend | T013–T016 | Completa | schemas/cliente + 20 tests nuevos; `/admin/depositos`; enlace en nav |
 | 5. Cierre | T017–T019 | Completa | gates abajo; SC-005 verificado; docs actualizadas |
+| 6. Lectura masiva (ampliación) | T020–T024 | Completa | `GET /api/productos/ubicaciones`; `test_depositos_http` 7/7; cliente y tests |
 
 ## Evidencia observada (2026-10-26)
 
@@ -52,9 +54,10 @@ Resultado: **0**. `ubicaciones.deposito_id` es `NOT NULL` con FK `ON DELETE REST
 
 ### OpenAPI
 
-`/api-docs/openapi.json` publica 15 operaciones nuevas bajo los tags `depositos` y `ubicaciones`,
-más `GET/PUT /api/productos/{id}/ubicaciones`. `test_openapi` valida rutas y schemas `Deposito`,
-`Ubicacion`, `ListaUbicaciones`.
+`/api-docs/openapi.json` publica las 15 operaciones de depósitos/ubicaciones, más
+`GET/PUT /api/productos/{id}/ubicaciones` y `GET /api/productos/ubicaciones`. `test_openapi`
+valida rutas y schemas `Deposito`, `Ubicacion`, `ListaUbicaciones`, `ListaUbicacionesPorProducto` y
+`UbicacionesDeProducto`.
 
 ### Decisiones registradas
 
@@ -63,6 +66,23 @@ más `GET/PUT /api/productos/{id}/ubicaciones`. `test_openapi` valida rutas y sc
 - El borrado físico se bloquea contando dependencias y mapeando `23503`; la baja lógica conserva
   la historia.
 - El árbol se aplana en el cliente con guard de ciclos; no hay componente recursivo.
+
+## Ampliación 2026-11-06 — Lectura masiva de asignaciones (FR-075)
+
+- **Endpoint**: `GET /api/productos/ubicaciones?producto_ids=` en `handlers/productos.rs`; servicio
+  `ubicaciones_de_productos` en `services/depositos.rs`; ruta estática antes de `/{id}`.
+- **Reglas**: 1–100 ids, deduplicación, ausente o >100 o id ≤ 0 o no entero → 422, `producto_ids=`
+  vacío → `{ items: [] }`, ids inexistentes omitidos, `[]` para productos sin asignaciones, orden
+  `producto_id`, depósito y nombre.
+- **Tests**: `test_depositos_http` **7/7**, incluido `lectura_masiva_de_ubicaciones_por_producto`
+  (lote, dedup, vacío, 422, RBAC 401/403 y ubicación inactiva con `activo: false`).
+- **Frontend**: `UbicacionesDeProductoSchema`, `ListaUbicacionesPorProductoSchema` y
+  `ubicacionesDeProductos(ids)` en `#lib/api/depositos.ts`; `depositos.test.ts` **14/14**.
+- **OpenAPI**: `GET /api/productos/ubicaciones`, `ListaUbicacionesPorProducto` y
+  `UbicacionesDeProducto`.
+- **Gates de la ampliación**: `cargo test --test test_depositos_http` 7/7; `cargo sqlx prepare
+  --check` exit 0; `npm test` **226/226** (incluye tests concurrentes de 017; **215/215** al cerrar
+  esta ampliación); `npm run check` **0/0**; `npm run build` OK.
 
 ## Próximo paso
 

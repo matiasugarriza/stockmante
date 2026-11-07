@@ -69,8 +69,12 @@ fn no_encontrado() -> AppError {
     AppError::RecursoNoEncontrado("El producto no existe".into())
 }
 
-fn categoria_invalida() -> AppError {
-    AppError::Validacion("La categoría indicada no existe o está dada de baja.".into())
+fn categoria_inexistente() -> AppError {
+    AppError::Validacion("La categoría indicada no existe.".into())
+}
+
+fn categoria_inactiva() -> AppError {
+    AppError::Validacion("La categoría está inactiva; activala o elegí otra.".into())
 }
 
 /// `23505` por SKU o código de barras; `23503` como red de seguridad.
@@ -86,7 +90,7 @@ fn mapear_unicidad(error: sqlx::Error, sku: Option<&str>) -> AppError {
                     _ => error.into(),
                 };
             }
-            Some("23503") => return categoria_invalida(),
+            Some("23503") => return categoria_inexistente(),
             _ => {}
         }
     }
@@ -148,14 +152,14 @@ where
 }
 
 async fn validar_categoria_activa(tx: &mut PgConnection, categoria_id: i32) -> Result<(), AppError> {
-    let encontrada: Option<i32> =
-        sqlx::query_scalar("SELECT id FROM categorias WHERE id = $1 AND activo = TRUE")
-            .bind(categoria_id)
-            .fetch_optional(&mut *tx)
-            .await?;
-    match encontrada {
-        Some(_) => Ok(()),
-        None => Err(categoria_invalida()),
+    let estado: Option<bool> = sqlx::query_scalar("SELECT activo FROM categorias WHERE id = $1")
+        .bind(categoria_id)
+        .fetch_optional(&mut *tx)
+        .await?;
+    match estado {
+        Some(true) => Ok(()),
+        Some(false) => Err(categoria_inactiva()),
+        None => Err(categoria_inexistente()),
     }
 }
 

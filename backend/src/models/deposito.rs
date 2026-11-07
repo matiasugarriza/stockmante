@@ -41,6 +41,19 @@ pub struct ListaUbicaciones {
     pub items: Vec<Ubicacion>,
 }
 
+/// Ubicaciones permitidas de un producto (lectura masiva, FR-075).
+#[derive(Debug, Clone, Serialize, ToSchema)]
+pub struct UbicacionesDeProducto {
+    pub producto_id: i32,
+    pub ubicaciones: Vec<Ubicacion>,
+}
+
+/// Resultado de `GET /api/productos/ubicaciones?producto_ids=`.
+#[derive(Debug, Clone, Serialize, ToSchema)]
+pub struct ListaUbicacionesPorProducto {
+    pub items: Vec<UbicacionesDeProducto>,
+}
+
 /// `trim` del nombre; la unicidad exacta la impone la base.
 pub fn normalizar_nombre_deposito(valor: &str) -> String {
     valor.trim().to_string()

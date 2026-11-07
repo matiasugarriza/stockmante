@@ -10,6 +10,9 @@
 Quality Gates de `AGENTS.md` (`cargo test` en verde, tests de `#lib/api/*.ts`, `cargo sqlx prepare
 --check` sin diferencias). No es una opción de este proyecto.
 
+> **Desvío registrado (2026-11-06)**: T010/T015/T016 no observaron RED; ver W-002 y `progress.md`.
+> Los tests HTTP de T011/T017/T018 sí registraron RED antes de implementar.
+
 **Ruta de implementación**: inline. La unidad de revisión es el commit de cada tarea o grupo lógico,
 con tests y documentación en el mismo commit (`work-unit-commits`).
 
@@ -19,6 +22,10 @@ quickstart ejecutados (evidencia en [progress.md](./progress.md)). La revisión 
 el commit de la migración (aprobado) y los slices posteriores quedaron dentro del presupuesto. El WIP
 anterior vivía en la rama `wip/003-catalogo` (`941b0cf`) y **no se reutilizó**: describía `DELETE`
 físico, `activo` dentro del `PUT` y la migración `0004`.
+
+**Ampliación 2026-11-06**: se agregan T038–T044 para la medición de SC-012 y para mostrar las
+ubicaciones permitidas en la vista de productos (FR-074/SC-029). La ubicación **no** se elige en el
+alta: se descartó esa extensión y la asignación queda en `/admin/depositos` (005).
 
 **Historias**: esta feature tiene **una sola** historia (US3, P2). Las fases 3, 4 y 5 son incrementos
 de esa misma historia, ordenados por dependencia técnica y cada uno verificable por separado.
@@ -41,7 +48,7 @@ del repositorio. Alias de imports del frontend: **`#lib`** (no `$lib`).
 **Purpose**: dependencias, contrato de errores y verificación de esquema previa a cualquier escritura.
 
 - [X] T001 Agregar `rust_decimal = { version = "1", features = ["serde-float"] }` a `[dependencies]` y la feature `rust_decimal` a `sqlx` en `backend/Cargo.toml`. **Aceptación**: `cargo build` compila; `Decimal` serializa `10.1` como `10.1` (número JSON, no string).
-- [X] T002 Verificar el esquema real **antes** de migrar con el MCP de PostgreSQL o `sqlx-cli`: `\d categorias`, `\d productos` y `SELECT conname FROM pg_constraint WHERE conrelid IN ('categorias'::regclass,'productos'::regclass)`. Registrar en `specs/003-catalogo-productos/progress.md` los nombres reales de `productos_codigo_barras_key`, `categorias_nombre_key` y si ya existe `idx_productos_categoria`. **Aceptación**: nombres confirmados; la migración de T005 usa exactamente esos nombres.
+- [X] T002 Verificar el esquema real **antes** de migrar con el MCP de PostgreSQL o `sqlx-cli`: `\d categorias`, `\d productos` y `SELECT conname FROM pg_constraint WHERE conrelid IN ('categorias'::regclass,'productos'::regclass)`. Registrar en `specs/003-catalogo-productos/progress.md` los nombres reales de `productos_codigo_barras_key`, `categorias_nombre_key` y si ya existe `idx_productos_categoria`. **Aceptación**: nombres confirmados y registrados en `progress.md`; T005 localiza el constraint por columna para tolerar el drift local.
 - [X] T003 [P] Ajustar `backend/tests/unit/test_apperror.rs`: reemplazar la aserción de `AppError::ProductoConReferencias` por `AppError::CategoriaDuplicada` → `409` y `categoria_duplicada`. **Aceptación**: RED (la variante nueva todavía no existe).
 - [X] T004 Modificar `backend/src/error.rs`: agregar la variante `CategoriaDuplicada` con mensaje `"Ya existe una categoría con ese nombre."` en `status()` (409), `codigo()` (`categoria_duplicada`) y `mensaje_publico()`; eliminar `ProductoConReferencias` y su brazo. **Aceptación**: T003 en verde; `cargo build` sin warnings de variante muerta.
 
@@ -55,7 +62,7 @@ del repositorio. Alias de imports del frontend: **`#lib`** (no `$lib`).
 
 **⚠️ CRITICAL**: ninguna tarea de las fases 3–5 puede empezar antes de completar esta fase.
 
-- [X] T005 Crear `migrations/0006_catalogo_descripcion_codigo_barras.sql` con exactamente cuatro sentencias: (1) `ALTER TABLE categorias ADD COLUMN descripcion VARCHAR(255) NULL;`; (2) `CREATE UNIQUE INDEX uq_categorias_nombre_normalizado ON categorias (lower(btrim(nombre)));`; (3) `ALTER TABLE productos DROP CONSTRAINT productos_codigo_barras_key; ALTER TABLE productos ADD CONSTRAINT productos_codigo_barras_key UNIQUE (codigo_barras);` (verificar el nombre real en T002 y confirmar que el resultado es `NULLS DISTINCT`); (4) `CREATE INDEX idx_productos_categoria ON productos (categoria_id);`. **No** se elimina `categorias_nombre_key` y **no** se reutiliza el número `0004`. **Aceptación**: `sqlx migrate run` aplica en `stockmante` y en una base vacía; `\d productos` muestra `UNIQUE (codigo_barras)` sin `NULLS NOT DISTINCT`.
+- [X] T005 Crear `migrations/0006_catalogo_descripcion_codigo_barras.sql` con cinco sentencias (un bloque `DO` + cuatro operaciones): (1) `ALTER TABLE categorias ADD COLUMN descripcion VARCHAR(255) NULL;`; (2) `CREATE UNIQUE INDEX uq_categorias_nombre_normalizado ON categorias (lower(btrim(nombre)));`; (3) reemplazar la constraint de `productos` localizándola por columna (la del nombre verificado en T002) y volver a crearla como `UNIQUE (codigo_barras)` (confirmar que el resultado es `NULLS DISTINCT`); (4) `CREATE INDEX idx_productos_categoria ON productos (categoria_id);`. **No** se elimina `categorias_nombre_key` y **no** se reutiliza el número `0004`. **Aceptación**: `sqlx migrate run` aplica en `stockmante` y en una base vacía; `\d productos` muestra `UNIQUE (codigo_barras)` sin `NULLS NOT DISTINCT`.
 - [X] T006 Crear `backend/src/models/producto.rs` y registrar `pub mod producto;` en `backend/src/models/mod.rs`. Debe contener: structs `Categoria { id: i32, nombre: String, descripcion: Option<String>, activo: bool }`, `CategoriaBreve { id: i32, nombre: String }`, `Producto { id, nombre, sku, codigo_barras, categoria: CategoriaBreve, unidad_medida, costo, precio_venta, stock_minimo, activo }` y `ListaProductos { items, total, pagina, por_pagina }`, más `ProductoFila` (fila plana con `categoria_id` + `categoria_nombre`, `sqlx::FromRow`) y su conversión a `Producto` — SQLx no mapea structs anidados. Funciones puras: `normalizar_sku(&str) -> String` (trim + mayúsculas), `validar_sku(&str) -> Result<String, AppError>` (3–30 caracteres, `^[A-Z0-9][A-Z0-9-]{2,29}$`), `normalizar_codigo_barras(Option<&str>) -> Option<String>` (trim; vacío/blanco → `None`), `validar_codigo_barras` (8–64 alfanuméricos), `normalizar_descripcion`, `normalizar_nombre_categoria` (trim), `validar_nombre_producto` (1–160 tras trim), `validar_unidad` (lista cerrada `UNIDAD`, `KG`, `METRO`, `CAJA`), `validar_monto(Decimal)` (≥ 0, `scale() <= 2`, `< 10_000_000_000`) y `validar_stock_minimo(i64)` (≥ 0). Constraints del modelo: `nombre VARCHAR(160)` 1–160; `sku VARCHAR(30)`; `codigo_barras VARCHAR(64)` NULL único `NULLS DISTINCT`; `unidad_medida VARCHAR(20)`; `costo`/`precio_venta NUMERIC(12,2)`; `stock_minimo INT DEFAULT 0`; `activo BOOLEAN NOT NULL DEFAULT TRUE`. **Aceptación**: `cargo build` compila; sin `unwrap`/`expect`/`panic!`.
 - [X] T007 Mover `parsear_activo` desde `backend/src/handlers/usuarios.rs` a `backend/src/handlers/mod.rs` como `pub(crate) fn parsear_activo(valor: Option<&str>, por_defecto: Option<bool>) -> Result<Option<bool>, AppError>`; actualizar la llamada de `handlers/usuarios.rs` con `None` y conservar el mensaje 422 actual. **Aceptación**: usuarios pasa `None` (ausente = todas), catálogo pasará `Some(true)` (ausente = solo activos); `cargo build` compila.
 - [X] T008 Agregar en `backend/tests/integration/test_usuarios_http.rs` el caso de regresión `GET /api/usuarios` **sin** `activo` que devuelve activos e inactivos. **Aceptación**: verde con el `parsear_activo` centralizado (protege el default de 002).
@@ -76,7 +83,7 @@ sin alterar la fila. Cubre CU-CAT-01…06 y la mitad de CU-RET-01.
 
 ### Tests (RED primero) ⚠️
 
-- [X] T010 [P] [US3] Crear `backend/tests/unit/test_categoria_normalizacion.rs` y su `[[test]]` en `backend/Cargo.toml`: `normalizar_nombre_categoria("  Almacén  ") == "Almacén"`; nombre vacío o solo espacios → `Validacion`; 81 caracteres → `Validacion`; `descripcion = ""` o `"   "` → `None`; 256 caracteres → `Validacion`. **Aceptación**: RED.
+- [X] T010 [P] [US3] Crear `backend/tests/unit/test_categoria_normalizacion.rs` y su `[[test]]` en `backend/Cargo.toml`: `normalizar_nombre_categoria("  Almacén  ") == "Almacén"`; nombre vacío o solo espacios → `Validacion`; 81 caracteres → `Validacion`; `descripcion = ""` o `"   "` → `None`; 256 caracteres → `Validacion`. **Aceptación**: casos cubiertos y verdes; RED no observado (waiver W-002).
 - [X] T011 [P] [US3] Crear `backend/tests/integration/test_categorias_http.rs` y su `[[test]]` en `backend/Cargo.toml`: CU-CAT-01 (201/409 `categoria_duplicada` comparando `"  almacén  "`/422/403), CU-CAT-02 (`?activo` default solo activas, `all`, inválido → 422, orden por nombre), CU-CAT-03 (detalle 200 incluso inactiva, 404, 401), CU-CAT-04 (edición parcial, `descripcion: ""` → `null`, `{}` → 422), CU-CAT-05 y CU-CAT-06 (204 idempotente, sin cascada a productos, 404, 403). Usar `cookie` de sesión y `tower::ServiceExt::oneshot` como `test_usuarios_http.rs`. **Aceptación**: RED (rutas inexistentes → 404/405).
 
 ### Implementation
@@ -102,8 +109,8 @@ CU-PROD-01…06 y el resto de CU-RET-01.
 
 ### Tests (RED primero) ⚠️
 
-- [X] T015 [P] [US3] Crear `backend/tests/unit/test_sku.rs` y su `[[test]]`: `sku-001` → `SKU-001`; `bad` → `BAD` (válido); `bad!`, `AB`, `-ABC` y 31 caracteres → `Validacion`; 3 y 30 caracteres válidos. **Aceptación**: RED.
-- [X] T016 [P] [US3] Crear `backend/tests/unit/test_producto_validacion.rs` y su `[[test]]`: código de barras `""`/`"   "` → `None`, 7 y 65 caracteres → `Validacion`, `"7791234567890"` → `Some`; montos `-1`, `10.999`, `10_000_000_000` → `Validacion`, `1200.50` → válido; `stock_minimo` `-3` → `Validacion` (el `2.5` se rechaza en el handler al deserializar `i64` → 422); unidad `LITRO` → `Validacion`; nombre vacío y 161 caracteres → `Validacion`. **Aceptación**: RED.
+- [X] T015 [P] [US3] Crear `backend/tests/unit/test_sku.rs` y su `[[test]]`: `sku-001` → `SKU-001`; `bad` → `BAD` (válido); `bad!`, `AB`, `-ABC` y 31 caracteres → `Validacion`; 3 y 30 caracteres válidos. **Aceptación**: casos cubiertos y verdes; RED no observado (waiver W-002).
+- [X] T016 [P] [US3] Crear `backend/tests/unit/test_producto_validacion.rs` y su `[[test]]`: código de barras `""`/`"   "` → `None`, 7 y 65 caracteres → `Validacion`, `"7791234567890"` → `Some`; montos `-1`, `10.999`, `10_000_000_000` → `Validacion`, `1200.50` → válido; `stock_minimo` `-3` → `Validacion` (el `2.5` se rechaza en el handler al deserializar `i64` → 422); unidad `LITRO` → `Validacion`; nombre vacío y 161 caracteres → `Validacion`. **Aceptación**: casos cubiertos y verdes; RED no observado (waiver W-002).
 - [X] T017 [P] [US3] Crear `backend/tests/integration/test_productos_http.rs` y su `[[test]]`: CU-PROD-01 (14 criterios: normalización, 409 `sku_duplicado` contra activo **e inactivo**, 409 `codigo_barras_duplicado`, dos `NULL` conviven, 422 de categoría inexistente/inactiva/montos/unidad/nombre, 403), CU-PROD-02 (`total`, `?activo`, `q` sobre nombre y SKU, `categoria_id` inexistente → 200 vacío, paginación y 422 de rangos, 403 OPERACION), CU-PROD-03 (detalle 200 activo e inactivo, 401, 404), CU-PROD-04 (parcial, `codigo_barras: ""` limpia y omitido conserva, 422 con `activo` y con `{}`, atomicidad, 200 sobre inactivo), CU-PROD-05 y CU-PROD-06 (204 idempotente, sin cascada, reactivar con categoría inactiva → 204). **Aceptación**: RED.
 - [X] T018 [P] [US3] Crear `backend/tests/integration/test_catalogo_baja_logica.rs` y su `[[test]]` (CU-RET-01): `DELETE /api/productos/{id}` y `DELETE /api/categorias/{id}` → 405 con la fila intacta (`id`, `activo`, columnas); tras 50 bajas lógicas `SELECT count(*)` de `productos` y `categorias` no cambia y solo cambia `activo`; `?activo=all` devuelve los inactivos con sus identificadores originales; sin huecos en la numeración de `id`. **Aceptación**: RED.
 
@@ -150,8 +157,38 @@ desactivar y reactivar; los errores 409/422 se muestran por campo y ninguna pant
 - [X] T035 Ejecutar los escenarios de [quickstart.md](./quickstart.md) V6a y V6b (incluidos los pasos 9–15 de productos, el 405 y los invariantes finales) contra un entorno local. Registrar el resultado en `specs/003-catalogo-productos/progress.md`. **Aceptación**: todos los pasos observados; cualquier desvío documentado con su causa.
 - [X] T036 Actualizar `specs/003-catalogo-productos/progress.md` (estado final: plan v2 implementado, qué se deshecho y qué no) y `specs/README.md`: el ledger de migraciones reserva `0005` a 004 y `0006` a 006, pero `0005_sesion_unica.sql` ya existe y esta feature usa `0006`. Corregir ambas reservas y el estado de 003. **Aceptación**: ambos documentos coinciden con `migrations/` y con `data-model.md`.
 - [X] T037 Pasada de consistencia final: marcar las casillas de este archivo solo con evidencia observada; comparar `contracts/api.md` y `contracts/validation.md` contra lo implementado y corregir el documento (no el contrato) ante cualquier divergencia. **Aceptación**: cero contradicciones entre `spec.md`, `plan.md`, `data-model.md`, `contracts/` y el código.
+- [X] T038 Sembrar 5.000 productos activos con `scripts/seed_catalogo_5000.sql` (crear el script; SKUs `SEED-00001`…, categoría `SEED-CAT`, `codigo_barras NULL`, idempotente por prefijo) y ejecutar las 20 consultas de `specs/003-catalogo-productos/quickstart.md` V9; registrar p95 y `EXPLAIN (ANALYZE, BUFFERS)` en `specs/003-catalogo-productos/progress.md`. **Aceptación**: p95 ≤ 1 s o desvío documentado con decisión (índice trigram de 004, paginación, etc.).
+- [X] T039 Pasada de consistencia posterior a C1/I1/I2/I4: verificar cero contradicciones entre `specs/003-catalogo-productos/spec.md`, `plan.md`, `tasks.md`, `data-model.md`, `contracts/` y el código; comprobar que `specs/README.md` coincide con `migrations/`. **Aceptación**: ningún «Pendiente» falso, ninguna fase con IDs cruzados y ledger consistente.
 
 ---
+
+## Phase 7: Ampliación — Ubicaciones en la vista de productos (FR-074)
+
+**Goal**: mostrar en `/admin/productos` las ubicaciones permitidas de cada producto con una sola
+llamada por página, sin pedir ni asignar ubicación en el alta ni en la edición.
+
+**Independent Test**: abrir `/admin/productos` con un producto con dos ubicaciones y otro sin
+ninguna; verificar la columna, el sufijo `(inactiva)`, «Sin ubicación», una sola llamada
+`/api/productos/ubicaciones` por página y «No disponible» al cortar la red.
+
+**Dependencia**: 005 T020–T024 (endpoint masivo y cliente `ubicacionesDeProductos`) antes de T043.
+
+- [X] T040 [US3] RED: `frontend/src/lib/utils/ubicaciones.test.ts` — formato `depósito · nombre`,
+  sufijo `(inactiva)`, recorte a 2 + `+N` (con 3) y depósito ausente → `Depósito #id`.
+- [X] T041 [US3] Crear `frontend/src/lib/utils/ubicaciones.ts` con `nombreDeposito`,
+  `textoUbicacion` y `textoUbicaciones`.
+- [X] T042 [US3] Extender `frontend/src/lib/components/productos/ProductoTabla.svelte`: props
+  `ubicacionesPorProducto` y `depositos`, columna «Ubicaciones» después de «Categoría»,
+  «Sin ubicación», «No disponible» y `colspan` de la fila vacía a 8. **Aceptación**: `npm run check`.
+- [X] T043 [US3] Extender `frontend/src/routes/admin/productos/+page.svelte`: cargar los depósitos
+  (solo para los nombres) una vez, pedir `ubicacionesDeProductos` por página con guarda de
+  generación, pasar el mapa a la tabla y mostrar un aviso no bloqueante si la lectura falla. **No**
+  modificar `ProductoForm.svelte` ni el cuerpo del alta/edición.
+- [X] T044 [US3] Documentar en `specs/003-catalogo-productos/quickstart.md` V6c y en
+  `specs/003-catalogo-productos/progress.md`; agregar la nota de consumo de 005 en
+  `specs/003-catalogo-productos/contracts/api.md`; actualizar `specs/README.md` (FR-074, FR-075,
+  SC-029 y convención de tareas de 003). **Aceptación**: cero contradicciones y una sola llamada por
+  página verificada por el cliente y sus tests.
 
 ## Trazabilidad casos de uso → tareas
 
@@ -169,14 +206,17 @@ desactivar y reactivar; los errores 409/422 se muestran por campo y ninguna pant
 | CU-PROD-04 Editar producto | T016, T019–T021 |
 | CU-PROD-05 Dar de baja un producto | T017–T021 |
 | CU-PROD-06 Reactivar producto | T017–T021 |
+| CU-PROD-07 Ubicaciones en la vista de productos | T040–T044 |
 | CU-RET-01 Retiro sin borrado físico | T011, T014, T018, T021 |
 | FR-009 / FR-010 / FR-012 / FR-014 | T005–T021 |
 | FR-020 (filtros del listado) | T017, T019–T021, T027, T029 |
 | FR-021 (reactivación) | T012–T014, T019–T021, T026, T029 |
-| FR-022 (contrato de inactividad) | **fuera de 003**: lo implementa el módulo de stock; acá solo se documenta |
+| FR-022 (contrato de inactividad) | **fuera de 003**: lo implementa 007-movimientos-stock; acá solo se documenta |
 | FR-023 (categoría activa al asignar) | T016, T019, T020 |
 | SC-006 / SC-009 / SC-010 / SC-011 | T015–T018, T031 |
-| SC-012 (latencia con 5.000 productos) | T035 (medición manual) |
+| SC-012 (latencia con 5.000 productos) | T038 |
+| FR-074 (ubicaciones en la vista) | T040–T044 |
+| SC-029 (una llamada por página y «Sin ubicación») | T040–T044 |
 
 ---
 
@@ -189,7 +229,10 @@ desactivar y reactivar; los errores 409/422 se muestran por campo y ninguna pant
 - **US3 · Categorías (Fase 3)**: depende de Foundational. T010/T011 (RED) antes de T012–T014.
 - **US3 · Productos (Fase 4)**: depende de la Fase 3 (los tests crean categorías por API y necesitan `parsear_activo` y el patrón de handler ya resuelto). T015–T018 (RED) antes de T019–T021.
 - **US3 · Frontend (Fase 5)**: T022–T025 dependen solo de Foundational (son Zod y clientes tipados); T026–T030 dependen de la API completa (Fase 4).
-- **Polish (Fase 6)**: depende de todas las fases anteriores.
+- **Polish (Fase 6)**: depende de todas las fases anteriores. T038 y T039 cierran SC-012 y la
+  consistencia documental.
+- **Ampliación ubicaciones (Fase 7)**: depende de 005 T020–T024 (endpoint masivo y cliente
+  `ubicacionesDeProductos`) y de la API de productos (Fase 4). T040/T041 antes de T042–T043.
 
 ### Within Each User Story Increment
 
@@ -207,6 +250,8 @@ desactivar y reactivar; los errores 409/422 se muestran por campo y ninguna pant
 - T015, T016, T017 y T018 en paralelo (cuatro archivos de test distintos).
 - T022, T023, T024 y T025 en paralelo (schemas y clientes del frontend).
 - T026 y T027 pueden ir en paralelo (directorios distintos) si hay dos personas; el resto es secuencial.
+- T040 y T041 en paralelo (test y util); T042 y T043 después de T041 (la tabla y la página consumen el
+  util y el cliente de 005).
 - **No** paralelizar T012 y T013, ni T019 y T020: el handler consume el servicio y comparten archivos de registro (`services/mod.rs`, `handlers/mod.rs`).
 
 ### Parallel Example: Productos (Fase 4)
@@ -244,12 +289,14 @@ y 005.
 2. Categorías → valor administrativo independiente (alta, edición, baja lógica).
 3. Productos → catálogo maestro completo con filtros y baja lógica.
 4. Frontend → incremento demostrable para el usuario final.
-5. Polish → gates y documentación.
+5. Polish → gates y documentación; T038 mide SC-012.
+6. Ampliación → ubicaciones en la vista de productos (T040–T044), después de 005 T020–T024.
 
 ### Notas de alcance
 
-- **No** se implementa `GET /api/productos/buscar` (004), ni ubicaciones (005), ni el rechazo de
-  movimientos sobre productos inactivos (FR-022, módulo de stock futuro).
+- **No** se implementa `GET /api/productos/buscar` (004), ni la asignación de ubicaciones (005), ni
+  el rechazo de movimientos sobre productos inactivos (FR-022, ya en 007). 003 solo lee las
+  ubicaciones asignadas para mostrarlas en la vista (FR-074).
 - **No** se registra ninguna ruta `DELETE`: el 405 lo emite Axum y no lleva cuerpo JSON.
 - `activo` nunca viaja por `PUT`: se cambia solo con `/desactivar` y `/reactivar`, idempotentes.
 - Los tests derivan SKU, código de barras y nombre de categoría de un UUID para correr en paralelo.

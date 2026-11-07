@@ -5,6 +5,7 @@
 import { api } from './client';
 import {
 	ListaDepositosSchema,
+	ListaUbicacionesPorProductoSchema,
 	ListaUbicacionesSchema,
 	DepositoSchema,
 	UbicacionSchema,
@@ -100,6 +101,17 @@ export async function eliminarUbicacion(id: number): Promise<void> {
 export async function ubicacionesDeProducto(productoId: number): Promise<Ubicacion[]> {
 	const body = await api<unknown>(`/api/productos/${productoId}/ubicaciones`);
 	return ListaUbicacionesSchema.parse(body).items;
+}
+
+/** Lectura masiva por página; los ids inexistentes se omiten y los sin asignaciones vuelven `[]`. */
+export async function ubicacionesDeProductos(
+	productoIds: number[]
+): Promise<Record<number, Ubicacion[]>> {
+	if (productoIds.length === 0) return {};
+	const query = new URLSearchParams({ producto_ids: productoIds.join(',') });
+	const body = await api<unknown>(`/api/productos/ubicaciones?${query.toString()}`);
+	const parsed = ListaUbicacionesPorProductoSchema.parse(body);
+	return Object.fromEntries(parsed.items.map((item) => [item.producto_id, item.ubicaciones]));
 }
 
 /** Reemplaza el conjunto completo; `[]` lo limpia. */

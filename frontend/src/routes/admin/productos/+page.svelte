@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
 	import { listarCategorias } from '#lib/api/categorias';
+	import { listarDepositos, ubicacionesDeProductos } from '#lib/api/depositos';
 	import type { FiltroActivo } from '#lib/api/productos';
 	import {
 		actualizarProducto,
@@ -14,6 +15,7 @@
 	import ProductoForm from '#lib/components/productos/ProductoForm.svelte';
 	import ProductoTabla from '#lib/components/productos/ProductoTabla.svelte';
 	import type { Categoria } from '#lib/schemas/categorias';
+	import type { Deposito, Ubicacion } from '#lib/schemas/depositos';
 	import type { CrearProductoInput, Producto } from '#lib/schemas/productos';
 	import { sesion } from '#lib/stores/sesion';
 	import { paginaValida, totalPaginas } from '#lib/utils/paginacion';
@@ -22,6 +24,11 @@
 
 	let productos = $state<Producto[]>([]);
 	let categorias = $state<Categoria[]>([]);
+	let depositos = $state<Deposito[]>([]);
+	let ubicacionesPorProducto = $state<Record<number, Ubicacion[]>>({});
+	let advertenciaUbicaciones = $state<string | null>(null);
+	let advertenciaDepositos = $state<string | null>(null);
+	let generacion = 0;
 	let total = $state(0);
 	let pagina = $state(1);
 	let q = $state('');
@@ -61,8 +68,18 @@
 	}
 
 	async function iniciar() {
-		await cargarCategorias();
+		await Promise.all([cargarCategorias(), cargarDepositos()]);
 		await cargar();
+	}
+
+	async function cargarDepositos() {
+		try {
+			// `all` para poder mostrar el nombre aunque el depósito esté inactivo.
+			depositos = await listarDepositos('all');
+		} catch (e) {
+			depositos = [];
+			advertenciaDepositos = `No se pudieron cargar los depósitos: ${mensajeError(e, 'error desconocido')}. Las ubicaciones se muestran sin el nombre del depósito.`;
+		}
 	}
 
 	async function cargarCategorias() {
@@ -100,10 +117,30 @@
 			}
 			productos = lista.items;
 			total = lista.total;
+			await cargarUbicacionesDePagina(productos);
 		} catch (e) {
 			error = mensajeError(e, 'No se pudieron cargar los productos');
 		} finally {
 			cargando = false;
+		}
+	}
+
+	/** Una sola llamada por página (FR-075); no se debe confundir «sin ubicación» con «sin datos». */
+	async function cargarUbicacionesDePagina(items: Producto[]) {
+		if (items.length === 0) {
+			ubicacionesPorProducto = {};
+			return;
+		}
+		const actual = ++generacion;
+		try {
+			const mapa = await ubicacionesDeProductos(items.map((item) => item.id));
+			if (actual !== generacion) return;
+			ubicacionesPorProducto = mapa;
+			advertenciaUbicaciones = null;
+		} catch (e) {
+			if (actual !== generacion) return;
+			ubicacionesPorProducto = {};
+			advertenciaUbicaciones = `No se pudieron cargar las ubicaciones: ${mensajeError(e, 'error desconocido')}. El listado sigue disponible.`;
 		}
 	}
 
@@ -216,6 +253,16 @@
 			{aviso}
 		</p>
 	{/if}
+	{#if advertenciaDepositos}
+		<p class="rounded border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+			{advertenciaDepositos}
+		</p>
+	{/if}
+	{#if advertenciaUbicaciones}
+		<p class="rounded border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+			{advertenciaUbicaciones}
+		</p>
+	{/if}
 
 	<FiltrosCatalogo
 		{q}
@@ -230,6 +277,8 @@
 	{:else}
 		<ProductoTabla
 			{productos}
+			{ubicacionesPorProducto}
+			{depositos}
 			onEditar={abrirEdicion}
 			onAlternarEstado={(producto) => void alternarEstado(producto)}
 		/>

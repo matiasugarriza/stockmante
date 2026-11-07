@@ -10,7 +10,7 @@ use crate::auth::extractors::{AuthUsuario, RequiereGestion};
 use crate::docs::ErrorRespuesta;
 use crate::error::AppError;
 use crate::extractores::{JsonValido, PathValido, QueryValida};
-use crate::models::deposito::ListaUbicaciones;
+use crate::models::deposito::{ListaUbicaciones, ListaUbicacionesPorProducto};
 use crate::models::producto::{ListaBusqueda, ListaProductos, Producto};
 use crate::services::depositos;
 use crate::services::productos::{
@@ -29,6 +29,7 @@ pub fn router() -> Router<AppEstado> {
     Router::new()
         .route("/", get(listar).post(crear))
         .route("/buscar", get(buscar))
+        .route("/ubicaciones", get(ubicaciones_lote))
         .route("/{id}", get(obtener).put(actualizar))
         .route(
             "/{id}/ubicaciones",
@@ -318,6 +319,67 @@ pub async fn reactivar(
 ) -> Result<StatusCode, AppError> {
     productos::reactivar(&estado.pool, id, gestion.0.id).await?;
     Ok(StatusCode::NO_CONTENT)
+}
+
+#[derive(Debug, Deserialize)]
+pub struct UbicacionesLoteQuery {
+    /// Ids de producto separados por coma (1–100).
+    pub producto_ids: Option<String>,
+}
+
+fn parsear_producto_ids(valor: Option<&str>) -> Result<Vec<i32>, AppError> {
+    let Some(valor) = valor else {
+        return Err(AppError::Validacion(
+            "El parámetro producto_ids es obligatorio.".into(),
+        ));
+    };
+    let ids = valor
+        .split(',')
+        .filter(|parte| !parte.trim().is_empty())
+        .map(|parte| {
+            parte.trim().parse::<i32>().map_err(|_| {
+                AppError::Validacion(
+                    "producto_ids debe ser una lista de enteros separados por coma.".into(),
+                )
+            })
+        })
+        .collect::<Result<Vec<_>, _>>()?;
+    if ids.iter().any(|id| *id <= 0) {
+        return Err(AppError::Validacion(
+            "Cada producto_id debe ser un entero mayor a 0.".into(),
+        ));
+    }
+    if ids.len() > 100 {
+        return Err(AppError::Validacion(
+            "Máximo 100 productos por consulta.".into(),
+        ));
+    }
+    Ok(ids)
+}
+
+/// GET /api/productos/ubicaciones?producto_ids=1,2,3 → FR-075.
+#[utoipa::path(
+    get,
+    path = "/api/productos/ubicaciones",
+    tag = "productos",
+    summary = "Ubicaciones asignadas de varios productos (GESTION)",
+    description = "Lectura masiva por lote; devuelve `[]` para productos sin asignaciones.",
+    params(("producto_ids" = String, Query, description = "Ids separados por coma (máx. 100)")),
+    responses(
+        (status = 200, description = "Asignaciones por producto", body = ListaUbicacionesPorProducto),
+        (status = 401, description = "Sin sesión", body = ErrorRespuesta),
+        (status = 403, description = "Requiere familia GESTION", body = ErrorRespuesta),
+        (status = 422, description = "Parámetro inválido", body = ErrorRespuesta)
+    )
+)]
+pub async fn ubicaciones_lote(
+    State(estado): State<AppEstado>,
+    _gestion: RequiereGestion,
+    QueryValida(query): QueryValida<UbicacionesLoteQuery>,
+) -> Result<Json<ListaUbicacionesPorProducto>, AppError> {
+    let ids = parsear_producto_ids(query.producto_ids.as_deref())?;
+    let items = depositos::ubicaciones_de_productos(&estado.pool, ids).await?;
+    Ok(Json(ListaUbicacionesPorProducto { items }))
 }
 
 #[derive(Debug, Deserialize, ToSchema)]

@@ -120,10 +120,12 @@ primer carácter. `campo` ausente equivale a `todos` (SKU/código exactos primer
 | POST | `/api/ubicaciones/{id}/reactivar` | 204 |
 | GET | `/api/productos/{id}/ubicaciones` | 200 |
 | PUT | `/api/productos/{id}/ubicaciones` | 204 (reemplaza el conjunto) |
+| GET | `/api/productos/ubicaciones?producto_ids=` | 200 (lote; `[]` por producto sin asignaciones) |
 
 Crear una ubicación con `deposito_id` inexistente o con un `padre_id` de otro depósito es
 `422 ubicacion_huerfana`. Mover una ubicación con hijos o productos asignados es
-`409 ubicacion_con_dependencias`.
+`409 ubicacion_con_dependencias`. La lectura masiva acepta 1–100 ids separados por coma; ausente,
+más de 100, `0` o un valor no entero → `422 validacion`; los ids inexistentes se omiten.
 
 ### Movimientos de stock (Módulo 2, spec 007)
 

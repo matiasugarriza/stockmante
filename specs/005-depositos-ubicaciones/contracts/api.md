@@ -98,13 +98,20 @@ Ubicaciones permitidas del producto, ordenadas por depósito y nombre. 404 si el
 Reemplaza el conjunto completo; `[]` lo limpia. Ids duplicados se deduplican. Cada ubicación debe
 existir con depósito activo, si no `404`. Un id ≤ 0 es `422`. Si el producto no existe, `404`.
 
+### GET `/api/productos/ubicaciones?producto_ids=7,8,9` → 200 `{ items }`
+
+Lectura masiva para listados (FR-075). `producto_ids` es obligatorio: 1–100 enteros > 0 separados
+por coma; los duplicados se deduplican y un id inexistente se omite. Devuelve una entrada por
+producto existente, con `ubicaciones: []` si no tiene asignaciones. Orden: `producto_id`, depósito y
+nombre. Ausente o >100 ids → `422 validacion`; `producto_ids=` vacío → `200 { items: [] }`.
+
 ## Matriz de acceso
 
 | Ruta | Anónimo | OPERACION | GESTION |
 |---|---|---|---|
 | Cualquier `/api/depositos…` | 401 | 403 | 200/201/204 |
 | Cualquier `/api/ubicaciones…` | 401 | 403 | 200/201/204 |
-| `/api/productos/{id}/ubicaciones` | 401 | 403 | 200/204 |
+| `/api/productos/{id}/ubicaciones` y `/api/productos/ubicaciones` | 401 | 403 | 200/204 |
 
 ## Fuera de este contrato
 
