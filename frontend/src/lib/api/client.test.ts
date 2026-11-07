@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { api, ApiError } from './client';
+import { api, apiFormData, ApiError } from './client';
 
 describe('api client', () => {
   afterEach(() => {
@@ -47,5 +47,40 @@ describe('api client', () => {
     const [url, init] = fetchMock.mock.calls[0] as unknown as [string, RequestInit];
     expect(url).toContain('/api/auth/sesion');
     expect(init.credentials).toBe('include');
+  });
+
+  it('apiFormData no fija Content-Type y manda cookies (016)', async () => {
+    const fetchMock = vi.fn(async () => new Response(JSON.stringify({ ok: true }), { status: 200 }));
+    vi.stubGlobal('fetch', fetchMock);
+    const datos = new FormData();
+    datos.append('archivo', new Blob(['a,b']), 'p.csv');
+
+    await apiFormData('/api/importaciones/productos?modo=validar', datos);
+
+    const [, init] = fetchMock.mock.calls[0] as unknown as [string, RequestInit];
+    expect(init.method).toBe('POST');
+    expect(init.credentials).toBe('include');
+    expect(init.body).toBe(datos);
+    expect(new Headers(init.headers).has('Content-Type')).toBe(false);
+  });
+
+  it('ApiError expone detalles cuando el sobre los trae (016)', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () =>
+        new Response(
+          JSON.stringify({
+            error: {
+              codigo: 'importacion_invalida',
+              mensaje: 'La importación tiene 1 fila con errores.',
+              detalles: [{ fila: 4, columna: 'sku', mensaje: 'El SKU X ya existe.' }]
+            }
+          }),
+          { status: 422 }
+        )
+      )
+    );
+    const error = await apiFormData('/x', new FormData()).catch((e: unknown) => e);
+    expect((error as ApiError).detalles).toEqual([{ fila: 4, columna: 'sku', mensaje: 'El SKU X ya existe.' }]);
   });
 });

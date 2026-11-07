@@ -9,6 +9,28 @@ use axum::{
 };
 use serde_json::json;
 
+/// Error de una celda de la importación CSV (016): `fila` 0 = archivo, 1 = encabezado.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, utoipa::ToSchema)]
+pub struct DetalleImportacion {
+    pub fila: usize,
+    pub columna: String,
+    pub mensaje: String,
+}
+
+/// Mensaje general de `ImportacionInvalida`: el error global si lo hay; si no, cuántas filas fallan.
+pub fn mensaje_importacion(detalles: &[DetalleImportacion]) -> String {
+    if let Some(global) = detalles.iter().find(|d| d.fila <= 1) {
+        return global.mensaje.clone();
+    }
+    let mut filas: Vec<usize> = detalles.iter().map(|d| d.fila).collect();
+    filas.sort_unstable();
+    filas.dedup();
+    match filas.len() {
+        1 => "La importación tiene 1 fila con errores.".to_string(),
+        n => format!("La importación tiene {n} filas con errores."),
+    }
+}
+
 #[derive(Debug, thiserror::Error)]
 pub enum AppError {
     #[error("Credenciales inválidas")]
@@ -37,6 +59,14 @@ pub enum AppError {
     CompraYaConfirmada,
     #[error("La compra no se puede editar en su estado actual.")]
     CompraNoEditable,
+    #[error("{}", mensaje_importacion(.0))]
+    ImportacionInvalida(Vec<DetalleImportacion>),
+    #[error("Ya existe un cliente con ese documento.")]
+    DocumentoDuplicado,
+    #[error("{0}")]
+    CompraNoAnulable(String),
+    #[error("{0}")]
+    ProveedorInactivo(String),
     #[error("La venta ya está anulada; no se puede anular dos veces.")]
     VentaYaAnulada,
     #[error("El asistente no está configurado en este entorno.")]
@@ -63,18 +93,22 @@ pub enum AppError {
     UltimoAdministrador,
     #[error("Debés cambiar tu contraseña temporal antes de continuar")]
     DebeCambiarPassword,
-    #[error("Stock insuficiente en {deposito}: {disponibles} disponibles, {solicitadas} solicitadas.")]
+    #[error("Stock insuficiente en {deposito}: {disponibles} disponibles, {solicitadas} solicitadas. Reducí la cantidad o registrá antes una entrada en ese depósito.")]
     StockInsuficiente {
         deposito: String,
         disponibles: i32,
         solicitadas: i32,
     },
-    #[error("El producto está inactivo y no admite movimientos.")]
+    #[error("El producto está inactivo y no admite movimientos. Reactivalo desde Productos o quitalo de la operación.")]
     ProductoInactivo,
     #[error("El depósito de origen y el de destino deben ser distintos.")]
     TransferenciaMismoDeposito,
     #[error("El conteo ya está cerrado o cancelado.")]
     ConteoCerrado,
+    #[error("Hay líneas sin cantidad contada; cargalas antes de cerrar.")]
+    LineasSinContar,
+    #[error("El depósito está inactivo; activalo antes de abrir un conteo.")]
+    DepositoInactivo,
     #[error("El conteo está cancelado.")]
     ConteoCancelado,
     #[error("No existe el conteo.")]
@@ -115,6 +149,9 @@ impl AppError {
             | AppError::CuitDuplicado
             | AppError::CompraYaConfirmada
             | AppError::CompraNoEditable
+            | AppError::DocumentoDuplicado
+            | AppError::CompraNoAnulable(_)
+            | AppError::ProveedorInactivo(_)
             | AppError::VentaYaAnulada
             | AppError::DepositoConDependencias
             | AppError::DepositoNombreDuplicado
@@ -131,6 +168,9 @@ impl AppError {
             | AppError::UltimaIdentidad => StatusCode::CONFLICT,
             AppError::UbicacionHuerfana
             | AppError::TransferenciaMismoDeposito
+            | AppError::ImportacionInvalida(_)
+            | AppError::LineasSinContar
+            | AppError::DepositoInactivo
             | AppError::Validacion(_)
             | AppError::TokenVerificacionInvalido
             | AppError::ProveedorNoSoportado => StatusCode::UNPROCESSABLE_ENTITY,
@@ -159,6 +199,9 @@ impl AppError {
             AppError::CuitDuplicado => "cuit_duplicado",
             AppError::CompraYaConfirmada => "compra_ya_confirmada",
             AppError::CompraNoEditable => "compra_no_editable",
+            AppError::DocumentoDuplicado => "documento_duplicado",
+            AppError::CompraNoAnulable(_) => "compra_no_anulable",
+            AppError::ProveedorInactivo(_) => "proveedor_inactivo",
             AppError::VentaYaAnulada => "venta_ya_anulada",
             AppError::DepositoConDependencias => "deposito_con_dependencias",
             AppError::DepositoNombreDuplicado => "deposito_nombre_duplicado",
@@ -171,6 +214,9 @@ impl AppError {
             AppError::ProductoInactivo => "producto_inactivo",
             AppError::TransferenciaMismoDeposito => "transferencia_mismo_deposito",
             AppError::ConteoCerrado => "conteo_cerrado",
+            AppError::LineasSinContar => "lineas_sin_contar",
+            AppError::ImportacionInvalida(_) => "importacion_invalida",
+            AppError::DepositoInactivo => "deposito_inactivo",
             AppError::ConteoCancelado => "conteo_cancelado",
             AppError::ConteoNoEncontrado => "conteo_no_encontrado",
             AppError::CorreoYaRegistrado => "correo_ya_registrado",
@@ -201,12 +247,21 @@ impl IntoResponse for AppError {
             // El detalle viaja solo al log; al cliente, mensaje genérico.
             tracing::error!(error = %self, "error interno");
         }
-        let body = Json(json!({
-            "error": {
-                "codigo": self.codigo(),
-                "mensaje": self.mensaje_publico(),
-            }
-        }));
+        let body = match &self {
+            AppError::ImportacionInvalida(detalles) => Json(json!({
+                "error": {
+                    "codigo": self.codigo(),
+                    "mensaje": self.mensaje_publico(),
+                    "detalles": detalles,
+                }
+            })),
+            _ => Json(json!({
+                "error": {
+                    "codigo": self.codigo(),
+                    "mensaje": self.mensaje_publico(),
+                }
+            })),
+        };
         (status, body).into_response()
     }
 }

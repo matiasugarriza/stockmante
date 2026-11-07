@@ -35,10 +35,10 @@ No hay migración nueva.
 
 **Purpose**: preparar los targets de test y la base tipada del frontend.
 
-- [ ] T001 Registrar los targets de test en `backend/Cargo.toml`: `test_importacion_validacion`
+- [X] T001 Registrar los targets de test en `backend/Cargo.toml`: `test_importacion_validacion`
   (`tests/unit/test_importacion_validacion.rs`) y `test_importacion_http`
   (`tests/integration/test_importacion_http.rs`), siguiendo el patrón de los `[[test]]` existentes.
-- [ ] T002 [P] Crear `frontend/src/lib/schemas/importaciones.ts` con esquemas Zod de
+- [X] T002 [P] Crear `frontend/src/lib/schemas/importaciones.ts` con esquemas Zod de
   `DetalleImportacion` (`fila: number`, `columna: string`, `mensaje: string`),
   `ResumenImportacion` (`filas_leidas`, `validas`, `con_error`, `errores`, `creados`, `aplicado`) y
   `ErrorImportacion` (`error.codigo`, `error.mensaje`, `error.detalles?`).
@@ -51,13 +51,13 @@ No hay migración nueva.
 
 **⚠️ CRITICAL**: sin estas tareas no se puede implementar US16.
 
-- [ ] T003 Implementar en `backend/src/error.rs` la variante
+- [X] T003 Implementar en `backend/src/error.rs` la variante
   `ImportacionInvalida(Vec<DetalleImportacion>)` con
   `DetalleImportacion { fila: usize, columna: String, mensaje: String }`; mapear a **422**, código
   `importacion_invalida` y agregar `detalles` al sobre `{ error: { codigo, mensaje, detalles } }`
   solo para esa variante. Ampliar `ErrorRespuesta`/`ErrorDetalle` en `backend/src/docs.rs` con
   `detalles` opcional. Cubrir status/código en `backend/tests/unit/test_apperror.rs`.
-- [ ] T004 [P] Ampliar `frontend/src/lib/api/client.ts`: `ErrorBody.error.detalles?`,
+- [X] T004 [P] Ampliar `frontend/src/lib/api/client.ts`: `ErrorBody.error.detalles?`,
   `ApiError.detalles` y helper `apiFormData<T>(path, formData)` que haga `fetch` con
   `credentials: 'include'` **sin** fijar `Content-Type` (el navegador agrega el boundary). Cubrir con
   `frontend/src/lib/api/client.test.ts`.
@@ -76,14 +76,14 @@ límites 422, operario 403, 5.000 filas < 60 s) y la pantalla `/admin/importacio
 
 ### Tests for User Story 16 (RED primero) ⚠️
 
-- [ ] T005 [P] [US16] Unit tests en `backend/tests/unit/test_importacion_validacion.rs`: autodetección
+- [X] T005 [P] [US16] Unit tests en `backend/tests/unit/test_importacion_validacion.rs`: autodetección
   de delimitador `,`/`;`, decimal `.`/`,` según delimitador, BOM UTF-8, comillas dobles, encabezado
   faltante (`Falta la columna 'sku'.`), fila con más columnas que el encabezado, archivo sin filas,
   `stock_inicial` vacío = 0, `deposito` vacío = "Principal", duplicado intra-archivo con filas
   (`(filas 3 y 8)`), SKU inválido (3–30, `^[A-Z0-9][A-Z0-9-]{2,29}$`), unidad fuera de
   `UNIDAD|KG|METRO|CAJA`, montos con `validar_monto` y código de barras 8–64 alfanumérico. Deben
   fallar antes de T008.
-- [ ] T006 [P] [US16] Integration tests HTTP en `backend/tests/integration/test_importacion_http.rs`:
+- [X] T006 [P] [US16] Integration tests HTTP en `backend/tests/integration/test_importacion_http.rs`:
   `validar` 200 sin escrituras; `aplicar` 201 con `creados`, `stock_por_deposito.cantidad`,
   `productos.stock_actual` y movimiento `ENTRADA`/`IMPORTACION`; una fila inválida en `aplicar` → 422
   y **cero** productos; SKU existente y repetido con filas; categoría inexistente; depósito
@@ -91,40 +91,40 @@ límites 422, operario 403, 5.000 filas < 60 s) y la pantalla `/admin/importacio
   `importacion_invalida` con `"El archivo supera el límite de 5.000 filas o 5 MB."`; `modo` inválido
   → 422 `validacion`; falta `archivo`; `OPERACION` → 403 `sin_permisos`. Deben fallar antes de
   T009–T011.
-- [ ] T007 [P] [US16] Frontend tests en `frontend/src/lib/api/importaciones.test.ts`: construye
+- [X] T007 [P] [US16] Frontend tests en `frontend/src/lib/api/importaciones.test.ts`: construye
   `FormData` con `archivo`, agrega `?modo=`, parsea `ResumenImportacion` con Zod y propaga
   `ApiError.detalles` en 422. Deben fallar antes de T012.
 
 ### Implementation for User Story 16
 
-- [ ] T008 [US16] Reescribir `backend/src/services/importaciones.rs` separando parser/validación pura
+- [X] T008 [US16] Reescribir `backend/src/services/importaciones.rs` separando parser/validación pura
   de la I/O: `detectar_dialecto`, `parsear_filas`, `validar_fila`, `ResumenImportacion` y
   `DetalleImportacion`. Aplicar D1/D4/D5/D6 de [research.md](./research.md): `csv` con
   `flexible(true)`, límites 5.000 filas/5 MB, `validar_nombre_producto`, `validar_sku`,
   `validar_unidad`, `validar_monto`, `validar_codigo_barras`, `validar_stock_minimo`; duplicados con
   la primera fila; depósito solo si `stock_inicial` > 0; sin `unwrap/expect/panic`.
-- [ ] T009 [US16] Implementar la persistencia atómica en `backend/src/services/importaciones.rs`
+- [X] T009 [US16] Implementar la persistencia atómica en `backend/src/services/importaciones.rs`
   (depende de T008): una sola `pool.begin()`; `INSERT INTO productos ... RETURNING id`;
   `INSERT ... ON CONFLICT (uq_stock_producto_deposito_ubicacion) DO NOTHING` en
   `stock_por_deposito`; `UPDATE` de cantidad con `FOR UPDATE`; `ENTRADA`/`IMPORTACION` en
   `movimientos` + `movimiento_lineas` (`cantidad_delta = stock_inicial`, `stock_resultante ≥ 0`);
   `UPDATE productos SET stock_actual = <resultante> ...`; `auditoria::registrar` en la misma
   transacción; `rollback` ante cualquier error.
-- [ ] T010 [US16] Ajustar `backend/src/handlers/importaciones.rs` (depende de T003/T009): `modo` por
+- [X] T010 [US16] Ajustar `backend/src/handlers/importaciones.rs` (depende de T003/T009): `modo` por
   query con default `validar`, `archivo` por `multipart`, `DefaultBodyLimit::max(16 * 1024 * 1024)`
   en la ruta, 200 en validar, 201 en aplicar, 422 `importacion_invalida` con `detalles` para filas,
   límites, encabezado, archivo vacío o ilegible, y 403 para `OPERACION`.
-- [ ] T011 [US16] Registrar `crate::handlers::importaciones::importar_productos` y los schemas
+- [X] T011 [US16] Registrar `crate::handlers::importaciones::importar_productos` y los schemas
   `ResumenImportacion`, `FilaErrorImportacion`, `DetalleImportacion` en `backend/src/docs.rs`;
   ampliar `backend/tests/unit/test_openapi.rs` para exigir el path y los schemas.
-- [ ] T012 [P] [US16] Crear `frontend/src/lib/api/importaciones.ts` (depende de T004):
+- [X] T012 [P] [US16] Crear `frontend/src/lib/api/importaciones.ts` (depende de T004):
   `importarProductos(archivo: File, modo: 'validar' | 'aplicar')` con `apiFormData`, parseo Zod del
   resumen y tipos exportados; sin `fetch` fuera de `$lib/api/`.
-- [ ] T013 [US16] Crear `frontend/src/routes/admin/importacion/+page.svelte` (depende de T012):
+- [X] T013 [US16] Crear `frontend/src/routes/admin/importacion/+page.svelte` (depende de T012):
   input de archivo, botones "Validar"/"Aplicar", estados de carga, vacío y error, resumen
   (`filas_leidas`, `validas`, `con_error`, `creados`), tabla de errores con fila/columna/mensaje,
   "Aplicar" deshabilitado si hay errores, etiquetas accesibles y Tailwind.
-- [ ] T014 [US16] Agregar el enlace "Importar" en `frontend/src/routes/+layout.svelte` visible solo
+- [X] T014 [US16] Agregar el enlace "Importar" en `frontend/src/routes/+layout.svelte` visible solo
   para `GESTION`, apuntando a `/admin/importacion` (depende de T013).
 
 **Checkpoint**: US16 funcional y testeable de punta a punta.
@@ -135,12 +135,12 @@ límites 422, operario 403, 5.000 filas < 60 s) y la pantalla `/admin/importacio
 
 **Purpose**: documentación, performance y gates finales.
 
-- [ ] T015 [P] Documentar el endpoint y los códigos en `docs/api.md` (sección "Importación masiva
+- [X] T015 [P] Documentar el endpoint y los códigos en `docs/api.md` (sección "Importación masiva
   (spec 016)") y actualizar el estado de 016 en `specs/README.md`.
-- [ ] T016 [P] Agregar el test de SC-024 en `backend/tests/integration/test_importacion_http.rs`:
+- [X] T016 [P] Agregar el test de SC-024 en `backend/tests/integration/test_importacion_http.rs`:
   generar 5.000 filas válidas, aplicar y verificar `creados = 5000` en < 60 s, exactamente 5.000
   productos y sus movimientos; fallar si se supera el umbral.
-- [ ] T017 Ejecutar los gates: `cargo test`, `cargo sqlx prepare --check`, `npm test`,
+- [X] T017 Ejecutar los gates: `cargo test`, `cargo sqlx prepare --check`, `npm test`,
   `npm run check`, `npm run build`; corregir cualquier diferencia y confirmar que no hay
   `unwrap/panic!` en rutas de producción.
 - [ ] T018 Ejecutar los escenarios de [quickstart.md](./quickstart.md) (dry-run, aplicar, duplicados,

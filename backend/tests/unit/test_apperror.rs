@@ -95,3 +95,29 @@ fn dominio_usa_mensajes_espanol_accionables() {
     assert!(body.contains("codigo"), "falta campo codigo: {body}");
     assert!(body.contains("mensaje"), "falta campo mensaje: {body}");
 }
+
+/// 016 (T003): `importacion_invalida` es 422 y lleva `detalles` en el sobre.
+#[tokio::test]
+async fn importacion_invalida_es_422_con_detalles() {
+    use stockmante_backend::error::DetalleImportacion;
+    let error = AppError::ImportacionInvalida(vec![DetalleImportacion {
+        fila: 4,
+        columna: "sku".into(),
+        mensaje: "El SKU 'X' ya existe.".into(),
+    }]);
+    assert_eq!(error.codigo(), "importacion_invalida");
+    assert_eq!(error.to_string(), "La importación tiene 1 fila con errores.");
+    let respuesta = error.into_response();
+    assert_eq!(respuesta.status(), StatusCode::UNPROCESSABLE_ENTITY);
+    let bytes = axum::body::to_bytes(respuesta.into_body(), usize::MAX)
+        .await
+        .expect("cuerpo");
+    let cuerpo: serde_json::Value = serde_json::from_slice(&bytes).expect("json");
+    assert_eq!(cuerpo["error"]["detalles"][0]["fila"], 4);
+    assert_eq!(cuerpo["error"]["detalles"][0]["columna"], "sku");
+    // El resto de los errores no lleva `detalles`.
+    let otro = AppError::SinPermisos.into_response();
+    let bytes = axum::body::to_bytes(otro.into_body(), usize::MAX).await.expect("cuerpo");
+    let cuerpo: serde_json::Value = serde_json::from_slice(&bytes).expect("json");
+    assert!(cuerpo["error"].get("detalles").is_none());
+}

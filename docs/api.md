@@ -19,7 +19,7 @@ código (`utoipa`); esta página resume las decisiones que no se ven en el esque
 
 | Rol | Familia | Puede |
 |---|---|---|
-| `ADMIN`, `GERENTE` | `GESTION` | CRUD de usuarios, categorías, productos, depósitos, ubicaciones, proveedores y compras; todos los movimientos incluido `AJUSTE` |
+| `ADMIN`, `GERENTE` | `GESTION` | CRUD de usuarios, categorías, productos, depósitos, ubicaciones, proveedores y compras; todos los movimientos incluido `AJUSTE`; conteos de inventario físico |
 | `OPERARIO`, `CAJERO` | `OPERACION` | Lectura de catálogo, búsqueda de caja, su propia sesión, consulta de stock e historial, y movimientos `ENTRADA`/`SALIDA`/`MERMA` |
 
 Las rutas de escritura y los listados de administración exigen `RequiereGestion`. El backend es la
@@ -150,11 +150,34 @@ Un movimiento tiene cabecera (tipo, depósito, motivo, observación opcional) y 
 líneas con `cantidad_delta` con signo: `ENTRADA > 0`, `SALIDA`/`MERMA < 0`, `AJUSTE ≠ 0`.
 La validación completa ocurre en una única transacción: si una línea falla, no se escribe
 nada (cabecera, líneas, auditoría ni stock). Errores nuevos: `409 stock_insuficiente`
-(`"Stock insuficiente en Principal: 3 disponibles, 5 solicitadas."`), `409 producto_inactivo`
-y `422 validacion` para depósito/ubicación inválidos. Motivo `OTRO` exige observación.
+(`"Stock insuficiente en Principal: 3 disponibles, 5 solicitadas. Reducí la cantidad o registrá
+antes una entrada en ese depósito."`), `409 producto_inactivo` (`"El producto está inactivo y no
+admite movimientos. Reactivalo desde Productos o quitalo de la operación."`) y `422 validacion`
+para depósito/ubicación inválidos. Motivo `OTRO` exige observación.
+
+**Matriz de motivos del alta manual** (007, 2026-11-07): `ENTRADA` → `COMPRA`, `DEVOLUCION`,
+`OTRO`; `SALIDA` → `VENTA`, `DEVOLUCION`, `OTRO`; `MERMA` → `MERMA`, `OTRO`; `AJUSTE` → `AJUSTE`,
+`OTRO`. Otra combinación → 422 `"El motivo {motivo} no corresponde a una {tipo}. Motivos válidos:
+{lista}."`. `TRANSFERENCIA`, `INVENTARIO` e `IMPORTACION` están reservados a sus flujos (422 que
+nombra el flujo). `cantidad_delta` no entera → 422 `"La cantidad de cada línea debe ser un número
+entero distinto de cero."`; fuera de `i32` → `"La cantidad de cada línea supera el máximo admitido.
+Revisá el valor."`.
+
+**Orden de evaluación** (gana el primer error): JSON mal formado y tipo inválido → 403 si `AJUSTE`
+sin `GESTION` → motivo, coherencia tipo ↔ motivo, observación, líneas y cantidades → dentro de la
+transacción: depósito (`"El depósito {id} no existe…"`, inactivo), productos (`"El producto {id} no
+existe…"`, luego 409 `producto_inactivo`), ubicaciones y stock (409 `stock_insuficiente`).
 
 `stock_por_deposito` es la fuente de verdad (con ubicación opcional);
 `productos.stock_actual` es el cache global recalculado en la misma transacción.
+
+**Consulta de stock (010)**: `GET /api/stock` acepta además `producto_ids` (ids separados por
+coma, 1–50; 422 `"producto_ids admite hasta 50 ids."` o `"producto_ids debe ser una lista de
+enteros mayores a 0 separados por coma."`). Cada item trae `faltante` (`max(stock_minimo −
+stock_actual, 0)`), y `costo`/`valorizado` (`costo × (stock_deposito ?? stock_actual)`, 2
+decimales) **solo para `GESTION`**: para `OPERACION` llegan en `null`. `GET /api/stock/{id}` agrega
+`faltante`. `GET /api/depositos/activos` (cualquier sesión) devuelve `[{ id, nombre }]` de los
+depósitos activos: es la lista que usan caja, movimientos y transferencias.
 
 ### Transferencias entre depósitos (Módulo 2, spec 008)
 
@@ -162,7 +185,7 @@ y `422 validacion` para depósito/ubicación inválidos. Motivo `OTRO` exige obs
 |---|---|---|---|
 | POST | `/api/transferencias` | sesión² | 201 transferencia con stock resultante en origen y destino |
 | GET | `/api/transferencias?producto_id=&deposito_origen_id=&deposito_destino_id=&desde=&hasta=&pagina=&por_pagina=` | sesión | 200 página |
-| GET | `/api/transferencias/{id}` | sesión | 200 con los dos movimientos generados |
+| GET | `/api/transferencias/{id}` | sesión | 200 con los ids de los dos movimientos generados (`movimiento_salida_id`, `movimiento_entrada_id`) |
 
 ² `OPERACION` y `GESTION`. Errores: `409 stock_insuficiente`, `409 producto_inactivo`,
 `422 transferencia_mismo_deposito` (`"El depósito de origen y el de destino deben ser distintos."`),
@@ -172,6 +195,49 @@ La operación es inmediata y atómica: descuenta origen, incrementa destino, esc
 movimientos (`SALIDA` y `ENTRADA`, motivo `TRANSFERENCIA`) enlazados a la transferencia
 y audita (`tabla_ref = 'transferencias'`, acción `CREAR`). La suma global de stock se
 conserva (SC-016).
+
+El stock se valida y se informa **por fila de ubicación**, igual que en 007: sin
+`ubicacion_origen_id` se usa la fila del depósito (ubicación nula), aunque el producto tenga
+unidades en otras ubicaciones de ese depósito. `stock_origen_resultante` y
+`stock_destino_resultante` son el saldo de esas filas y coinciden con
+`movimiento_lineas.stock_resultante` de cada movimiento. El detalle no embebe los movimientos:
+se consultan con `GET /api/movimientos/{id}`. Un destino que desbordaría `i32` responde 422
+`validacion`; un id inexistente responde 404 (`"No existe la transferencia {id}. Revisá el número
+o buscala en el listado de transferencias."`).
+
+### Inventario físico (Módulo 2, spec 009)
+
+Toda la superficie exige familia `GESTION`; `OPERACION` recibe `403 sin_permisos`.
+
+| Método | Ruta | Éxito |
+|---|---|---|
+| POST | `/api/conteos` (`{ deposito_id, observacion? }`) | 201 conteo `ABIERTO` con una línea por fila de stock del depósito |
+| GET | `/api/conteos?deposito_id=&estado=&desde=&hasta=&pagina=&por_pagina=` | 200 página |
+| GET | `/api/conteos/{id}` | 200 con líneas |
+| PATCH | `/api/conteos/{id}/lineas` (`{ lineas: [{ linea_id, cantidad_contada }] }`) | 200; `diferencia` contra el snapshot de apertura |
+| POST | `/api/conteos/{id}/cerrar` | 200 `CERRADO`; un `AJUSTE` (motivo `INVENTARIO`) solo por las líneas con diferencia |
+| POST | `/api/conteos/{id}/cancelar` | 200 `CANCELADO`, sin ajuste |
+
+El cierre recalcula contra el stock **vigente** y deja cada fila igual a lo contado; si nada
+difiere, `movimiento_ajuste_id` queda en `null`. Errores: `422 deposito_inactivo`, `422 validacion`
+(depósito sin stock registrado: no se crea el conteo), `422 lineas_sin_contar`,
+`409 conteo_cerrado`, `409 conteo_cancelado`, `404 conteo_no_encontrado`.
+
+### Alertas de stock mínimo (Módulo 2, spec 011)
+
+Toda la superficie exige familia `GESTION`; `OPERACION` recibe `403 sin_permisos`.
+
+| Método | Ruta | Éxito |
+|---|---|---|
+| GET | `/api/alertas?pagina=&por_pagina=` (default 50, máx. 100) | 200 `{ items: [{ producto_id, nombre, sku, stock_actual, stock_minimo, faltante }], total, pagina, por_pagina }` |
+| POST | `/api/alertas/enviar` (sin cuerpo) | 200 `{ fecha, productos, destinatarios, enviados, fallidos }` |
+
+Una alerta es un producto activo con `stock_minimo > 0` y `stock_actual < stock_minimo`. El ciclo
+(scheduler cada `ALERTAS_INTERVALO_MINUTOS`, default 60, `0` lo apaga; o el `POST`) manda **un
+correo por gestor activo** con sus productos pendientes del día local (UTC−03:00) y registra cada
+par producto–gestor en `notificaciones_stock`: es idempotente en el día. Un fallo de transporte
+responde 200 con `fallidos > 0` y se reintenta en el ciclo siguiente. Errores: 401, 403, 422
+(paginación).
 
 ### Proveedores y compras (Módulo 3, spec 012)
 
@@ -198,6 +264,81 @@ actualiza `stock_por_deposito`, el costo del producto y el cache `stock_actual`.
 veces responde `409 compra_ya_confirmada` sin duplicar stock. Editar/eliminar una compra que no
 está en `BORRADOR` responde `409 compra_no_editable`. Anular revierte el stock con un movimiento
 `SALIDA` (motivo `DEVOLUCION`) y falla con `409 stock_insuficiente` si ya no alcanza.
+
+**Fase 6 (2026-11-07)**: `POST /api/compras/{id}/confirmar` y `/anular` devuelven
+`ResultadoCompra` = `{ compra, lineas, movimiento }`, donde `movimiento` es el `MovimientoDetalle`
+de 007 (`ENTRADA`/`COMPRA` al confirmar; `SALIDA`/`DEVOLUCION` con `cantidad_delta` negativo al
+anular). Errores nuevos: `409 proveedor_inactivo` (`"El proveedor «<nombre>» está dado de baja;
+reactivalo o elegí otro proveedor."`, al crear, editar y confirmar) y `409 compra_no_anulable`
+(borrador o ya anulada). `GET /api/compras` responde 422 si `estado` no es BORRADOR/CONFIRMADA/
+ANULADA o si `desde`/`hasta` no son `AAAA-MM-DD`/RFC 3339 (el mensaje nombra el parámetro). Límites:
+`numero` ≤ 40 caracteres, `costo_unitario` entre 0 y 9.999.999.999,99 (422 que nombra el campo).
+La anulación bloquea depósito y productos en el orden de 007 y descuenta con un `UPDATE`
+condicional: frente a una salida concurrente una gana y la otra recibe 409 `stock_insuficiente`.
+
+
+### Ventas de caja y clientes (Módulo 3, spec 013)
+
+| Método | Ruta | Permiso | Éxito |
+|---|---|---|---|
+| POST | `/api/ventas` | sesión (OPERACION o GESTION) | 201 `VentaDetalle` con `lineas[].stock_resultante` |
+| GET | `/api/ventas?deposito_id=&cliente_id=&estado=&desde=&hasta=&pagina=&por_pagina=` | sesión | 200 página |
+| GET | `/api/ventas/{id}` | sesión | 200 `VentaDetalle` |
+| POST | `/api/ventas/{id}/anular` | **GESTION** | 200 `VentaDetalle` `ANULADA`; `ENTRADA` motivo `DEVOLUCION` |
+| GET | `/api/clientes?activo=&pagina=&por_pagina=`, `/api/clientes/{id}` | sesión | 200 |
+| POST/PUT | `/api/clientes`, `/api/clientes/{id}`, `/{id}/activar`, `/{id}/desactivar` | **GESTION** | 201/200 `Cliente` |
+
+Cuerpo de la venta: `{ deposito_id, cliente_id?, medio_pago (EFECTIVO|TARJETA|TRANSFERENCIA),
+descuento?, observacion?, lineas: [{ producto_id, cantidad }] }`. Las líneas del mismo producto se
+**agregan** (2 + 1 = 3) y el precio es el de `productos.precio_venta` congelado al confirmar;
+mandar `precio_unitario` es 422 (`"El precio unitario se toma del catálogo; no se puede enviar en
+la venta."`). Errores: `409 stock_insuficiente` (sobre la cantidad agregada; no se registra nada),
+`422 validacion` (producto inactivo `"El producto no está disponible para la venta."`, descuento
+mayor al subtotal, medio de pago, cantidad), `409 venta_ya_anulada`, `409 documento_duplicado`
+(`"Ya existe un cliente con ese documento."`), `403 sin_permisos`. Ejemplo de línea:
+`{ "producto_id": 12, "cantidad": 3, "precio_unitario": 3000, "subtotal": 9000, "stock_resultante": 7 }`.
+
+### Reportes (Módulo 3, spec 014)
+
+Toda la superficie exige familia `GESTION` (403 `sin_permisos` para `OPERACION`, también en CSV).
+
+| Método | Ruta | Éxito |
+|---|---|---|
+| GET | `/api/reportes/kardex?producto_id=&deposito_id=&desde=&hasta=&formato=` | 200 `{ producto_id, producto_nombre, deposito_id, desde, hasta, saldo_inicial, lineas[{ movimiento_id, creado_en, tipo, motivo, deposito_id, deposito_nombre, cantidad, saldo }], saldo_final }` |
+| GET | `/api/reportes/stock-valorizado?formato=` | 200 `{ items[{ producto_id, nombre, sku, cantidad, costo_unitario, valor }], total }` |
+| GET | `/api/reportes/rotacion?desde=&hasta=&formato=` | 200 `{ desde, hasta, items[{ producto_id, nombre, unidades_salidas, stock_inicial, stock_final, stock_promedio, indice_rotacion }] }` |
+| GET | `/api/reportes/ventas?desde=&hasta=&formato=&agrupar=` | 200 `{ desde, hasta, cantidad_ventas, total, por_dia[{ dia, cantidad_ventas, total }], por_producto[{ producto_id, nombre, unidades, total }] }` |
+
+`desde`/`hasta` son días locales `AAAA-MM-DD` (UTC−03:00) **inclusivos** (también se acepta RFC
+3339, del que se toma la fecha local); rotación y ventas los exigen. El stock valorizado sale de
+`stock_por_deposito` (activos o no, solo con stock); la rotación cuenta `SALIDA` sin
+`TRANSFERENCIA`; ventas solo `CONFIRMADA` y por día local. `formato=csv` devuelve `text/csv;
+charset=utf-8` (RFC 4180, BOM, `\r\n`) con `Content-Disposition: attachment;
+filename="<reporte>_<desde>_<hasta>.csv"`; en ventas `agrupar=dia|producto` elige la tabla.
+Errores 422: `"La fecha desde no puede ser posterior a la fecha hasta."`, `"Indicá las fechas desde
+y hasta del período (formato AAAA-MM-DD)."`, `"El parámetro desde debe estar en formato ISO 8601
+(AAAA-MM-DD)."`, `"El parámetro formato acepta json o csv."`, `"El parámetro agrupar acepta dia o
+producto."`; 404 `"El producto no existe."` en kardex. Sin paginación.
+
+### Importación masiva (Módulo 4, spec 016)
+
+| Método | Ruta | Permiso | Éxito |
+|---|---|---|---|
+| POST | `/api/importaciones/productos?modo=validar\|aplicar` (`multipart/form-data`, campo `archivo`) | **GESTION** | 200 (validar) / 201 (aplicar) `{ filas_leidas, validas, con_error, errores[{ fila, columna, mensaje }], creados, aplicado }` |
+
+CSV UTF-8 (se tolera BOM) de hasta 5.000 filas y 5 MB. Columnas: `nombre`, `sku`, `categoria`,
+`unidad_medida`, `costo`, `precio_venta`, `stock_minimo` y opcionales `codigo_barras`,
+`stock_inicial` (vacío = 0) y `deposito` (vacío = «Principal»; solo se exige con stock > 0). El
+delimitador se detecta (`;` → decimal `,`; `,` → decimal `.`). `validar` nunca escribe y devuelve los
+errores por celda con 200; `aplicar` es **todo o nada**: con cualquier error responde
+`422 importacion_invalida` con `error.detalles` y no crea nada; sin errores crea productos,
+stock inicial (movimiento `ENTRADA` motivo `IMPORTACION`) y auditoría en una transacción. Errores
+globales (también `importacion_invalida`, `fila` 0/1): límite superado, archivo vacío, columna
+obligatoria faltante, CSV ilegible y falta del campo `archivo`. `modo` inválido → `422 validacion`.
+La importación nunca crea categorías ni depósitos ni actualiza productos existentes.
+
+`error.detalles` aparece **solo** en `importacion_invalida`; el resto de los errores conserva el
+sobre `{ error: { codigo, mensaje } }`.
 
 ### Asistente de inventario (Módulo 4, spec 017)
 

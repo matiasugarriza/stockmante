@@ -136,3 +136,94 @@ fn las_rutas_protegidas_heredan_cookie_auth() {
         "el documento debe exigir cookieAuth por defecto"
     );
 }
+
+/// 008 (T032): las rutas y los schemas de transferencias están documentados.
+#[test]
+fn documenta_transferencias() {
+    let doc = documento();
+    let paths = doc["paths"].as_object().expect("paths");
+    for ruta in ["/api/transferencias", "/api/transferencias/{id}"] {
+        assert!(paths.contains_key(ruta), "falta la ruta {ruta}");
+    }
+    assert!(
+        paths["/api/transferencias"]["get"].is_object()
+            && paths["/api/transferencias"]["post"].is_object(),
+        "GET y POST /api/transferencias"
+    );
+    assert!(paths["/api/transferencias/{id}"]["get"].is_object());
+    let schemas = doc["components"]["schemas"].as_object().expect("schemas");
+    for schema in ["TransferenciaDetalle", "ListaTransferencias", "CrearTransferenciaDto"] {
+        assert!(schemas.contains_key(schema), "falta el schema {schema}");
+    }
+}
+
+/// 009 (T029): las rutas y los schemas de conteos están documentados.
+#[test]
+fn documenta_conteos() {
+    let doc = documento();
+    let paths = doc["paths"].as_object().expect("paths");
+    for ruta in [
+        "/api/conteos",
+        "/api/conteos/{id}",
+        "/api/conteos/{id}/lineas",
+        "/api/conteos/{id}/cerrar",
+        "/api/conteos/{id}/cancelar",
+    ] {
+        assert!(paths.contains_key(ruta), "falta la ruta {ruta}");
+    }
+    let schemas = doc["components"]["schemas"].as_object().expect("schemas");
+    for schema in ["ConteoDetalle", "ListaConteos"] {
+        assert!(schemas.contains_key(schema), "falta el schema {schema}");
+    }
+}
+
+/// 011 (T024): las rutas y los schemas de alertas están documentados.
+#[test]
+fn documenta_alertas() {
+    let doc = documento();
+    let paths = doc["paths"].as_object().expect("paths");
+    assert!(paths["/api/alertas"]["get"].is_object(), "GET /api/alertas");
+    assert!(paths["/api/alertas/enviar"]["post"].is_object(), "POST /api/alertas/enviar");
+    assert!(paths["/api/depositos/activos"]["get"].is_object(), "GET /api/depositos/activos (010)");
+    let schemas = doc["components"]["schemas"].as_object().expect("schemas");
+    for schema in ["AlertaItem", "ListaAlertas", "RespuestaCiclo"] {
+        assert!(schemas.contains_key(schema), "falta el schema {schema}");
+    }
+}
+
+/// 013 (T014): ventas y clientes documentados, con los 403/409 nuevos.
+#[test]
+fn documenta_ventas_y_clientes() {
+    let doc = documento();
+    let paths = doc["paths"].as_object().expect("paths");
+    for ruta in [
+        "/api/ventas",
+        "/api/ventas/{id}",
+        "/api/ventas/{id}/anular",
+        "/api/clientes",
+        "/api/clientes/{id}",
+        "/api/clientes/{id}/activar",
+        "/api/clientes/{id}/desactivar",
+    ] {
+        assert!(paths.contains_key(ruta), "falta la ruta {ruta}");
+    }
+    let anular = &paths["/api/ventas/{id}/anular"]["post"]["responses"];
+    assert!(anular["403"].is_object() && anular["409"].is_object(), "{anular}");
+    assert!(paths["/api/clientes"]["post"]["responses"]["409"].is_object());
+    let schemas = doc["components"]["schemas"].as_object().expect("schemas");
+    for schema in ["VentaDetalle", "ListaVentas", "Cliente", "ListaClientes"] {
+        assert!(schemas.contains_key(schema), "falta el schema {schema}");
+    }
+}
+
+/// 016 (T011): la importación y sus schemas están documentados.
+#[test]
+fn documenta_importacion() {
+    let doc = documento();
+    let paths = doc["paths"].as_object().expect("paths");
+    assert!(paths["/api/importaciones/productos"]["post"].is_object());
+    let schemas = doc["components"]["schemas"].as_object().expect("schemas");
+    for schema in ["ResumenImportacion", "DetalleImportacion"] {
+        assert!(schemas.contains_key(schema), "falta el schema {schema}");
+    }
+}

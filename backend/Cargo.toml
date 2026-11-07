@@ -175,3 +175,71 @@ path = "tests/integration/test_asistente_log.rs"
 [dev-dependencies]
 tower = { version = "0.5", features = ["util"] }
 http-body-util = "0.1"
+
+[[test]]
+name = "test_transferencia_validacion"
+path = "tests/unit/test_transferencia_validacion.rs"
+
+[[test]]
+name = "test_transferencias_http"
+path = "tests/integration/test_transferencias_http.rs"
+
+[[test]]
+name = "test_conteo_validacion"
+path = "tests/unit/test_conteo_validacion.rs"
+
+[[test]]
+name = "test_conteos_http"
+path = "tests/integration/test_conteos_http.rs"
+
+[[test]]
+name = "test_stock_item"
+path = "tests/unit/test_stock_item.rs"
+
+[[test]]
+name = "test_stock_http"
+path = "tests/integration/test_stock_http.rs"
+
+[[test]]
+name = "test_alertas_validacion"
+path = "tests/unit/test_alertas_validacion.rs"
+
+[[test]]
+name = "test_alertas_http"
+path = "tests/integration/test_alertas_http.rs"
+
+[[test]]
+name = "test_compras_validacion"
+path = "tests/unit/test_compras_validacion.rs"
+
+[[test]]
+name = "test_compras_concurrencia"
+path = "tests/integration/test_compras_concurrencia.rs"
+
+[[test]]
+name = "test_venta_validacion"
+path = "tests/unit/test_venta_validacion.rs"
+
+[[test]]
+name = "test_ventas_http"
+path = "tests/integration/test_ventas_http.rs"
+
+[[test]]
+name = "test_clientes_http"
+path = "tests/integration/test_clientes_http.rs"
+
+[[test]]
+name = "test_reportes_calculo"
+path = "tests/unit/test_reportes_calculo.rs"
+
+[[test]]
+name = "test_reportes_http"
+path = "tests/integration/test_reportes_http.rs"
+
+[[test]]
+name = "test_importacion_validacion"
+path = "tests/unit/test_importacion_validacion.rs"
+
+[[test]]
+name = "test_importacion_http"
+path = "tests/integration/test_importacion_http.rs"

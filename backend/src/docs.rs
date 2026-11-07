@@ -27,6 +27,8 @@ pub struct ErrorDetalle {
     /// Mensaje accionable en español.
     #[schema(example = "El SKU debe tener entre 3 y 30 caracteres.")]
     pub mensaje: String,
+    /// Solo en `importacion_invalida` (016): un detalle por celda inválida.
+    pub detalles: Option<Vec<crate::error::DetalleImportacion>>,
 }
 
 /// Agrega `cookieAuth` al documento: la sesión viaja en la cookie HttpOnly.
@@ -88,6 +90,7 @@ impl Modify for AgregarSeguridadCookie {
         crate::handlers::productos::ubicaciones_lote,
         crate::handlers::productos::reemplazar_ubicaciones,
         crate::handlers::depositos::listar,
+        crate::handlers::depositos::activos,
         crate::handlers::depositos::crear,
         crate::handlers::depositos::obtener,
         crate::handlers::depositos::actualizar,
@@ -131,6 +134,9 @@ impl Modify for AgregarSeguridadCookie {
         crate::handlers::ventas::obtener_venta,
         crate::handlers::ventas::anular_venta,
         crate::handlers::stock::listar,
+        crate::handlers::alertas::listar,
+        crate::handlers::importaciones::importar_productos,
+        crate::handlers::alertas::enviar,
         crate::handlers::stock::detalle,
         crate::handlers::reportes::kardex,
         crate::handlers::reportes::stock_valorizado,
@@ -167,8 +173,8 @@ impl Modify for AgregarSeguridadCookie {
         crate::models::proveedor::CompraDetalle,
         crate::models::proveedor::CompraLinea,
         crate::models::proveedor::ListaCompras,
-        crate::models::venta::Cliente,
-        crate::models::venta::ListaClientes,
+        crate::models::cliente::Cliente,
+        crate::models::cliente::ListaClientes,
         crate::models::venta::Venta,
         crate::models::venta::VentaDetalle,
         crate::models::venta::VentaLinea,
@@ -179,6 +185,12 @@ impl Modify for AgregarSeguridadCookie {
         crate::services::reportes::VentasReporte,
         crate::models::stock::StockItem,
         crate::models::stock::ListaStock,
+        crate::models::proveedor::ResultadoCompra,
+        crate::models::alertas::AlertaItem,
+        crate::services::importaciones::ResumenImportacion,
+        crate::error::DetalleImportacion,
+        crate::models::alertas::ListaAlertas,
+        crate::models::alertas::RespuestaCiclo,
         crate::models::stock::DesgloseStock,
         crate::models::stock::StockProducto,
         crate::services::usuarios::ListaUsuarios,
@@ -225,6 +237,7 @@ impl Modify for AgregarSeguridadCookie {
         (name = "ubicaciones", description = "Ubicaciones jerárquicas (GESTION)"),
         (name = "movimientos", description = "Entradas, salidas, mermas y ajustes"),
         (name = "stock", description = "Consulta de stock y desglose por depósito"),
+        (name = "alertas", description = "Alertas de stock mínimo y digest por correo"),
         (name = "asistente", description = "Asistente de inventario en lenguaje natural (017)")
     )
 )]
