@@ -133,3 +133,9 @@ lo hace T001).
   integración HTTP (`test_reportes_http`: 14.1–14.7, casos borde, SC-022) declarados como
   `[[test]]` en `backend/Cargo.toml`; SC-031 se agrega a `test_rbac_matriz`. Se escriben antes de
   corregir el servicio y se registra que fallan.
+
+### R3 — `EXPLAIN ANALYZE` observado (T017, 2026-11-07)
+
+Consulta agregada de rotación y de líneas del kardex sobre `stockmante_test` (646 líneas de
+movimiento): 0,69 ms y 0,37 ms de ejecución; en `stockmante` (2 líneas): 1,2 ms y 0,2 ms. Sin
+necesidad de índices nuevos.

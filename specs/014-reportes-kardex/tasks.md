@@ -28,11 +28,11 @@ consume `$lib/api/reportes.ts`.
 
 ## Phase 1: Setup
 
-- [ ] T001 Verificar contra la BD real (MCP de PostgreSQL o `psql`) las tablas y columnas de
+- [X] T001 Verificar contra la BD real (MCP de PostgreSQL o `psql`) las tablas y columnas de
   `specs/014-reportes-kardex/data-model.md` (tipos, nullables y valores de los `CHECK` de
   `movimientos.tipo`/`motivo` y `ventas.estado`), en la BD de desarrollo y en la de test;
   registrar el resultado en `data-model.md` (Principio V, precondición de todo SQL)
-- [ ] T002 [P] Verificar que `backend/tests/unit/common/mod.rs` expone `app_de_test`,
+- [X] T002 [P] Verificar que `backend/tests/unit/common/mod.rs` expone `app_de_test`,
   `sesion_gestion`, `sesion_operacion`, `sku_unico` y `actor_de_test`, y que los targets nuevos se
   declaran como `[[test]]` en `backend/Cargo.toml`
 
@@ -40,7 +40,7 @@ consume `$lib/api/reportes.ts`.
 
 **⚠️ CRÍTICO**: los tests unitarios y los servicios dependen de estos módulos.
 
-- [ ] T003 Convertir `backend/src/services/reportes.rs` en `backend/src/services/reportes/mod.rs`
+- [X] T003 Convertir `backend/src/services/reportes.rs` en `backend/src/services/reportes/mod.rs`
   (sin cambio de comportamiento todavía) y crear los módulos vacíos `rango.rs`, `calculo.rs` y
   `csv.rs` con sus firmas públicas de `research.md` (R2, R3, R5, R7); compila con `cargo check`
 
@@ -54,14 +54,14 @@ y una pantalla para consultarlos y descargarlos.
 
 ### Tests for User Story 14 ⚠️ (escribir primero y ver fallar)
 
-- [ ] T004 [P] [US14] Crear `backend/tests/unit/test_reportes_calculo.rs` con casos puros:
+- [X] T004 [P] [US14] Crear `backend/tests/unit/test_reportes_calculo.rs` con casos puros:
   `parsear_dia` (AAAA-MM-DD, RFC 3339 tomado en -03:00, formato inválido → mensaje con el nombre
   del campo), `limites_utc` (`hasta=2026-10-31` → fin `2026-11-01T03:00:00Z`, `desde > hasta` →
   mensaje de 14.6), `exigir_rango` (falta uno → mensaje de Casos borde), `acumular_saldos`,
   `calcular_rotacion` (promedio 0 → índice 0; 4 salidas, 20→26 → 0.1739) y `a_csv` (coma, comilla
   y salto de línea entre comillas, BOM, `\r\n`); declarar el target en `backend/Cargo.toml`
   (FR-056, FR-058, FR-059, R2, R3, R5, R7)
-- [ ] T005 [P] [US14] Crear `backend/tests/integration/test_reportes_http.rs` con datos propios
+- [X] T005 [P] [US14] Crear `backend/tests/integration/test_reportes_http.rs` con datos propios
   (sku únicos): kardex con entrada, venta, merma, ajuste y transferencia → saldo inicial, orden,
   saldo corrido y `saldo_final == stock_actual` sin filtros y `== stock_por_deposito` con
   `deposito_id` (14.1, SC-022); movimiento a las 23:30 UTC del último día incluido; producto
@@ -71,72 +71,72 @@ y una pantalla para consultarlos y descargarlos.
   encabezados y `agrupar=producto` (14.5); 422 por rango invertido, faltante, fecha mal formada,
   `formato` y `agrupar` inválidos (14.6, Casos borde); declarar el target en `backend/Cargo.toml`
   (FR-056–FR-059, SC-022)
-- [ ] T006 [US14] Agregar a `backend/tests/integration/test_rbac_matriz.rs` las filas de los
+- [X] T006 [US14] Agregar a `backend/tests/integration/test_rbac_matriz.rs` las filas de los
   cuatro reportes en JSON y CSV: `OPERACION` → 403 `sin_permisos`, `GESTION` → 200 (14.7, SC-031)
-- [ ] T007 [US14] Correr `cargo test` y registrar en el PR o en `progress.md` que T004–T006 fallan
+- [X] T007 [US14] Correr `cargo test` y registrar en el PR o en `progress.md` que T004–T006 fallan
   (RED) por los motivos esperados (Principio IV)
 
 ### Implementation for User Story 14
 
-- [ ] T008 [P] [US14] Implementar `backend/src/services/reportes/rango.rs`: `parsear_dia`,
+- [X] T008 [P] [US14] Implementar `backend/src/services/reportes/rango.rs`: `parsear_dia`,
   `limites_utc` con `FixedOffset::west_opt(3 * 3600)` y límites semiabiertos, `exigir_rango`;
   mensajes exactos de `data-model.md#errores` (FR-059, R2)
-- [ ] T009 [P] [US14] Implementar `backend/src/services/reportes/calculo.rs`: `acumular_saldos` y
+- [X] T009 [P] [US14] Implementar `backend/src/services/reportes/calculo.rs`: `acumular_saldos` y
   `calcular_rotacion` (R3, R5)
-- [ ] T010 [P] [US14] Implementar `backend/src/services/reportes/csv.rs`: `a_csv` RFC 4180 con BOM
+- [X] T010 [P] [US14] Implementar `backend/src/services/reportes/csv.rs`: `a_csv` RFC 4180 con BOM
   y `\r\n` (FR-059, R7)
-- [ ] T011 [US14] En `backend/src/services/reportes/mod.rs` reescribir `kardex` con límites
+- [X] T011 [US14] En `backend/src/services/reportes/mod.rs` reescribir `kardex` con límites
   semiabiertos, `deposito_id` opcional, `desde`/`hasta` en la respuesta y `acumular_saldos`
   (FR-056, R5)
-- [ ] T012 [US14] En `backend/src/services/reportes/mod.rs` reescribir `stock_valorizado` desde
+- [X] T012 [US14] En `backend/src/services/reportes/mod.rs` reescribir `stock_valorizado` desde
   `SUM(stock_por_deposito.cantidad)` con `HAVING > 0`, activos o no (FR-057, R4)
-- [ ] T013 [US14] En `backend/src/services/reportes/mod.rs` reescribir `rotacion` como una sola
+- [X] T013 [US14] En `backend/src/services/reportes/mod.rs` reescribir `rotacion` como una sola
   consulta agregada con `FILTER`, `SALIDA` sin `TRANSFERENCIA`, rango obligatorio y
   `calcular_rotacion`; sin `Utc::now()` (FR-058, R3)
-- [ ] T014 [US14] En `backend/src/services/reportes/mod.rs` reescribir `ventas`: solo
+- [X] T014 [US14] En `backend/src/services/reportes/mod.rs` reescribir `ventas`: solo
   `CONFIRMADA`, rango obligatorio, día local con
   `to_char(creado_en AT TIME ZONE 'UTC' - INTERVAL '3 hours', 'YYYY-MM-DD')`; sin `Utc::now()` y sin
   la importación de `normalizar_paginacion` (FR-058, R6, R9)
-- [ ] T015 [US14] Reescribir `backend/src/handlers/reportes.rs`: `RequiereGestion` en los cuatro
+- [X] T015 [US14] Reescribir `backend/src/handlers/reportes.rs`: `RequiereGestion` en los cuatro
   handlers; `Formato`/`Agrupar` con 422 de R8; fechas vía `rango::parsear_dia`; CSV de los cuatro
   reportes con `a_csv`, `Content-Type: text/csv; charset=utf-8` y `Content-Disposition` con nombre
   `<reporte>_<desde>_<hasta>.csv` (FR-059, SC-031, R1, R7, R8)
-- [ ] T016 [US14] Actualizar `backend/src/docs.rs` y los `#[utoipa::path]` de
+- [X] T016 [US14] Actualizar `backend/src/docs.rs` y los `#[utoipa::path]` de
   `backend/src/handlers/reportes.rs`: parámetros de `stock-valorizado`, respuestas 403/404/422 con
   `ErrorRespuesta` y la variante `text/csv` (FR-059)
-- [ ] T017 [US14] Correr `cargo test` hasta que T004–T006 queden en verde; `EXPLAIN ANALYZE` de
+- [X] T017 [US14] Correr `cargo test` hasta que T004–T006 queden en verde; `EXPLAIN ANALYZE` de
   kardex y rotación en la BD de desarrollo y anotar el resultado en `research.md` (R3)
 
 ### Frontend for User Story 14
 
-- [ ] T018 [P] [US14] Crear `frontend/src/lib/schemas/reportes.ts` (Zod) con `KardexReporte`,
+- [X] T018 [P] [US14] Crear `frontend/src/lib/schemas/reportes.ts` (Zod) con `KardexReporte`,
   `StockValorizadoReporte`, `RotacionReporte` y `VentasReporte` según `data-model.md`
-- [ ] T019 [US14] Escribir primero `frontend/src/lib/api/reportes.test.ts` (query string con
+- [X] T019 [US14] Escribir primero `frontend/src/lib/api/reportes.test.ts` (query string con
   fechas, `deposito_id`, `agrupar`; parseo con los schemas; error 422 propagado como `ApiError`;
   `urlCsv` arma `formato=csv`) y verlo fallar; luego crear `frontend/src/lib/api/reportes.ts` con
   `obtenerKardex`, `obtenerStockValorizado`, `obtenerRotacion`, `obtenerVentas` y `urlCsv`
   (Principio IV, R10)
-- [ ] T020 [P] [US14] Crear `frontend/src/lib/components/reportes/Kardex.svelte` (selector de
+- [X] T020 [P] [US14] Crear `frontend/src/lib/components/reportes/Kardex.svelte` (selector de
   producto, depósito opcional y fechas; tabla con saldo inicial, líneas y saldo final; enlace CSV)
   (FR-056)
-- [ ] T021 [P] [US14] Crear `frontend/src/lib/components/reportes/StockValorizado.svelte` (tabla y
+- [X] T021 [P] [US14] Crear `frontend/src/lib/components/reportes/StockValorizado.svelte` (tabla y
   total; enlace CSV) (FR-057)
-- [ ] T022 [P] [US14] Crear `frontend/src/lib/components/reportes/Rotacion.svelte` (fechas
+- [X] T022 [P] [US14] Crear `frontend/src/lib/components/reportes/Rotacion.svelte` (fechas
   obligatorias; tabla; enlace CSV) (FR-058)
-- [ ] T023 [P] [US14] Crear `frontend/src/lib/components/reportes/Ventas.svelte` (fechas
+- [X] T023 [P] [US14] Crear `frontend/src/lib/components/reportes/Ventas.svelte` (fechas
   obligatorias; totales, por día y por producto; enlaces CSV por día y por producto) (FR-058)
-- [ ] T024 [US14] Crear `frontend/src/routes/admin/reportes/+page.svelte` con selector de reporte
+- [X] T024 [US14] Crear `frontend/src/routes/admin/reportes/+page.svelte` con selector de reporte
   y los cuatro componentes; mostrar el mensaje del backend en 403/422 (Principio III, R10)
-- [ ] T025 [US14] Agregar el enlace "Reportes" al bloque `GESTION` de
+- [X] T025 [US14] Agregar el enlace "Reportes" al bloque `GESTION` de
   `frontend/src/routes/+layout.svelte` (FR-059)
 
 ## Phase 4: Polish & Cross-Cutting
 
-- [ ] T026 [P] Agregar la sección "Reportes (Módulo 3, spec 014)" a `docs/api.md` con las cuatro
+- [X] T026 [P] Agregar la sección "Reportes (Módulo 3, spec 014)" a `docs/api.md` con las cuatro
   rutas, permisos, parámetros, CSV y errores (según `contracts/api.md`)
-- [ ] T027 Correr los gates: `cargo test`, `cargo sqlx prepare --check`, `npm test`,
+- [X] T027 Correr los gates: `cargo test`, `cargo sqlx prepare --check`, `npm test`,
   `npm run check`, `npm run build`; validar `quickstart.md` (curl y UI)
-- [ ] T028 Actualizar el estado de 014 en `specs/README.md` y en `spec.md` a "Implementado y
+- [X] T028 Actualizar el estado de 014 en `specs/README.md` y en `spec.md` a "Implementado y
   verificado" con fecha, solo si T027 está en verde
 
 ---

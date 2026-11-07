@@ -76,3 +76,12 @@ Los `Decimal` se serializan como en el resto de la API (`#[schema(value_type = f
 | `formato` / `agrupar` inválido | `Validacion` | 422 | `El parámetro formato acepta json o csv.` / `El parámetro agrupar acepta dia o producto.` |
 | Producto inexistente (kardex) | `RecursoNoEncontrado` | 404 `recurso_no_encontrado` | `El producto no existe.` |
 | Falla de BD | genérico | 500 | sin detalles internos (P-V) |
+
+## Verificación de esquema (T001, 2026-11-07)
+
+Contrastado con `psql` en `stockmante` y `stockmante_test` (esquema completo idéntico a las
+migraciones, ver 011/progress.md): los `CHECK` de `movimientos.tipo` (`ENTRADA`, `SALIDA`, `MERMA`,
+`AJUSTE`), `movimientos.motivo` (los nueve valores de arriba) y `ventas.estado` (`CONFIRMADA`,
+`ANULADA`) coinciden. **Diferencia aplicada**: `StockValorizadoItem.cantidad` es `i64`
+(`SUM(...)::bigint`): la suma por producto de varios depósitos puede superar `i32` (un test de 008
+llevó un saldo a `i32::MAX` y el `::int` respondía 500).

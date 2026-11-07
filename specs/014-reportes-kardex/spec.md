@@ -2,7 +2,7 @@
 
 **Spec**: `014-reportes-kardex` | **Caso de uso**: US14 | **Prioridad**: P2
 
-**Creado**: 2026-10-26 | **Estado**: Clarificado (con `plan.md` y `tasks.md`; ver `## Clarifications`)
+**Creado**: 2026-10-26 | **Estado**: Implementado y verificado (2026-11-07) 
 | **Módulo**: 3 — Abastecimiento y ventas
 
 **Origen**: "reportes financieros" figura fuera del alcance del Módulo 1; con movimientos, compras y
