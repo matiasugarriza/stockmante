@@ -32,6 +32,15 @@ impl EnvioCorreo for CorreoQueFalla {
     ) -> Result<(), String> {
         Err("SMTP no disponible".into())
     }
+
+    async fn enviar_alerta_stock(
+        &self,
+        _destino: &str,
+        _nombre: &str,
+        _cuerpo: &str,
+    ) -> Result<(), String> {
+        Err("SMTP no disponible".into())
+    }
 }
 
 #[tokio::test]

@@ -1,5 +1,6 @@
 //! Servicios de dominio.
 
+pub mod alertas;
 pub mod asistente;
 pub mod auditoria;
 pub mod auth;

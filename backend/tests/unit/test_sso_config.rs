@@ -34,6 +34,7 @@ async fn app_con(google_id: &str, google_secret: &str, ms_id: &str, ms_secret: &
         microsoft_client_id: ms_id.to_string(),
         microsoft_client_secret: ms_secret.to_string(),
         sso_redirect_base: "http://localhost:3000".to_string(),
+        alertas_intervalo_minutos: 0,
     };
     let estado = AppEstado {
         pool: pool.clone(),

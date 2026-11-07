@@ -31,6 +31,7 @@ fn config_con(google_id: &str, microsoft_id: &str) -> AppConfig {
         microsoft_client_id: microsoft_id.to_string(),
         microsoft_client_secret: String::new(),
         sso_redirect_base: "http://localhost:3000".to_string(),
+        alertas_intervalo_minutos: 0,
     }
 }
 

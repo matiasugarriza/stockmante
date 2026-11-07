@@ -34,10 +34,10 @@ implementación tiene su test escrito antes.
 
 **Purpose**: esquema, migración y configuración base.
 
-- [ ] T001 [P] Verificar el esquema real de la BD en ejecución (MCP de PostgreSQL o `psql`): columnas y tipos de `productos` (`stock_actual INT`, `stock_minimo INT`, `activo BOOLEAN`) y `usuarios` (`familia_rol`, `activo`, `email`), y confirmar que `notificaciones_stock` no existe. Registrar el resultado en la tabla "Verificación de esquema" de `specs/011-alertas-stock-minimo/data-model.md`.
-- [ ] T002 Crear `migrations/0015_alertas_stock.sql` con la tabla `notificaciones_stock` (DDL exacto de `data-model.md`): columnas `id/producto_id/usuario_id/fecha/estado/intentos/enviada_en/error`, `CHECK (estado IN ('pendiente','enviada','fallida'))`, `CHECK (intentos >= 0)`, `UNIQUE (producto_id, usuario_id, fecha)`, `CHECK (estado <> 'enviada' OR enviada_en IS NOT NULL)` e índice parcial `idx_notificaciones_pendientes (fecha, estado) WHERE estado <> 'enviada'`. Depende de T001.
-- [ ] T003 [P] RED: agregar a `backend/tests/unit/test_config.rs` los casos de `ALERTAS_INTERVALO_MINUTOS`: ausente → 60, `"0"` → desactivado, `"15"` → 15, `"abc"` → `AppError::Validacion` (deben fallar).
-- [ ] T004 GREEN: en `backend/src/config.rs` agregar `alertas_intervalo_minutos: u64` a `AppConfig`, parsearlo en `desde_entorno()` con default 60 y `0` como desactivado, y devolver error de configuración ante valor no numérico. Depende de T003.
+- [X] T001 [P] Verificar el esquema real de la BD en ejecución (MCP de PostgreSQL o `psql`): columnas y tipos de `productos` (`stock_actual INT`, `stock_minimo INT`, `activo BOOLEAN`) y `usuarios` (`familia_rol`, `activo`, `email`), y confirmar que `notificaciones_stock` no existe. Registrar el resultado en la tabla "Verificación de esquema" de `specs/011-alertas-stock-minimo/data-model.md`.
+- [X] T002 Crear `migrations/0015_alertas_stock.sql` con la tabla `notificaciones_stock` (DDL exacto de `data-model.md`): columnas `id/producto_id/usuario_id/fecha/estado/intentos/enviada_en/error`, `CHECK (estado IN ('pendiente','enviada','fallida'))`, `CHECK (intentos >= 0)`, `UNIQUE (producto_id, usuario_id, fecha)`, `CHECK (estado <> 'enviada' OR enviada_en IS NOT NULL)` e índice parcial `idx_notificaciones_pendientes (fecha, estado) WHERE estado <> 'enviada'`. Depende de T001.
+- [X] T003 [P] RED: agregar a `backend/tests/unit/test_config.rs` los casos de `ALERTAS_INTERVALO_MINUTOS`: ausente → 60, `"0"` → desactivado, `"15"` → 15, `"abc"` → `AppError::Validacion` (deben fallar).
+- [X] T004 GREEN: en `backend/src/config.rs` agregar `alertas_intervalo_minutos: u64` a `AppConfig`, parsearlo en `desde_entorno()` con default 60 y `0` como desactivado, y devolver error de configuración ante valor no numérico. Depende de T003.
 
 ---
 
@@ -47,10 +47,10 @@ implementación tiene su test escrito antes.
 
 **⚠️ CRITICAL**: ninguna tarea de US11 puede empezar antes de completar esta fase.
 
-- [ ] T005 [P] Crear `backend/src/models/alertas.rs` con `AlertaItem` (`producto_id: i32`, `nombre: String`, `sku: String`, `stock_actual: i64`, `stock_minimo: i32`, `faltante: i64`), `ListaAlertas` (`items`, `total`, `pagina`, `por_pagina`) y `RespuestaCiclo` (`fecha: NaiveDate`, `productos: i64`, `destinatarios: i64`, `enviados: i64`, `fallidos: i64`), todos con `Serialize` y `ToSchema`; registrar `pub mod alertas;` en `backend/src/models/mod.rs`.
-- [ ] T006 [P] Extender el trait `EnvioCorreo` en `backend/src/mail/envio.rs` con `async fn enviar_alerta_stock(&self, destino: &str, nombre: &str, cuerpo: &str) -> Result<(), String>` (sin implementación por defecto); implementarlo en `CorreoDev` (registra en `bandeja()`) y en `CorreoSmtp` (`backend/src/mail/smtp.rs`, con `lettre` y asunto `Stockmante — productos bajo el stock mínimo`); agregar el método al fake `CorreoQueFalla` de `backend/tests/unit/test_usuarios_alta.rs` para que el workspace siga compilando.
-- [ ] T007 [P] Crear `backend/src/services/alertas.rs` con las lecturas: `fecha_local(&dyn Reloj) -> NaiveDate` (offset fijo `FixedOffset::west_opt(3 * 3600)`), `detectar(pool, filtros) -> ListaAlertas` (productos `activo = TRUE AND stock_minimo > 0 AND stock_actual < stock_minimo`, `faltante = (stock_minimo - stock_actual)::bigint`, orden `nombre, id`, paginación normalizada) y `usuarios_gestion(pool) -> Vec<UsuarioDestino>` (`familia_rol = 'GESTION' AND activo`); registrar `pub mod alertas;` en `backend/src/services/mod.rs`. Depende de T002, T005.
-- [ ] T008 Registrar `[[test]]` en `backend/Cargo.toml`: `test_alertas_validacion` → `tests/unit/test_alertas_validacion.rs` y `test_alertas_http` → `tests/integration/test_alertas_http.rs` (crear los archivos vacíos con `mod common;` para que la suite compile).
+- [X] T005 [P] Crear `backend/src/models/alertas.rs` con `AlertaItem` (`producto_id: i32`, `nombre: String`, `sku: String`, `stock_actual: i64`, `stock_minimo: i32`, `faltante: i64`), `ListaAlertas` (`items`, `total`, `pagina`, `por_pagina`) y `RespuestaCiclo` (`fecha: NaiveDate`, `productos: i64`, `destinatarios: i64`, `enviados: i64`, `fallidos: i64`), todos con `Serialize` y `ToSchema`; registrar `pub mod alertas;` en `backend/src/models/mod.rs`.
+- [X] T006 [P] Extender el trait `EnvioCorreo` en `backend/src/mail/envio.rs` con `async fn enviar_alerta_stock(&self, destino: &str, nombre: &str, cuerpo: &str) -> Result<(), String>` (sin implementación por defecto); implementarlo en `CorreoDev` (registra en `bandeja()`) y en `CorreoSmtp` (`backend/src/mail/smtp.rs`, con `lettre` y asunto `Stockmante — productos bajo el stock mínimo`); agregar el método al fake `CorreoQueFalla` de `backend/tests/unit/test_usuarios_alta.rs` para que el workspace siga compilando.
+- [X] T007 [P] Crear `backend/src/services/alertas.rs` con las lecturas: `fecha_local(&dyn Reloj) -> NaiveDate` (offset fijo `FixedOffset::west_opt(3 * 3600)`), `detectar(pool, filtros) -> ListaAlertas` (productos `activo = TRUE AND stock_minimo > 0 AND stock_actual < stock_minimo`, `faltante = (stock_minimo - stock_actual)::bigint`, orden `nombre, id`, paginación normalizada) y `usuarios_gestion(pool) -> Vec<UsuarioDestino>` (`familia_rol = 'GESTION' AND activo`); registrar `pub mod alertas;` en `backend/src/services/mod.rs`. Depende de T002, T005.
+- [X] T008 Registrar `[[test]]` en `backend/Cargo.toml`: `test_alertas_validacion` → `tests/unit/test_alertas_validacion.rs` y `test_alertas_http` → `tests/integration/test_alertas_http.rs` (crear los archivos vacíos con `mod common;` para que la suite compile).
 
 **Checkpoint**: migración aplicable, DTOs, transporte y lecturas listos.
 
@@ -65,18 +65,18 @@ sesión `GESTION` devuelve `faltante: 6`; al reponer a 12 desaparece; con `OPERA
 
 ### Tests (escribir primero, deben fallar)
 
-- [ ] T009 [P] [US11] RED: `backend/tests/unit/test_alertas_validacion.rs` — `fecha_local` con `RelojFalso` en `02:00Z` da el día anterior en −03:00 y en `12:00Z` el mismo día; normalización de paginación del listado (0 y 101 fuera de rango).
-- [ ] T010 [P] [US11] RED: `backend/tests/integration/test_alertas_http.rs` — escenarios 11.1 (`faltante = 6`), 11.2 (repuesto a 12 no aparece) y 11.4 (`stock_minimo = 0` no aparece), creando productos con `pool_de_test`.
-- [ ] T011 [US11] RED: en el mismo archivo, escenario 11.7 para `GET /api/alertas`: `GESTION` → 200, `OPERACION` → 403 `sin_permisos`. (Sin `[P]`: comparte `test_alertas_http.rs` con T010.)
+- [X] T009 [P] [US11] RED: `backend/tests/unit/test_alertas_validacion.rs` — `fecha_local` con `RelojFalso` en `02:00Z` da el día anterior en −03:00 y en `12:00Z` el mismo día; normalización de paginación del listado (0 y 101 fuera de rango).
+- [X] T010 [P] [US11] RED: `backend/tests/integration/test_alertas_http.rs` — escenarios 11.1 (`faltante = 6`), 11.2 (repuesto a 12 no aparece) y 11.4 (`stock_minimo = 0` no aparece), creando productos con `pool_de_test`.
+- [X] T011 [US11] RED: en el mismo archivo, escenario 11.7 para `GET /api/alertas`: `GESTION` → 200, `OPERACION` → 403 `sin_permisos`. (Sin `[P]`: comparte `test_alertas_http.rs` con T010.)
 
 ### Implementation
 
-- [ ] T012 [US11] GREEN: completar `fecha_local` y la normalización de paginación en `backend/src/services/alertas.rs` hasta que T009 pase. Depende de T007, T009.
-- [ ] T013 [US11] Crear `backend/src/handlers/alertas.rs` con `listar` (usa `RequiereGestion`, `AppEstado.pool` y `services::alertas::detectar`), registrar `pub mod alertas;` en `backend/src/handlers/mod.rs` y `nest("/api/alertas", handlers::alertas::router())` en `backend/src/app.rs` dentro del router autenticado. Depende de T005, T007, T010, T011.
-- [ ] T014 [P] [US11] Crear `frontend/src/lib/schemas/alertas.ts` (schema zod de `AlertaItem` y `ListaAlertas`) y `frontend/src/lib/api/alertas.ts` con `listarAlertas(params)` tipado, siguiendo el patrón de `$lib/api/stock.ts`.
-- [ ] T015 [P] [US11] Test de `frontend/src/lib/api/alertas.test.ts`: URL y query params correctos, parseo del schema y propagación de error HTTP.
-- [ ] T016 [US11] En `frontend/src/routes/admin/stock/+page.svelte`, sección destacada "Bajo mínimo" que use `listarAlertas` y muestre mínimo, stock actual y faltante; mantener el filtro existente de 010 sin cambios.
-- [ ] T017 [US11] En `frontend/src/routes/+layout.svelte`, que el badge use `listarAlertas` (no `listarStock`), se llame solo si `familia_rol === 'GESTION'` y se refresque al montar y al cambiar de ruta; sin polling.
+- [X] T012 [US11] GREEN: completar `fecha_local` y la normalización de paginación en `backend/src/services/alertas.rs` hasta que T009 pase. Depende de T007, T009.
+- [X] T013 [US11] Crear `backend/src/handlers/alertas.rs` con `listar` (usa `RequiereGestion`, `AppEstado.pool` y `services::alertas::detectar`), registrar `pub mod alertas;` en `backend/src/handlers/mod.rs` y `nest("/api/alertas", handlers::alertas::router())` en `backend/src/app.rs` dentro del router autenticado. Depende de T005, T007, T010, T011.
+- [X] T014 [P] [US11] Crear `frontend/src/lib/schemas/alertas.ts` (schema zod de `AlertaItem` y `ListaAlertas`) y `frontend/src/lib/api/alertas.ts` con `listarAlertas(params)` tipado, siguiendo el patrón de `$lib/api/stock.ts`.
+- [X] T015 [P] [US11] Test de `frontend/src/lib/api/alertas.test.ts`: URL y query params correctos, parseo del schema y propagación de error HTTP.
+- [X] T016 [US11] En `frontend/src/routes/admin/stock/+page.svelte`, sección destacada "Bajo mínimo" que use `listarAlertas` y muestre mínimo, stock actual y faltante; mantener el filtro existente de 010 sin cambios.
+- [X] T017 [US11] En `frontend/src/routes/+layout.svelte`, que el badge use `listarAlertas` (no `listarStock`), se llame solo si `familia_rol === 'GESTION'` y se refresque al montar y al cambiar de ruta; sin polling.
 
 **Checkpoint**: consulta completa y testeable; el digest todavía no existe.
 
@@ -93,15 +93,15 @@ devuelve `productos: 3, destinatarios: 2, enviados: 6`; un segundo `POST` el mis
 
 ### Tests (escribir primero, deben fallar)
 
-- [ ] T018 [P] [US11] RED: `backend/tests/integration/test_alertas_http.rs` — escenario 11.3 + SC-019: dos ciclos el mismo día → un correo por usuario con los 3 productos y una sola fila por `(producto_id, usuario_id, fecha)`.
-- [ ] T019 [US11] RED: escenario 11.5: `POST /api/alertas/enviar` con `GESTION` → 200 con conteos; `OPERACION` → 403; sin usuarios `GESTION` activos → 200 con `enviados: 0`. (Sin `[P]`: comparte archivo con T018.)
-- [ ] T020 [US11] RED: escenario 11.6 con `CorreoQueFalla`: el `POST` responde 200 con `fallidos > 0`, las filas quedan `estado = 'fallida'` con `error` e `intentos = 1`, y un segundo ciclo con `CorreoDev` envía solo esas filas sin duplicar las ya enviadas. (Sin `[P]`: comparte archivo con T018/T019.)
+- [X] T018 [P] [US11] RED: `backend/tests/integration/test_alertas_http.rs` — escenario 11.3 + SC-019: dos ciclos el mismo día → un correo por usuario con los 3 productos y una sola fila por `(producto_id, usuario_id, fecha)`.
+- [X] T019 [US11] RED: escenario 11.5: `POST /api/alertas/enviar` con `GESTION` → 200 con conteos; `OPERACION` → 403; sin usuarios `GESTION` activos → 200 con `enviados: 0`. (Sin `[P]`: comparte archivo con T018.)
+- [X] T020 [US11] RED: escenario 11.6 con `CorreoQueFalla`: el `POST` responde 200 con `fallidos > 0`, las filas quedan `estado = 'fallida'` con `error` e `intentos = 1`, y un segundo ciclo con `CorreoDev` envía solo esas filas sin duplicar las ya enviadas. (Sin `[P]`: comparte archivo con T018/T019.)
 
 ### Implementation
 
-- [ ] T021 [US11] GREEN: implementar `ciclo(pool, correo, reloj)` en `backend/src/services/alertas.rs`: detectar, `INSERT ... ON CONFLICT (producto_id, usuario_id, fecha) DO NOTHING`, reclamo con `SELECT ... WHERE fecha = $1 AND estado <> 'enviada' FOR UPDATE SKIP LOCKED` dentro de `pool.begin()`, render del cuerpo por usuario (nombre, SKU, stock, mínimo, faltante), envío por `enviar_alerta_stock` y `UPDATE` a `enviada`/`fallida` con `enviada_en`, `intentos` y `error`. Depende de T007, T018, T019, T020.
-- [ ] T022 [US11] Agregar `enviar` en `backend/src/handlers/alertas.rs` (`RequiereGestion`, sin cuerpo, devuelve `RespuestaCiclo`) y la ruta `POST /api/alertas/enviar`. Depende de T021.
-- [ ] T023 [US11] En `backend/src/main.rs`, si `config.alertas_intervalo_minutos > 0`, `tokio::spawn` de un bucle con `tokio::time::interval` y `MissedTickBehavior::Skip` que llama a `services::alertas::ciclo`; con `0` no se crea la tarea (y `construir_router` no arranca ningún timer). Depende de T021.
+- [X] T021 [US11] GREEN: implementar `ciclo(pool, correo, reloj)` en `backend/src/services/alertas.rs`: detectar, `INSERT ... ON CONFLICT (producto_id, usuario_id, fecha) DO NOTHING`, reclamo con `SELECT ... WHERE fecha = $1 AND estado <> 'enviada' FOR UPDATE SKIP LOCKED` dentro de `pool.begin()`, render del cuerpo por usuario (nombre, SKU, stock, mínimo, faltante), envío por `enviar_alerta_stock` y `UPDATE` a `enviada`/`fallida` con `enviada_en`, `intentos` y `error`. Depende de T007, T018, T019, T020.
+- [X] T022 [US11] Agregar `enviar` en `backend/src/handlers/alertas.rs` (`RequiereGestion`, sin cuerpo, devuelve `RespuestaCiclo`) y la ruta `POST /api/alertas/enviar`. Depende de T021.
+- [X] T023 [US11] En `backend/src/main.rs`, si `config.alertas_intervalo_minutos > 0`, `tokio::spawn` de un bucle con `tokio::time::interval` y `MissedTickBehavior::Skip` que llama a `services::alertas::ciclo`; con `0` no se crea la tarea (y `construir_router` no arranca ningún timer). Depende de T021.
 
 **Checkpoint**: US11 completa; SC-019 verificable.
 
@@ -111,11 +111,11 @@ devuelve `productos: 3, destinatarios: 2, enviados: 6`; un segundo `POST` el mis
 
 **Purpose**: documentación viva, OpenAPI y quality gates.
 
-- [ ] T024 [P] Registrar `handlers::alertas::listar`/`enviar` y los schemas `AlertaItem`, `ListaAlertas`, `RespuestaCiclo` en `backend/src/docs.rs`, y extender las listas esperadas de `backend/tests/unit/test_openapi.rs` con `/api/alertas`, `/api/alertas/enviar` y esos schemas.
-- [ ] T025 [P] Agregar a `docs/api.md` las filas de `GET /api/alertas` y `POST /api/alertas/enviar` con permiso `GESTION` y códigos 200/401/403.
+- [X] T024 [P] Registrar `handlers::alertas::listar`/`enviar` y los schemas `AlertaItem`, `ListaAlertas`, `RespuestaCiclo` en `backend/src/docs.rs`, y extender las listas esperadas de `backend/tests/unit/test_openapi.rs` con `/api/alertas`, `/api/alertas/enviar` y esos schemas.
+- [X] T025 [P] Agregar a `docs/api.md` las filas de `GET /api/alertas` y `POST /api/alertas/enviar` con permiso `GESTION` y códigos 200/401/403.
 - [ ] T026 Ejecutar la validación manual de `specs/011-alertas-stock-minimo/quickstart.md` (migración, 11.1–11.7, scheduler con `ALERTAS_INTERVALO_MINUTOS=1` y `0`).
-- [ ] T027 Frontend: `npm test`, `npm run check` y `npm run build` en `frontend/` en verde.
-- [ ] T028 Backend: `cargo test` en verde y `cargo sqlx prepare --check` sin diferencias (incluye las queries nuevas de `services/alertas.rs`).
+- [X] T027 Frontend: `npm test`, `npm run check` y `npm run build` en `frontend/` en verde.
+- [X] T028 Backend: `cargo test` en verde y `cargo sqlx prepare --check` sin diferencias (incluye las queries nuevas de `services/alertas.rs`).
 - [ ] T029 Re-ejecutar `/speckit-analyze 011-alertas-stock-minimo` y confirmar que los hallazgos C1–C5 y H1–H6 quedaron cerrados.
 
 ---

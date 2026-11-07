@@ -19,6 +19,14 @@ pub trait EnvioCorreo: Send + Sync {
         token: &str,
         base_url: &str,
     ) -> Result<(), String>;
+
+    /// Digest de productos bajo mínimo (011); el cuerpo lo arma `services::alertas`.
+    async fn enviar_alerta_stock(
+        &self,
+        destino: &str,
+        nombre: &str,
+        cuerpo: &str,
+    ) -> Result<(), String>;
 }
 
 /// Implementación de desarrollo: no manda correo, registra el intento en memoria
@@ -104,6 +112,19 @@ impl EnvioCorreo for CorreoDev {
         tracing::info!(destino, nombre, "correo dev: verificación (no se envía red)");
         if let Ok(mut v) = self.enviados.lock() {
             v.push((destino.to_string(), nombre.to_string(), enlace));
+        }
+        Ok(())
+    }
+
+    async fn enviar_alerta_stock(
+        &self,
+        destino: &str,
+        nombre: &str,
+        cuerpo: &str,
+    ) -> Result<(), String> {
+        tracing::info!(destino, nombre, "correo dev: alerta de stock (no se envía red)");
+        if let Ok(mut v) = self.enviados.lock() {
+            v.push((destino.to_string(), nombre.to_string(), cuerpo.to_string()));
         }
         Ok(())
     }

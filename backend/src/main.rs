@@ -52,6 +52,37 @@ async fn arrancar() -> Result<(), AppError> {
         asistente: Arc::new(Asistente::desde_entorno()),
     };
 
+    // 011: ciclo periódico de alertas de stock; `ALERTAS_INTERVALO_MINUTOS=0` lo apaga.
+    if config.alertas_intervalo_minutos > 0 {
+        let pool_alertas = estado.pool.clone();
+        let correo_alertas = estado.correo.clone();
+        let reloj_alertas = estado.reloj.clone();
+        let minutos = config.alertas_intervalo_minutos;
+        tokio::spawn(async move {
+            let mut intervalo = tokio::time::interval(std::time::Duration::from_secs(minutos * 60));
+            intervalo.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
+            loop {
+                intervalo.tick().await;
+                match stockmante_backend::services::alertas::ciclo(
+                    &pool_alertas,
+                    correo_alertas.as_ref(),
+                    reloj_alertas.as_ref(),
+                    &stockmante_backend::services::alertas::AlcanceCiclo::default(),
+                )
+                .await
+                {
+                    Ok(r) => tracing::info!(
+                        fecha = %r.fecha, productos = r.productos, enviados = r.enviados,
+                        fallidos = r.fallidos, "ciclo de alertas de stock"
+                    ),
+                    Err(e) => tracing::error!(error = %e, "ciclo de alertas de stock falló"),
+                }
+            }
+        });
+    } else {
+        tracing::info!("alertas de stock por correo desactivadas (ALERTAS_INTERVALO_MINUTOS=0)");
+    }
+
     let app = construir_router(estado);
 
     let addr = format!("0.0.0.0:{}", config.port);

@@ -16,6 +16,7 @@ fn config_base() -> AppConfig {
         microsoft_client_id: String::new(),
         microsoft_client_secret: String::new(),
         sso_redirect_base: "http://localhost:3000".into(),
+        alertas_intervalo_minutos: 0,
     }
 }
 

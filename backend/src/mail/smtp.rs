@@ -96,4 +96,27 @@ impl EnvioCorreo for CorreoSmtp {
             .map(|_| ())
             .map_err(|e| format!("envío SMTP falló: {e}"))
     }
+
+    async fn enviar_alerta_stock(
+        &self,
+        destino: &str,
+        _nombre: &str,
+        cuerpo: &str,
+    ) -> Result<(), String> {
+        let destinatario: Mailbox = destino
+            .parse()
+            .map_err(|e| format!("destino inválido ({destino}): {e}"))?;
+        let mensaje = Message::builder()
+            .from(self.remitente.clone())
+            .to(destinatario)
+            .subject(crate::services::alertas::ASUNTO)
+            .header(ContentType::TEXT_PLAIN)
+            .body(cuerpo.to_string())
+            .map_err(|e| format!("no se pudo armar el correo: {e}"))?;
+        self.transporte
+            .send(mensaje)
+            .await
+            .map(|_| ())
+            .map_err(|e| format!("envío SMTP falló: {e}"))
+    }
 }

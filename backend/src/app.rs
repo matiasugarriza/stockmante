@@ -61,6 +61,7 @@ pub fn construir_router(estado: AppEstado) -> Router {
         .nest("/api/clientes", handlers::clientes::router())
         .nest("/api/ventas", handlers::ventas::router())
         .nest("/api/stock", handlers::stock::router())
+        .nest("/api/alertas", handlers::alertas::router())
         .nest("/api/asistente", handlers::asistente::router())
         .nest("/api/importaciones", handlers::importaciones::router())
         .nest("/api/reportes", handlers::reportes::router())

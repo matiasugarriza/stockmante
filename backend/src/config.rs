@@ -20,6 +20,8 @@ pub struct AppConfig {
     pub microsoft_client_id: String,
     pub microsoft_client_secret: String,
     pub sso_redirect_base: String,
+    /// Minutos entre ciclos de alertas de stock (011); `0` desactiva el scheduler.
+    pub alertas_intervalo_minutos: u64,
 }
 
 impl AppConfig {
@@ -43,6 +45,19 @@ impl AppConfig {
             _ => Err(AppError::Validacion(format!(
                 "{nombre} debe ser true o false"
             ))),
+        }
+    }
+
+    /// `ALERTAS_INTERVALO_MINUTOS`: ausente → 60; `0` desactiva; no numérico → error
+    /// de configuración (no se arranca con un valor que el operador no quiso).
+    pub fn parsear_intervalo_alertas(valor: Option<&str>) -> Result<u64, AppError> {
+        match valor.map(str::trim) {
+            None | Some("") => Ok(60),
+            Some(texto) => texto.parse::<u64>().map_err(|_| {
+                AppError::Validacion(
+                    "ALERTAS_INTERVALO_MINUTOS debe ser un entero mayor o igual a 0".into(),
+                )
+            }),
         }
     }
 
@@ -123,6 +138,9 @@ impl AppConfig {
             microsoft_client_secret: std::env::var("MICROSOFT_CLIENT_SECRET").unwrap_or_default(),
             sso_redirect_base: std::env::var("SSO_REDIRECT_BASE")
                 .unwrap_or_else(|_| "http://localhost:3000".into()),
+            alertas_intervalo_minutos: Self::parsear_intervalo_alertas(
+                std::env::var("ALERTAS_INTERVALO_MINUTOS").ok().as_deref(),
+            )?,
         })
     }
 }

@@ -104,6 +104,6 @@ el fake `CorreoQueFalla` de `tests/unit/test_usuarios_alta.rs`.
 
 ## Fuera de contrato
 
-- `GET /api/stock?bajo_minimo=true` **no cambia**: sigue abierto a cualquier sesión y sin
-  `faltante` (010 queda intacto).
+- `GET /api/stock?bajo_minimo=true` sigue abierto a cualquier sesión; desde 010 trae `faltante`
+  (mismo cálculo que esta API), pero no `notificaciones_stock` ni el ciclo.
 - No hay websockets, push ni streaming de alertas.
