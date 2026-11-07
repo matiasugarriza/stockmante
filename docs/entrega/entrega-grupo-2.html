@@ -1,0 +1,718 @@
+<!doctype html>
+<html lang="es">
+	<head>
+		<meta charset="utf-8" />
+		<title>Stockmante — Entrega Grupo 2</title>
+		<style>
+			@font-face {
+				font-family: 'Outfit';
+				src: url('assets/outfit.woff2') format('woff2');
+				font-weight: 100 900;
+				font-style: normal;
+				font-display: block;
+			}
+
+			@page {
+				size: A4;
+				margin: 0;
+			}
+
+			* {
+				box-sizing: border-box;
+			}
+
+			html,
+			body {
+				margin: 0;
+				padding: 0;
+				background: #dfe9ec;
+				color: #10212a;
+				font-family: 'Outfit', 'Segoe UI', sans-serif;
+				-webkit-font-smoothing: antialiased;
+				print-color-adjust: exact;
+				-webkit-print-color-adjust: exact;
+			}
+
+			.page {
+				position: relative;
+				width: 210mm;
+				height: 297mm;
+				overflow: hidden;
+				background: #f1f6f7;
+				page-break-after: always;
+			}
+
+			.page:last-child {
+				page-break-after: auto;
+			}
+
+			.page::before {
+				content: '';
+				position: absolute;
+				inset: 0;
+				pointer-events: none;
+				background:
+					radial-gradient(130mm 90mm at 100% 0%, rgba(11, 122, 145, 0.11), transparent 62%),
+					radial-gradient(95mm 65mm at 0% 100%, rgba(240, 166, 58, 0.09), transparent 62%);
+			}
+
+			.topbar {
+				position: relative;
+				z-index: 1;
+				height: 13mm;
+				display: flex;
+				align-items: center;
+				justify-content: space-between;
+				padding: 0 18mm;
+				background: #0d1518;
+				color: #eef7f8;
+			}
+
+			.topbar .marca {
+				display: flex;
+				align-items: center;
+				gap: 3mm;
+			}
+
+			.topbar .simbolo {
+				height: 7.2mm;
+				width: auto;
+				display: block;
+			}
+
+			.topbar .wordmark {
+				font-size: 4.1mm;
+				letter-spacing: 0.16em;
+				line-height: 1;
+			}
+
+			.topbar .wordmark .st {
+				color: #5becef;
+				font-weight: 700;
+			}
+
+			.topbar .wordmark .ock {
+				font-weight: 700;
+			}
+
+			.topbar .wordmark .mante {
+				font-weight: 300;
+			}
+
+			.topbar .derecha {
+				font-size: 2.45mm;
+				letter-spacing: 0.16em;
+				text-transform: uppercase;
+				color: #a9bec4;
+			}
+
+			.topbar .derecha strong {
+				color: #eef7f8;
+				font-weight: 600;
+			}
+
+			.contenido {
+				position: relative;
+				z-index: 1;
+				height: calc(100% - 13mm);
+				padding: 10mm 18mm 11mm;
+				display: flex;
+				flex-direction: column;
+			}
+
+			.eyebrow {
+				margin: 0;
+				font-size: 2.45mm;
+				letter-spacing: 0.18em;
+				text-transform: uppercase;
+				color: #0b7a91;
+				font-weight: 600;
+			}
+
+			h1 {
+				margin: 2.2mm 0 1.6mm;
+				font-size: 17.5mm;
+				line-height: 0.92;
+				letter-spacing: -0.025em;
+				font-weight: 700;
+				color: #10212a;
+			}
+
+			.bajada {
+				margin: 0;
+				max-width: 152mm;
+				font-size: 4.6mm;
+				line-height: 1.3;
+				color: #4c626c;
+				font-weight: 400;
+			}
+
+			.meta {
+				display: flex;
+				gap: 5mm;
+				margin-top: 3.4mm;
+				font-size: 2.8mm;
+				color: #4c626c;
+			}
+
+			.meta span {
+				display: inline-flex;
+				align-items: baseline;
+				gap: 1.2mm;
+			}
+
+			.meta strong {
+				color: #10212a;
+				font-weight: 600;
+			}
+
+			.captura-marco {
+				margin: 6mm 0 0;
+				border: 0.3mm solid #c2d3d8;
+				border-radius: 2.6mm;
+				overflow: hidden;
+				background: #fff;
+				box-shadow: 0 2.5mm 7mm rgba(13, 33, 40, 0.13);
+			}
+
+			.captura-marco img {
+				display: block;
+				width: 100%;
+				height: 61mm;
+				object-fit: cover;
+				object-position: top center;
+			}
+
+			.captura-marco figcaption {
+				display: flex;
+				justify-content: space-between;
+				gap: 4mm;
+				padding: 2mm 3mm;
+				border-top: 0.3mm solid #dce7ea;
+				background: #ffffff;
+				font-size: 2.55mm;
+				color: #526872;
+			}
+
+			.captura-marco figcaption span:last-child {
+				color: #0b7a91;
+				font-weight: 600;
+				white-space: nowrap;
+			}
+
+			.resumen {
+				margin-top: 6mm;
+			}
+
+			h2 {
+				margin: 0 0 2mm;
+				font-size: 4.3mm;
+				letter-spacing: -0.01em;
+				font-weight: 600;
+				color: #10212a;
+			}
+
+			.resumen p {
+				margin: 0 0 1.8mm;
+				font-size: 3.25mm;
+				line-height: 1.42;
+				color: #3f555e;
+				text-align: justify;
+			}
+
+			.tecnologias {
+				margin-top: 4.5mm;
+			}
+
+			.grid-tecnologias {
+				display: grid;
+				grid-template-columns: repeat(4, 1fr);
+				gap: 2.6mm;
+			}
+
+			.tarjeta-tec {
+				background: #ffffff;
+				border: 0.3mm solid #dce7ea;
+				border-radius: 2.4mm;
+				padding: 2.8mm 3mm;
+				box-shadow: 0 1mm 3mm rgba(13, 33, 40, 0.05);
+			}
+
+			.tarjeta-tec .k {
+				font-size: 2.2mm;
+				letter-spacing: 0.13em;
+				text-transform: uppercase;
+				color: #0b7a91;
+				font-weight: 600;
+			}
+
+			.tarjeta-tec .v {
+				margin: 1.1mm 0 0.8mm;
+				font-size: 3.05mm;
+				line-height: 1.2;
+				font-weight: 600;
+				color: #10212a;
+			}
+
+			.tarjeta-tec .d {
+				font-size: 2.55mm;
+				line-height: 1.35;
+				color: #526872;
+			}
+
+			.calidad {
+				margin-top: auto;
+				display: grid;
+				grid-template-columns: repeat(4, 1fr);
+				gap: 2.6mm;
+				padding-top: 4mm;
+			}
+
+			.stat {
+				background: #ffffff;
+				border: 0.3mm solid #dce7ea;
+				border-radius: 2.4mm;
+				padding: 2.4mm 3mm;
+			}
+
+			.stat strong {
+				display: block;
+				font-size: 4.7mm;
+				line-height: 1;
+				color: #0b7a91;
+				font-variant-numeric: tabular-nums;
+			}
+
+			.stat span {
+				display: block;
+				margin-top: 0.9mm;
+				font-size: 2.45mm;
+				color: #526872;
+				line-height: 1.3;
+			}
+
+			.pie {
+				display: flex;
+				justify-content: space-between;
+				gap: 4mm;
+				margin-top: 4mm;
+				padding-top: 2.2mm;
+				border-top: 0.3mm solid #c2d3d8;
+				font-size: 2.45mm;
+				color: #526872;
+			}
+
+			.pie strong {
+				color: #10212a;
+				font-weight: 600;
+			}
+
+			/* Página 2 */
+			.contenido-cus {
+				padding-top: 9mm;
+			}
+
+			.intro-cus {
+				max-width: 174mm;
+			}
+
+			.intro-cus h2 {
+				font-size: 7.8mm;
+				line-height: 1;
+				margin: 1.3mm 0 1.7mm;
+				letter-spacing: -0.02em;
+			}
+
+			.intro-cus p {
+				margin: 0;
+				font-size: 2.95mm;
+				line-height: 1.36;
+				color: #3f555e;
+			}
+
+			.tabla-cus {
+				width: 100%;
+				margin-top: 3.4mm;
+				border-collapse: collapse;
+				table-layout: fixed;
+			}
+
+			.tabla-cus th {
+				padding: 1.5mm 1.6mm;
+				border-bottom: 0.35mm solid #c2d3d8;
+				text-align: left;
+				font-size: 2.1mm;
+				letter-spacing: 0.12em;
+				text-transform: uppercase;
+				color: #526872;
+				font-weight: 600;
+			}
+
+			.tabla-cus td {
+				padding: 1.5mm 1.6mm;
+				border-bottom: 0.25mm solid #dce7ea;
+				vertical-align: top;
+			}
+
+			.tabla-cus tr:nth-child(even) td {
+				background: rgba(255, 255, 255, 0.58);
+			}
+
+			.tabla-cus .id {
+				width: 13mm;
+				font-family: ui-monospace, 'Cascadia Mono', Consolas, monospace;
+				font-size: 2.35mm;
+				font-weight: 600;
+				color: #0b7a91;
+				white-space: nowrap;
+			}
+
+			.tabla-cus .nombre {
+				width: 50mm;
+				font-size: 2.8mm;
+				line-height: 1.2;
+				font-weight: 600;
+				color: #10212a;
+			}
+
+			.tabla-cus .desc {
+				width: 92mm;
+				font-size: 2.5mm;
+				line-height: 1.28;
+				color: #4c626c;
+			}
+
+			.tabla-cus .estado {
+				width: 19mm;
+				text-align: right;
+				white-space: nowrap;
+			}
+
+			.insignia {
+				display: inline-block;
+				padding: 0.8mm 1.8mm;
+				border-radius: 999px;
+				font-size: 2.2mm;
+				font-weight: 600;
+				letter-spacing: 0.02em;
+			}
+
+			.insignia.ok {
+				background: #e7f7ee;
+				color: #167a45;
+			}
+
+			.insignia.parcial {
+				background: #fdf3e2;
+				color: #8a5a12;
+			}
+
+			.extra {
+				margin-top: 3.4mm;
+			}
+
+			.extra h3 {
+				margin: 0 0 1.4mm;
+				font-size: 3.2mm;
+				font-weight: 600;
+				color: #10212a;
+			}
+
+			.extra-line {
+				margin: 0;
+				font-size: 2.55mm;
+				line-height: 1.38;
+				color: #4c626c;
+			}
+
+			.calidad-cus {
+				margin-top: auto;
+				display: grid;
+				grid-template-columns: repeat(5, 1fr);
+				gap: 2.2mm;
+				padding-top: 3mm;
+			}
+
+			.proceso {
+				margin-top: 5mm;
+			}
+
+			.proceso h3 {
+				margin: 0 0 1.5mm;
+				font-size: 3.2mm;
+				font-weight: 600;
+				color: #10212a;
+			}
+
+			.proceso-grid {
+				display: grid;
+				grid-template-columns: repeat(3, 1fr);
+				gap: 2.2mm;
+			}
+
+			.proceso-grid > div {
+				background: #ffffff;
+				border: 0.3mm solid #dce7ea;
+				border-radius: 2.2mm;
+				padding: 2mm 2.4mm;
+			}
+
+			.proceso-grid strong {
+				display: block;
+				font-size: 2.6mm;
+				line-height: 1.2;
+				color: #10212a;
+			}
+
+			.proceso-grid span {
+				display: block;
+				margin-top: 0.6mm;
+				font-size: 2.3mm;
+				line-height: 1.32;
+				color: #526872;
+			}
+
+			.calidad-cus .stat {
+				padding: 1.9mm 2.2mm;
+			}
+
+			.calidad-cus .stat strong {
+				font-size: 4.1mm;
+			}
+
+			.calidad-cus .stat span {
+				font-size: 2.25mm;
+			}
+		</style>
+	</head>
+	<body>
+		<!-- Página 1: carátula -->
+		<section class="page">
+			<header class="topbar">
+				<div class="marca">
+					<img class="simbolo" src="assets/logo-stockmante.svg" alt="" />
+					<div class="wordmark"><span class="st">ST</span><span class="ock">OCK</span><span class="mante">MANTE</span></div>
+				</div>
+				<div class="derecha">Trabajo práctico · <strong>Grupo 2</strong></div>
+			</header>
+
+			<main class="contenido">
+				<div>
+					<p class="eyebrow">Sistema de gestión y control de inventario</p>
+					<h1>Stockmante</h1>
+					<p class="bajada">
+						Inventario claro, operaciones atómicas y decisiones con datos: catálogo, stock,
+						compras, ventas, reportes y un asistente que consulta el sistema en lenguaje natural.
+					</p>
+					<div class="meta">
+						<span><strong>Grupo 2</strong></span>
+						<span>Matías Ugarriza</span>
+						<span>Noviembre de 2026</span>
+					</div>
+				</div>
+
+				<figure class="captura-marco">
+					<img src="assets/captura-productos.png" alt="Catálogo de productos de Stockmante en tema claro" />
+					<figcaption>
+						<span>Catálogo de productos con SKU único, ubicaciones y stock mínimo — tema claro.</span>
+						<span>Stockmante v0.1</span>
+					</figcaption>
+				</figure>
+
+				<section class="resumen">
+					<h2>Resumen del proyecto</h2>
+					<p>
+						Stockmante es un sistema web para gestionar el ciclo completo del inventario:
+						catálogo y categorías, depósitos y ubicaciones jerárquicas, entradas y salidas de
+						stock, transferencias, conteo físico, compras con proveedores, ventas de caja,
+						reportes, auditoría y alertas de stock mínimo. El backend en Rust garantiza
+						transacciones atómicas y stock no negativo; la SPA en SvelteKit ofrece una
+						operación clara para caja y administración.
+					</p>
+					<p>
+						Se construyó con Spec-Driven Development: 21 specs, 20 planes y tareas, tests
+						automáticos y gates de calidad. Integra un asistente con LangChain.js que consulta
+						datos con tools y propone movimientos que el usuario confirma por la API. En el
+						flujo de desarrollo se usaron MCP de PostgreSQL (solo lectura) y Playwright.
+					</p>
+				</section>
+
+				<section class="tecnologias">
+					<h2>Tecnologías utilizadas</h2>
+					<div class="grid-tecnologias">
+						<article class="tarjeta-tec">
+							<div class="k">Backend</div>
+							<div class="v">Rust · Axum · SQLx</div>
+							<div class="d">API HTTP, transacciones atómicas, RBAC y auditoría.</div>
+						</article>
+						<article class="tarjeta-tec">
+							<div class="k">Frontend</div>
+							<div class="v">SvelteKit · Tailwind · Zod</div>
+							<div class="d">SPA con tema claro/oscuro y componentes reutilizables.</div>
+						</article>
+						<article class="tarjeta-tec">
+							<div class="k">Datos e IA</div>
+							<div class="v">PostgreSQL · LangChain.js</div>
+							<div class="d">Inventario, reportes y asistente con tools.</div>
+						</article>
+						<article class="tarjeta-tec">
+							<div class="k">Ingeniería</div>
+							<div class="v">Spec Kit · MCP · OpenAPI</div>
+							<div class="d">SDD, DBHub PostgreSQL readonly, Playwright MCP y Swagger UI.</div>
+						</article>
+					</div>
+				</section>
+
+				<div class="calidad">
+					<div class="stat"><strong>9/10</strong><span>casos de uso completos; 1 parcial</span></div>
+					<div class="stat"><strong>296</strong><span>pruebas de backend</span></div>
+					<div class="stat"><strong>388</strong><span>pruebas de frontend</span></div>
+					<div class="stat"><strong>2</strong><span>servidores MCP externos</span></div>
+				</div>
+
+				<footer class="pie">
+					<span><strong>Stockmante</strong> · Sistema de gestión y control de inventario</span>
+					<span>Grupo 2 · 2026 · Página 1 de 2</span>
+				</footer>
+			</main>
+		</section>
+
+		<!-- Página 2: casos de uso -->
+		<section class="page">
+			<header class="topbar">
+				<div class="marca">
+					<img class="simbolo" src="assets/logo-stockmante.svg" alt="" />
+					<div class="wordmark"><span class="st">ST</span><span class="ock">OCK</span><span class="mante">MANTE</span></div>
+				</div>
+				<div class="derecha">Casos de uso · <strong>Grupo 2</strong></div>
+			</header>
+
+			<main class="contenido contenido-cus">
+				<section class="intro-cus">
+					<p class="eyebrow">Alcance funcional</p>
+					<h2>Los 10 casos de uso</h2>
+					<p>
+						Se propusieron diez casos de uso funcionales antes del desarrollo. El sistema
+						resuelve <strong>9 completos y 1 parcial</strong>, por encima del mínimo de 7/10:
+						el CU-09 cubre lector físico y búsqueda exacta por código/SKU; la lectura por
+						cámara y la generación de etiquetas quedan especificadas en la spec 020 para una
+						próxima iteración.
+					</p>
+				</section>
+
+				<table class="tabla-cus">
+					<thead>
+						<tr>
+							<th>ID</th>
+							<th>Caso de uso</th>
+							<th>Descripción breve</th>
+							<th style="text-align: right">Estado</th>
+						</tr>
+					</thead>
+					<tbody>
+						<tr>
+							<td class="id">CU-01</td>
+							<td class="nombre">Registrar/Editar Productos en Catálogo, Ubicaciones y Depósitos</td>
+							<td class="desc">CRUD de productos con SKU único, costo, precio y stock mínimo; depósitos, ubicaciones jerárquicas y asignación a productos.</td>
+							<td class="estado"><span class="insignia ok">Completo</span></td>
+						</tr>
+						<tr>
+							<td class="id">CU-02</td>
+							<td class="nombre">Registrar Entrada de Stock (Compra / Reabastecimiento)</td>
+							<td class="desc">Compra con proveedor y factura/remito; al confirmar genera una entrada atómica, actualiza stock, costo y auditoría.</td>
+							<td class="estado"><span class="insignia ok">Completo</span></td>
+						</tr>
+						<tr>
+							<td class="id">CU-03</td>
+							<td class="nombre">Configurar Alertas de Stock Mínimo</td>
+							<td class="desc">Umbral de reabastecimiento por producto y avisos automáticos cuando el stock cae por debajo del mínimo.</td>
+							<td class="estado"><span class="insignia ok">Completo</span></td>
+						</tr>
+						<tr>
+							<td class="id">CU-04</td>
+							<td class="nombre">Ajustar Stock Manualmente (Auditoría / Mermas)</td>
+							<td class="desc">Corrección de diferencias por rotura, robo o error de conteo, con justificación obligatoria y registro de auditoría.</td>
+							<td class="estado"><span class="insignia ok">Completo</span></td>
+						</tr>
+						<tr>
+							<td class="id">CU-05</td>
+							<td class="nombre">Consultar Valorización de Inventario y Reportes</td>
+							<td class="desc">Kardex, stock valorizado, rotación y ventas; capital invertido, margen proyectado y productos de baja rotación.</td>
+							<td class="estado"><span class="insignia ok">Completo</span></td>
+						</tr>
+						<tr>
+							<td class="id">CU-06</td>
+							<td class="nombre">Gestionar Usuarios y Asignar Roles</td>
+							<td class="desc">Alta, edición, baja lógica y reactivación de cuentas; roles ADMIN, GERENTE, OPERARIO y CAJERO.</td>
+							<td class="estado"><span class="insignia ok">Completo</span></td>
+						</tr>
+						<tr>
+							<td class="id">CU-07</td>
+							<td class="nombre">Registrar Movimientos de Stock</td>
+							<td class="desc">Ingreso y egreso atómico por depósito, con validación de stock, autoría y resultado visible.</td>
+							<td class="estado"><span class="insignia ok">Completo</span></td>
+						</tr>
+						<tr>
+							<td class="id">CU-08</td>
+							<td class="nombre">Consultar Disponibilidad y Ubicación de Producto</td>
+							<td class="desc">Búsqueda por SKU, código, nombre o categoría y consulta del stock disponible por depósito en tiempo real.</td>
+							<td class="estado"><span class="insignia ok">Completo</span></td>
+						</tr>
+						<tr>
+							<td class="id">CU-09</td>
+							<td class="nombre">Generar / Escanear Código de Barras o SKU</td>
+							<td class="desc">Identificación por código de barras/SKU con lector físico y búsqueda exacta; cámara y etiquetas especificadas en la spec 020.</td>
+							<td class="estado"><span class="insignia parcial">Parcial</span></td>
+						</tr>
+						<tr>
+							<td class="id">CU-10</td>
+							<td class="nombre">Notificación Automática de Inventario Crítico</td>
+							<td class="desc">Evaluación periódica de productos bajo mínimo y digest por correo/dashboard con deduplicación diaria.</td>
+							<td class="estado"><span class="insignia ok">Completo</span></td>
+						</tr>
+					</tbody>
+				</table>
+
+				<section class="extra">
+					<h3>Alcance adicional implementado</h3>
+					<p class="extra-line">
+						Transferencias entre depósitos · inventario físico y conteo · ventas y clientes ·
+						compras y proveedores · reportes y kardex · auditoría consultable · importación
+						CSV · asistente LangChain · rediseño claro/oscuro.
+					</p>
+				</section>
+
+				<section class="proceso">
+					<h3>Proceso y calidad</h3>
+					<div class="proceso-grid">
+						<div>
+							<strong>Spec-Driven Development</strong>
+							<span>21 specs, 20 planes y tareas, tests automáticos y gates de calidad.</span>
+						</div>
+						<div>
+							<strong>MCP en el flujo</strong>
+							<span>DBHub PostgreSQL readonly y Playwright MCP, ambos externos.</span>
+						</div>
+						<div>
+							<strong>Asistente LangChain</strong>
+							<span>Tools de lectura, propuesta de movimientos y confirmación por API.</span>
+						</div>
+					</div>
+				</section>
+
+				<div class="calidad-cus">
+					<div class="stat"><strong>21</strong><span>specs SDD</span></div>
+					<div class="stat"><strong>296</strong><span>tests backend</span></div>
+					<div class="stat"><strong>388</strong><span>tests frontend</span></div>
+					<div class="stat"><strong>54</strong><span>tests asistente</span></div>
+					<div class="stat"><strong>2</strong><span>MCP externos</span></div>
+				</div>
+
+				<footer class="pie">
+					<span><strong>Stockmante</strong> · Grupo 2 · Matías Ugarriza</span>
+					<span>Noviembre de 2026 · Página 2 de 2</span>
+				</footer>
+			</main>
+		</section>
+	</body>
+</html>

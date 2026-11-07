@@ -1,7 +1,7 @@
 # Stockmante
 
-Sistema web de **gestión y control de inventario** para el Trabajo Práctico: autenticación con
-sesión única, usuarios y roles, catálogo de productos y categorías, depósitos y ubicaciones
+Sistema web de **gestión y control de inventario**:
+autenticación con sesión única, usuarios y roles, catálogo de productos y categorías, depósitos y ubicaciones
 jerárquicas, movimientos de stock atómicos, compras, ventas, inventario físico, reportes,
 auditoría, alertas y un **asistente de inventario con LangChain**.
 
@@ -14,13 +14,13 @@ auditoría, alertas y un **asistente de inventario con LangChain**.
 
 ## Estado del TP
 
-| Criterio | Estado |
-|---|---|
-| Funcionalidad (10 CUs, mínimo 7) | **9 completos + 1 parcial (CU-09)** |
-| AI Engineering | Proceso SDD documentado en [`docs/ai-engineering.md`](./docs/ai-engineering.md) |
-| README / bitácora | Este documento + [`docs/casos-de-uso.md`](./docs/casos-de-uso.md) + [`docs/aceptacion.md`](./docs/aceptacion.md) |
-| MCP (mínimo 2, 1 externo) | **DBHub PostgreSQL + Playwright MCP**, ambos externos |
-| Chatbot LangChain | Integrado en `/asistente`, con tools y confirmación; recorrido real con Groq verificado |
+| Criterio                         | Estado                                                                                                           |
+| -------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| Funcionalidad (10 CUs, mínimo 7) | **9 completos + 1 parcial (CU-09)**                                                                              |
+| AI Engineering                   | Proceso SDD documentado en [`docs/ai-engineering.md`](./docs/ai-engineering.md)                                  |
+| README / bitácora                | Este documento + [`docs/casos-de-uso.md`](./docs/casos-de-uso.md) + [`docs/aceptacion.md`](./docs/aceptacion.md) |
+| MCP (mínimo 2, 1 externo)        | **DBHub PostgreSQL + Playwright MCP**, ambos externos                                                            |
+| Chatbot LangChain                | Integrado en `/asistente`, con tools y confirmación; recorrido real con Groq verificado                          |
 
 ## Los 10 casos de uso
 
@@ -28,18 +28,18 @@ La lista original del TP, con su estado y la spec que lo implementa. El detalle 
 errores, criterios de aceptación y evidencia está en
 [`docs/casos-de-uso.md`](./docs/casos-de-uso.md).
 
-| ID | Caso de uso | Actor | Specs | Estado |
-|---|---|---|---|---|
-| CU-01 | Registrar/Editar Productos en Catálogo, Ubicaciones y Depósitos | Administrador / Gerente | 003, 005 | Completo |
-| CU-02 | Registrar Entrada de Stock (Compra / Reabastecimiento) | Administrador / Gerente | 007, 012, 016 | Completo |
-| CU-03 | Configurar Alertas de Stock Mínimo | Administrador / Gerente | 003, 011 | Completo |
-| CU-04 | Ajustar Stock Manualmente (Auditoría / Mermas) | Administrador / Gerente | 007 | Completo |
-| CU-05 | Consultar Valorización de Inventario y Reportes | Administrador / Gerente | 010, 014 | Completo |
-| CU-06 | Gestionar Usuarios y Asignar Roles | Administrador / Gerente | 001, 002 | Completo |
-| CU-07 | Registrar Movimientos de Stock | Operario / Cajero | 007 | Completo |
-| CU-08 | Consultar Disponibilidad y Ubicación de Producto | Operario / Cajero | 004, 005, 010 | Completo |
-| CU-09 | Generar / Escanear Código de Barras o SKU | Operario / Cajero | 003, 004 | **Parcial** (sin cámara/generación) |
-| CU-10 | Notificación Automática de Inventario Crítico | Sistema | 011 | Completo |
+| ID    | Caso de uso                                                     | Actor                   | Specs         | Estado                              |
+| ----- | --------------------------------------------------------------- | ----------------------- | ------------- | ----------------------------------- |
+| CU-01 | Registrar/Editar Productos en Catálogo, Ubicaciones y Depósitos | Administrador / Gerente | 003, 005      | Completo                            |
+| CU-02 | Registrar Entrada de Stock (Compra / Reabastecimiento)          | Administrador / Gerente | 007, 012, 016 | Completo                            |
+| CU-03 | Configurar Alertas de Stock Mínimo                              | Administrador / Gerente | 003, 011      | Completo                            |
+| CU-04 | Ajustar Stock Manualmente (Auditoría / Mermas)                  | Administrador / Gerente | 007           | Completo                            |
+| CU-05 | Consultar Valorización de Inventario y Reportes                 | Administrador / Gerente | 010, 014      | Completo                            |
+| CU-06 | Gestionar Usuarios y Asignar Roles                              | Administrador / Gerente | 001, 002      | Completo                            |
+| CU-07 | Registrar Movimientos de Stock                                  | Operario / Cajero       | 007           | Completo                            |
+| CU-08 | Consultar Disponibilidad y Ubicación de Producto                | Operario / Cajero       | 004, 005, 010 | Completo                            |
+| CU-09 | Generar / Escanear Código de Barras o SKU                       | Operario / Cajero       | 003, 004      | **Parcial** (sin cámara/generación) |
+| CU-10 | Notificación Automática de Inventario Crítico                   | Sistema                 | 011           | Completo                            |
 
 > **CU-09**: el sistema guarda y busca códigos de barras únicos y funciona con un lector físico
 > que emula teclado. No incluye lectura por cámara ni generación/impresión de etiquetas; está
@@ -106,24 +106,24 @@ CREATE DATABASE stockmante_test OWNER stockmante;
 
 Copiar `.env.example` a `.env` y ajustar. Las claves principales:
 
-| Variable | Uso | Default |
-|---|---|---|
-| `DATABASE_URL` | Conexión PostgreSQL | — |
-| `APP_URL` | CORS + links de correo | `http://localhost:5173` |
-| `PORT` | Puerto del backend | `3000` |
-| `APP_ENV` | `development` / `production` | `development` |
-| `DOCS_ENABLED` | Swagger UI y OpenAPI | `true` en dev, `false` en prod |
-| `SESSION_COOKIE_NAME` / `SESSION_EXPIRY_HOURS` | Sesión | `stockmante_sesion` / `8` |
-| `SMTP_URL` | Correo real; vacío en dev = stub de consola | — |
-| `PUBLIC_API_URL` | API que usa el frontend | `http://localhost:3000` |
-| `GOOGLE_CLIENT_ID/SECRET`, `MICROSOFT_*` | SSO (opcional) | — |
-| `ASISTENTE_URL` | URL del servicio LangChain; vacía = `/api/asistente/consulta` responde 503 | — |
-| `ASISTENTE_TIMEOUT_SEGUNDOS` | Timeout por consulta | `30` |
-| `ASISTENTE_PUERTO` | Puerto del servicio | `3100` |
-| `API_BASE_URL` | API que consumen las tools del asistente | `http://localhost:3000` |
-| `LLM_PROVIDER` | `anthropic`, `openai` o `groq` | `anthropic` |
-| `LLM_API_KEY` | Clave del proveedor | — |
-| `LLM_MODEL` | Modelo (obligatorio con `openai`/`groq`) | `claude-sonnet-5-5` para Anthropic |
+| Variable                                       | Uso                                                                        | Default                            |
+| ---------------------------------------------- | -------------------------------------------------------------------------- | ---------------------------------- |
+| `DATABASE_URL`                                 | Conexión PostgreSQL                                                        | —                                  |
+| `APP_URL`                                      | CORS + links de correo                                                     | `http://localhost:5173`            |
+| `PORT`                                         | Puerto del backend                                                         | `3000`                             |
+| `APP_ENV`                                      | `development` / `production`                                               | `development`                      |
+| `DOCS_ENABLED`                                 | Swagger UI y OpenAPI                                                       | `true` en dev, `false` en prod     |
+| `SESSION_COOKIE_NAME` / `SESSION_EXPIRY_HOURS` | Sesión                                                                     | `stockmante_sesion` / `8`          |
+| `SMTP_URL`                                     | Correo real; vacío en dev = stub de consola                                | —                                  |
+| `PUBLIC_API_URL`                               | API que usa el frontend                                                    | `http://localhost:3000`            |
+| `GOOGLE_CLIENT_ID/SECRET`, `MICROSOFT_*`       | SSO (opcional)                                                             | —                                  |
+| `ASISTENTE_URL`                                | URL del servicio LangChain; vacía = `/api/asistente/consulta` responde 503 | —                                  |
+| `ASISTENTE_TIMEOUT_SEGUNDOS`                   | Timeout por consulta                                                       | `30`                               |
+| `ASISTENTE_PUERTO`                             | Puerto del servicio                                                        | `3100`                             |
+| `API_BASE_URL`                                 | API que consumen las tools del asistente                                   | `http://localhost:3000`            |
+| `LLM_PROVIDER`                                 | `anthropic`, `openai` o `groq`                                             | `anthropic`                        |
+| `LLM_API_KEY`                                  | Clave del proveedor                                                        | —                                  |
+| `LLM_MODEL`                                    | Modelo (obligatorio con `openai`/`groq`)                                   | `claude-sonnet-5-5` para Anthropic |
 
 ### 3. Migraciones y datos iniciales
 
@@ -214,7 +214,7 @@ Resumen:
   del asistente, el rediseño de escritorio y el rediseño móvil. Extractos verbatim y enlaces en
   [`docs/ai-engineering.md`](./docs/ai-engineering.md).
 - **Iteración y autocorrección**: RED → GREEN, gates (`cargo test`, `cargo sqlx prepare
-  --check`, `npm test`, `npm run check`, `npm run build`), `/speckit.analyze` y
+--check`, `npm test`, `npm run check`, `npm run build`), `/speckit.analyze` y
   `/speckit.converge`, verificación de esquema por MCP y waivers explícitos W-001…W-006.
 - **Evidencia**: 21 specs, 155 archivos `.md`, 20 planes, 20 tasks, 94 commits.
 
@@ -223,11 +223,11 @@ Resumen:
 La configuración de proyecto está en [`opencode.json`](./opencode.json). El detalle y las
 pruebas manuales están en [`docs/mcp.md`](./docs/mcp.md).
 
-| Servidor | Origen | Transporte | Rol en el desarrollo |
-|---|---|---|---|
-| `postgres` (DBHub) | **Externo** (`@bytebase/dbhub`) | stdio local | Verificar el esquema real antes de escribir SQL/migraciones; explorar datos; solo lectura (`readonly = true`, `max_rows = 200`) |
-| `playwright` (`@playwright/mcp`) | **Externo** | stdio local | Validación visual/E2E y capturas sobre el frontend en Vite |
-| Context7 (opcional) | Externo remoto | HTTP | Documentación de librerías; no es necesario para el mínimo |
+| Servidor                         | Origen                          | Transporte  | Rol en el desarrollo                                                                                                            |
+| -------------------------------- | ------------------------------- | ----------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| `postgres` (DBHub)               | **Externo** (`@bytebase/dbhub`) | stdio local | Verificar el esquema real antes de escribir SQL/migraciones; explorar datos; solo lectura (`readonly = true`, `max_rows = 200`) |
+| `playwright` (`@playwright/mcp`) | **Externo**                     | stdio local | Validación visual/E2E y capturas sobre el frontend en Vite                                                                      |
+| Context7 (opcional)              | Externo remoto                  | HTTP        | Documentación de librerías; no es necesario para el mínimo                                                                      |
 
 Requisitos: `DATABASE_URL` en `.env`, `npx` y Node 20+. `dbhub.toml` referencia
 `${DATABASE_URL}` y nunca versiona credenciales.
@@ -263,15 +263,15 @@ npm run check
 
 Resultado de la última corrida (2026-11-07):
 
-| Suite | Resultado |
-|---|---|
-| `cargo test` | **verde**; 296 funciones de test, 3 pruebas de carga ignoradas a propósito |
-| `cargo sqlx prepare --check` | exit 0 |
-| `npm test` (frontend) | **388/388** |
-| `npm run check` (frontend) | 0 errores, 0 warnings |
-| `npm run build` (frontend) | OK (adaptador static) |
-| `npm test` (asistente) | **54/54** |
-| `npm run check` (asistente) | tsc sin errores |
+| Suite                        | Resultado                                                                  |
+| ---------------------------- | -------------------------------------------------------------------------- |
+| `cargo test`                 | **verde**; 296 funciones de test, 3 pruebas de carga ignoradas a propósito |
+| `cargo sqlx prepare --check` | exit 0                                                                     |
+| `npm test` (frontend)        | **388/388**                                                                |
+| `npm run check` (frontend)   | 0 errores, 0 warnings                                                      |
+| `npm run build` (frontend)   | OK (adaptador static)                                                      |
+| `npm test` (asistente)       | **54/54**                                                                  |
+| `npm run check` (asistente)  | tsc sin errores                                                            |
 
 Reglas del proyecto: sin `unwrap()`, `expect()` ni `panic!` en rutas de producción; todo
 movimiento de stock es transaccional; la lógica de acceso del frontend vive en
@@ -332,6 +332,12 @@ dbhub.toml      Configuración de DBHub (DSN desde DATABASE_URL)
 El proyecto se entrega desde **`main`**, actualizado con el código y la documentación
 (último commit de `main`). La rama de trabajo `004-ampliacion-y-specs-2026-11-07` quedó sincronizada con
 `main`. Si clonás el repo, seguí los pasos de «Puesta en marcha».
+
+### PDF de entrega
+
+[Descargar el PDF del Grupo 2](docs/entrega/entrega-grupo-2.pdf) ·
+[HTML editable](docs/entrega/entrega-grupo-2.html) ·
+[Cómo regenerarlo](docs/entrega/README.md).
 
 ## Licencia
 
