@@ -6,6 +6,11 @@
 	import type { Categoria } from '#lib/schemas/categorias';
 	import type { Producto } from '#lib/schemas/productos';
 	import { sesion } from '#lib/stores/sesion';
+	import {
+		crearBusquedaDiferida,
+		LIMITE_CAJA,
+		mensajeTruncados
+	} from '#lib/utils/busquedaCaja';
 
 	const CAMPOS: { valor: CampoBusqueda; etiqueta: string }[] = [
 		{ valor: 'todos', etiqueta: 'Todo' },
@@ -32,8 +37,7 @@
 	let errorCategorias = $state<string | null>(null);
 	let ms = $state<number | null>(null);
 
-	let secuencia = 0;
-	let temporizador: ReturnType<typeof setTimeout> | undefined;
+	const busqueda = crearBusquedaDiferida(250);
 	let buscador: HTMLInputElement | undefined;
 
 	const esGestion = $derived(
@@ -41,6 +45,7 @@
 	);
 	const hayFiltro = $derived(q.trim().length > 0 || categoriaId !== '');
 	const total = $derived(items.length);
+	const avisoTruncados = $derived(mensajeTruncados(total, LIMITE_CAJA));
 
 	onMount(() => {
 		buscador?.focus();
@@ -71,16 +76,12 @@
 			return;
 		}
 
-		const turno = ++secuencia;
-		if (temporizador) clearTimeout(temporizador);
 		buscando = true;
-		temporizador = setTimeout(() => {
-			void ejecutar(turno, texto, campoActual, categoria, inactivos);
-		}, 250);
+		busqueda.programar((esVigente) =>
+			ejecutar(esVigente, texto, campoActual, categoria, inactivos)
+		);
 
-		return () => {
-			if (temporizador) clearTimeout(temporizador);
-		};
+		return () => busqueda.cancelar();
 	});
 
 	async function cargarCategorias() {
@@ -92,7 +93,7 @@
 	}
 
 	async function ejecutar(
-		turno: number,
+		esVigente: () => boolean,
 		texto: string,
 		campoActual: CampoBusqueda,
 		categoria: string,
@@ -105,21 +106,21 @@
 				campo: campoActual,
 				categoriaId: categoria ? Number(categoria) : undefined,
 				incluirInactivos: inactivos,
-				limite: 20
+				limite: LIMITE_CAJA
 			});
-			if (turno !== secuencia) return;
+			if (!esVigente()) return;
 			items = resultado.items;
 			consultado = true;
 			error = null;
 			ms = Math.round(performance.now() - inicio);
 		} catch (e) {
-			if (turno !== secuencia) return;
+			if (!esVigente()) return;
 			items = [];
 			consultado = true;
 			ms = null;
 			error = mensajeError(e, 'No se pudo realizar la búsqueda');
 		} finally {
-			if (turno === secuencia) buscando = false;
+			if (esVigente()) buscando = false;
 		}
 	}
 
@@ -226,6 +227,9 @@
 		{:else if consultado}
 			{total} resultado{total === 1 ? '' : 's'}{#if ms !== null}
 				· {ms} ms{/if}
+			{#if avisoTruncados}
+				<span class="block text-amber-700">{avisoTruncados}</span>
+			{/if}
 		{:else if !hayFiltro}
 			Escribí al menos 2 caracteres o elegí una categoría.
 		{/if}

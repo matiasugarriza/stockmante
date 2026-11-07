@@ -70,4 +70,47 @@ pub struct ListaBusqueda { pub items: Vec<Producto> }
 - `idx_productos_nombre_trgm` (GIN) → `nombre % q` / `nombre ILIKE '%q%'`.
 
 Con `limite=20`, el plan esperado es índice GIN + sort por similitud, o seq scan pequeño mientras
-el catálogo tenga pocas filas. La verificación de SC-002 se hace con `EXPLAIN ANALYZE`.
+el catálogo tenga pocas filas. SC-002 se mide como respuesta de la API (ver
+[research.md](./research.md) §7) y `EXPLAIN (ANALYZE, BUFFERS)` queda como evidencia
+complementaria del plan de ejecución.
+
+## Datos de referencia para SC-002 (ampliación 2026-11-07)
+
+No cambia el esquema. `scripts/seed_catalogo_10000.sql` inserta datos de desarrollo que respetan
+las restricciones reales de `0002`/`0006`:
+
+| Dato | Valor | Restricción que respeta |
+|---|---|---|
+| Categorías | 20, `SEED4-CAT-01`…`SEED4-CAT-20` | `categorias.nombre` UNIQUE y `uq_categorias_nombre_normalizado` |
+| Productos | 10.000, todos activos | — |
+| `sku` | `SEED4-00001`…`SEED4-10000` | UNIQUE; `^[A-Z0-9][A-Z0-9-]{2,29}$` |
+| `codigo_barras` | 13 dígitos únicos (`779` + número correlativo con relleno) | `productos_codigo_barras_key` UNIQUE |
+| `nombre` | combinación de una lista fija de rubros, marcas y presentaciones + número | `VARCHAR(160) NOT NULL` |
+| `categoria_id` | repartido en las 20 categorías | FK `ON DELETE RESTRICT` |
+| `unidad_medida`, `costo`, `precio_venta`, `stock_minimo` | valores fijos válidos | NOT NULL y `CHECK >= 0` |
+
+Verificación del esquema real (T021, 2026-11-07): coincide con esta tabla. La única columna NOT
+NULL que no aparece arriba es `productos.stock_actual` (agregada por 0009, `INT NOT NULL DEFAULT 0`,
+`CHECK >= 0`); el seed no la informa y toma el default.
+
+El script borra primero los productos `SEED4-%` y después las categorías `SEED4-CAT-%` (en ese
+orden por la FK), así que es idempotente y sirve también para limpiar. No genera movimientos,
+stock por depósito ni auditoría. **Antes de ejecutarlo** se verifica el esquema real de
+`productos` y `categorias` (Principio V), porque migraciones posteriores (0009–0014) pueden haber
+agregado columnas NOT NULL.
+
+## Modelo de frontend (ampliación 2026-11-07)
+
+```ts
+// #lib/utils/busquedaCaja.ts
+export const LIMITE_CAJA = 20;
+export function crearBusquedaDiferida(esperaMs: number): {
+  programar(tarea: (esVigente: () => boolean) => Promise<void> | void): void;
+  cancelar(): void;
+};
+export function mensajeTruncados(cantidad: number, limite: number): string | null;
+```
+
+Invariantes: solo la última tarea programada llega a ejecutarse; `esVigente()` es `false` para
+toda tarea que no sea la última programada; `mensajeTruncados` devuelve texto solo si
+`cantidad === limite` y `limite > 0`.

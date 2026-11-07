@@ -22,9 +22,11 @@ Búsqueda de productos para caja y almacén. Cualquier sesión válida (GESTION 
   mayúsculas). Admite `q` desde 1 carácter.
 - `campo=codigo`: igualdad exacta contra `productos.codigo_barras`. Admite `q` desde 1 carácter.
 - `campo=nombre`: `nombre % q` (trigramas) **o** `nombre ILIKE '%q%'`; exige `q` ≥ 2.
-- `campo=categoria`: compara contra `categorias.nombre`; exige `q` ≥ 2.
-- `campo=todos` (default): SKU exacto → código exacto → nombre por similitud. Con `q` de 1
-  carácter solo evalúa las igualdades exactas.
+- `campo=categoria`: `categorias.nombre % q` (trigramas) **o** `categorias.nombre ILIKE '%q%'`
+  (mismo criterio que `nombre`); exige `q` ≥ 2.
+- `campo=todos` (default): SKU exacto → código exacto → nombre por similitud. El SKU se compara
+  normalizado (trim + mayúsculas, regla de 003), igual que en `campo=sku`. Con `q` de 1
+  carácter solo evalúa las igualdades exactas (no devuelve 422).
 - `q` vacío + `categoria_id`: lista los productos de esa categoría (filtro sin texto).
 - `incluir_inactivos=false`: solo `activo=true`. `true`: incluye inactivos (GESTION).
 - El filtro `categoria_id` se combina con el término mediante AND.
@@ -33,7 +35,7 @@ Búsqueda de productos para caja y almacén. Cualquier sesión válida (GESTION 
 
 | Campo | Orden |
 |---|---|
-| `todos` | `sku = q` (0), `codigo_barras = q` (1), resto (2); luego `similarity(nombre, q) DESC`, `nombre ASC`, `id ASC` |
+| `todos` | `sku = normalizar_sku(q)` (0), `codigo_barras = q` (1), resto (2); luego `similarity(nombre, q) DESC`, `nombre ASC`, `id ASC` |
 | `sku` / `codigo` | `nombre ASC`, `id ASC` |
 | `nombre` | `similarity(nombre, q) DESC`, `nombre ASC`, `id ASC` |
 | `categoria` | `similarity(categoria.nombre, q) DESC`, `nombre ASC`, `id ASC` |
@@ -60,6 +62,10 @@ Búsqueda de productos para caja y almacén. Cualquier sesión válida (GESTION 
 ```
 
 Sin coincidencias: `200 { "items": [] }`.
+
+La respuesta no informa si hubo más coincidencias que `limite`. El cliente infiere el truncado
+cuando `items.length == limite`; en `/caja` eso muestra «Se muestran los primeros N resultados.
+Refiná la búsqueda para encontrar el producto.» (comportamiento de UI, no cambia este contrato).
 
 ### Errores
 
