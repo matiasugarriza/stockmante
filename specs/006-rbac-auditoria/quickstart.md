@@ -70,7 +70,9 @@ gestor y `cuando` no nulo.
 
 - `DELETE /api/depositos/{id}` con ubicaciones → 409 `deposito_con_dependencias`.
 - `DELETE /api/ubicaciones/{id}` con hijos → 409 `ubicacion_con_dependencias`.
-- `POST /api/.../desactivar` → 204 como alternativa.
+- `POST /api/.../desactivar` → 204 como alternativa; en `/admin/productos` y `/admin/depositos`
+  el botón `Desactivar` ejecuta esa baja lógica.
+- Productos: no existe `DELETE`; `POST /api/productos/{id}/desactivar` → 204 es la alternativa.
 
 ## Frontend
 

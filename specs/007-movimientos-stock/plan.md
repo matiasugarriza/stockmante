@@ -1,6 +1,6 @@
 # Plan de implementación: Movimientos de stock (007)
 
-**Spec**: `spec.md` · **Rama**: `feat/modulo-2-stock` · **Migración**: `0009_stock_movimientos.sql`
+**Spec**: `spec.md` · **Rama histórica**: `feat/modulo-2-stock` (mergeada a `main`) · **Migración**: `0009_stock_movimientos.sql`
 
 ## Contexto técnico
 
@@ -11,6 +11,16 @@
 - La auditoría se escribe con `services::auditoria::registrar` dentro de la misma transacción.
 - Los errores de dominio viven en `AppError` con `status()` y `codigo()` estables.
 
+## Constitution Check
+
+| Principio | Cumplimiento |
+|---|---|
+| I. Simplicidad y anti-sobreingeniería | una tabla puente, un servicio de movimientos y uno de stock; sin abstracciones nuevas |
+| II. Mantenibilidad | modelos/servicios/handlers acotados; SQL transaccional centralizado; nombres de negocio en español |
+| III. Claridad en mensajes | 409/422 con mensajes literales de la spec y stock resultante por línea |
+| IV. Testabilidad primero | unitarios de validación, integración HTTP de escenarios 7.1–7.8 y tests de cliente |
+| V. Integridad de datos | transacción única, `stock_por_deposito` como fuente de verdad, `CHECK` en BD y cache recalculado |
+
 ## Decisiones de diseño
 
 1. **`stock_por_deposito` es la fuente de verdad** (constitución, Principio V). Tiene
@@ -19,7 +29,7 @@
    "sin ubicación" no se dupliquen.
 2. **`productos.stock_actual` es cache**. Se recalcula como `SUM(stock_por_deposito.cantidad)`
    dentro de la misma transacción, después de aplicar las líneas. Recalcular (en vez de sumar
-   el delta) elimina por construcción la deriva del cache (SC-010).
+   el delta) elimina por construcción la deriva del cache (SC-014).
 3. **Signo en la línea**. La API recibe siempre `cantidad_delta` con signo:
    `ENTRADA > 0`, `SALIDA` y `MERMA < 0`, `AJUSTE ≠ 0`. Es lo que ya dice FR-024 y evita dos
    campos para lo mismo.
@@ -64,6 +74,27 @@
 | `stock_insuficiente` | 409 | `Stock insuficiente en Principal: 3 disponibles, 5 solicitadas.` |
 | `producto_inactivo` | 409 | `El producto está inactivo y no admite movimientos.` |
 
+**Respuesta y mensaje por línea**
+
+`POST /api/movimientos` devuelve `MovimientoDetalle` en JSON: `deposito.nombre`,
+`lineas[].producto_nombre` y `lineas[].stock_resultante`. El texto
+`"Depósito Principal / Yerba 1 kg: 10 unidades"` es copy de la UI; la API no devuelve un campo
+`mensaje`.
+
+**Errores de validación (422 `validacion`)**
+
+| Caso | Mensaje |
+|---|---|
+| Tipo inválido | `El tipo de movimiento debe ser ENTRADA, SALIDA, MERMA o AJUSTE.` |
+| Motivo inválido | `El motivo debe ser COMPRA, VENTA, MERMA, AJUSTE, DEVOLUCION, TRANSFERENCIA, INVENTARIO, IMPORTACION u OTRO.` |
+| `OTRO` sin observación | `Con motivo OTRO tenés que indicar una observación.` |
+| Línea vacía o exceso | `El movimiento debe tener al menos una línea.` / `El movimiento no puede superar las 200 líneas.` |
+| Delta cero o signo incorrecto | `La cantidad de cada línea debe ser distinta de cero.` / `En una ENTRADA la cantidad debe ser mayor que cero.` / `En una {tipo} la cantidad debe ser negativa.` |
+| Producto/ubicación inválidos | `El producto de cada línea es obligatorio.` / `La ubicación indicada no es válida.` |
+| Línea repetida | `No podés repetir el mismo producto y ubicación en dos líneas.` |
+| Depósito inactivo | `El depósito está inactivo.` |
+| Ubicación inválida | `La ubicación no pertenece al depósito del movimiento.` / `La ubicación está inactiva.` / `La ubicación no está permitida para {producto}.` |
+
 ## Archivos
 
 | Archivo | Cambio |
@@ -99,7 +130,7 @@
    - ubicación de otro depósito y ubicación no asignada → 422;
    - `GET /api/movimientos` filtra por tipo y depósito; `GET /api/movimientos/{id}` trae líneas;
    - `GET /api/stock` y `GET /api/stock/{id}` devuelven cache y desglose coherentes;
-   - SC-010: tras una secuencia con un fallo en el medio, `stock_actual` = suma por depósito.
+   - SC-014: tras una secuencia con un fallo en el medio, `stock_actual` = suma por depósito.
 3. **Frontend**: tests de schemas y del cliente (`movimientos.test.ts`), sin E2E.
 
 ## Orden de ejecución

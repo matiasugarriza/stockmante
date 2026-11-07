@@ -20,11 +20,11 @@ endpoints públicos: se suma una tabla `auditoria`, un servicio interno y un tes
 
 | Principio | Cumplimiento |
 |---|---|
-| I. Especificación primero | spec 006 + este plan + tasks antes del código |
-| II. Tipado y centralización | servicio `auditoria.rs`; actor desde `RequiereGestion`; sin lógica de permisos duplicada |
-| III. Mensajes accionables en español | se conservan los 403 `sin_permisos` y los mensajes existentes |
-| IV. Seguridad y RBAC | la verificación cubre el 100% de las escrituras y listados restringidos |
-| V. Pruebas | matriz HTTP, auditoría por SQL y guard de layout; sin `unwrap`/`panic!`/`expect` en producción |
+| I. Simplicidad y anti-sobreingeniería | una tabla, un servicio y dos servicios instrumentados; sin endpoints nuevos ni abstracciones |
+| II. Mantenibilidad | `auditoria.rs` centraliza el registro; actor desde `RequiereGestion`; sin lógica de permisos duplicada |
+| III. Claridad en mensajes | se conservan los 403 `sin_permisos` y los mensajes existentes |
+| IV. Testabilidad primero | matriz HTTP, auditoría por SQL y guard estructural; `test_rbac_matriz` 4/4 |
+| V. Integridad de datos | auditoría dentro de la misma transacción; un fallo de negocio no deja fila |
 
 ## Project Structure
 
@@ -60,7 +60,9 @@ lo que no registra nada.
 ### Acciones auditadas
 
 - Usuarios: alta, edición, baja lógica, reactivación y contraseña temporal.
-- Productos: alta, edición (incluye precio), baja lógica y reactivación.
+- Productos: alta, edición (incluye precio), baja lógica y reactivación. No exponen `DELETE` físico
+  (003 usa baja lógica); SC-007 aplica a depósitos/ubicaciones y la alternativa para productos es
+  `desactivar`.
 - Depósitos/ubicaciones: sin auditoría en esta spec (FR-019 solo nombra usuarios y productos);
   su borrado con dependencias ya se bloquea con 409 (SC-007).
 
@@ -75,7 +77,8 @@ de caja (`GET /productos/{id}`, `/productos/buscar`, categorías) sigue disponib
 
 `/admin/+layout.svelte` centraliza el guard: si la sesión es OPERACION redirige a `/caja` y no
 renderiza formularios de gestión. Los enlaces del header ya estaban ocultos; esto cubre el acceso
-directo por URL.
+directo por URL. La alternativa de baja lógica ya existe en `admin/productos` y `admin/depositos`
+(botones `Desactivar`); T009a la verifica como parte de SC-007.
 
 ## Estrategia de pruebas
 

@@ -9,7 +9,7 @@
 |---|---|---|---|
 | 1. Auditoría | T001–T005 | Completa | migración `0008` aplicada en ambas bases; `services/auditoria.rs`; servicios instrumentados |
 | 2. Verificación | T006–T008 | Completa | `test_rbac_matriz` 4/4; helper de actor; suite completa 115/115 |
-| 3. Frontend | T009 | Completa | `admin/+layout.svelte`; `svelte-check` 0/0 |
+| 3. Frontend | T009–T009a | Completa | `admin/+layout.svelte`; botones `Desactivar` en productos/depósitos; `svelte-check` 0/0 |
 | 4. Cierre | T010–T011 | Completa | gates abajo; artefactos e índice actualizados |
 
 ## Evidencia observada (2026-10-26)
@@ -19,6 +19,7 @@
 | Comando | Resultado |
 |---|---|
 | `cd backend && cargo test` | **115 tests, 0 fallos** (exit 0) |
+| `cd backend && cargo sqlx prepare --check` | **OK** (sin diferencias; verificado 2026-11-07 sobre HEAD) |
 | `cd backend && cargo test --test test_rbac_matriz` | **4/4** |
 | `cd frontend && npm test` | **13 archivos, 136 tests, 0 fallos** |
 | `cd frontend && npm run check` | 0 errores, 0 warnings |

@@ -42,7 +42,7 @@
 ## Fase 5 — Pruebas
 
 - [x] T011 `tests/unit/test_movimiento_validacion.rs` (reglas puras).
-- [x] T012 `tests/integration/test_movimientos_http.rs` (escenarios 7.1–7.8, SC-009/010/011).
+- [x] T012 `tests/integration/test_movimientos_http.rs` (escenarios 7.1–7.8, SC-013/014/015).
 - [x] T013 `cargo test` completo en verde; `cargo sqlx prepare --check` sin diferencias.
 
 ## Fase 6 — Frontend
@@ -57,3 +57,19 @@
 
 - [x] T018 `docs/api.md` con las rutas nuevas.
 - [x] T019 Commit de la unidad de trabajo con migración, código, tests y docs.
+
+## Trazabilidad
+
+| Requisito | Tareas |
+|---|---|
+| FR-024 | T003, T005, T008, T011 |
+| FR-025 | T001, T002, T005, T013 |
+| FR-026 | T005, T008, T012 |
+| FR-027 | T008, T015 |
+| FR-028 | T003, T005, T011, T012 |
+| FR-029 | T006, T007, T009, T010 |
+| FR-030 | T005, T008, T015 |
+| SC-013 | T005, T012, T013 |
+| SC-014 | T005, T012 |
+| SC-015 | T005, T012 |
+| Soporte (esquema, router/OpenAPI, gates, frontend/docs) | T001–T002, T010, T013, T016–T019 |

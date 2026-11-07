@@ -32,10 +32,14 @@
 
 - [X] T009 Crear `frontend/src/routes/admin/+layout.svelte`: OPERACION → `/caja`; solo GESTION
   renderiza las páginas de administración.
+- [X] T009a Verificar que la UI de productos y depósitos ofrece `Desactivar` como alternativa a la
+  baja física. **Evidencia**: `admin/productos` llama a `desactivarProducto`; `admin/depositos`
+  llama a `desactivarDeposito`/`desactivarUbicacion`; quickstart SC-007 lo recorre.
 
 ## Fase 4 — Cierre
 
-- [X] T010 Correr `cargo test` (115/115), `npm test` (136/136), `npm run check` (0/0).
+- [X] T010 Correr `cargo test` (115/115), `cargo sqlx prepare --check` (OK, sin diferencias;
+  2026-11-07), `npm test` (136/136), `npm run check` (0/0).
 - [X] T011 Escribir artefactos (`plan.md`, `research.md`, `data-model.md`,
   `contracts/api.md`, `quickstart.md`, `tasks.md`, `progress.md`) y actualizar la spec
   (`0006` → `0008`), `specs/README.md` y `.specify/feature.json`.
@@ -48,5 +52,8 @@
 | FR-019 (auditoría) | T001–T005, T007 |
 | SC-007 | T007 (matriz de `DELETE`), tests de 005 |
 | SC-008 | T007 |
+| US6 escenario 2 (lectura de caja) | T007 |
 | US6 escenario 3 | T003–T005, T007 |
+| Guard frontend y alternativa de baja lógica | T009, T009a |
 | Caso borde 403 sin auditoría | T007 |
+| Soporte (helper/tests, registro, gates, artefactos) | T006, T008, T010, T011 |

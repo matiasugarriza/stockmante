@@ -23,7 +23,7 @@ Como **Gerente/Administrador**, quiero que las acciones sensibles (CRUD de usuar
 **Escenarios de aceptación**:
 
 1. **Dado** un Operario autenticado, **Cuando** intenta crear o editar un producto, **Entonces** se deniega.
-2. **Dado** un Operario autenticado, **Cuando** consulta el catálogo para caja, **Entonces** la lectura está permitida si su rol lo habilita.
+2. **Dado** un Operario autenticado, **Cuando** consulta el catálogo para caja (`GET /api/productos/buscar` o `GET /api/productos/{id}`), **Entonces** la lectura está permitida si su rol lo habilita.
 3. **Dado** un Administrador, **Cuando** realiza cualquiera de las acciones de gestión, **Entonces** se ejecuta y queda registrada la auditoría básica (quién, qué, cuándo) en la medida definida en Supuestos.
 
 ### Casos Borde
@@ -53,7 +53,7 @@ Como **Gerente/Administrador**, quiero que las acciones sensibles (CRUD de usuar
 
 ## Criterios de Éxito
 
-- **SC-007**: El 100% de los intentos de borrado físico de productos o depósitos con dependencias son bloqueados con alternativa de baja lógica ofrecida al Administrador.
+- **SC-007**: El 100% de los intentos de borrado físico de depósitos/ubicaciones con dependencias son bloqueados con 409 y alternativa de baja lógica ofrecida al Administrador. Los productos no exponen borrado físico (003 usa baja lógica): su alternativa es `POST /api/productos/{id}/desactivar`.
 - **SC-008**: Ningún usuario con rol Operario puede completar (no solo intentar) una operación de gestión de usuarios, edición de precios o baja de productos.
 
 ## Supuestos
@@ -72,14 +72,14 @@ Esta spec no agrega endpoints públicos de negocio. Agrega:
 - Servicio interno `backend/src/services/auditoria.rs`.
 - Migración `migrations/0008_auditoria.sql` con una tabla simple
   (`tabla_ref`, `registro_id`, `accion`, `usuario_id`, `cuando`).
-- Invocaciones en usuarios (desactivar/reactivar/update) y productos (update de precio,
-  desactivar).
+- Invocaciones de auditoría en usuarios y productos; la lista completa de acciones está en
+  [contracts/api.md](./contracts/api.md).
 - Test de integración `backend/tests/integration/test_rbac_matriz.rs`: cada endpoint de escritura
   con sesión OPERACION → 403; con GESTION → no 403.
 - Ajuste de layouts frontend (`admin` vs `caja`) para ocultar rutas de gestión a operación (UX; el
   backend ya deniega).
 
-El contrato definitivo, el plan y las tareas se generan al arrancar la spec.
+El contrato definitivo está en [contracts/api.md](./contracts/api.md); el plan y las tareas viven en esta carpeta.
 
 ## Fuera de alcance
 
