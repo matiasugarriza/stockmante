@@ -110,3 +110,15 @@ carpetas nuevas.
 5. Asistente: confirmar que el parser tolera los campos nuevos.
 6. SC-018: sembrar 10.000 productos, `EXPLAIN ANALYZE` + prueba HTTP; decidir índice.
 7. Quality gates.
+
+## Decisiones de implementación (2026-11-07)
+
+- **`GET /api/depositos/activos`** (R1). `GET /api/depositos` es solo `GESTION` (matriz de 006), pero
+  la caja la usa `OPERACION`; además `/movimientos` y `/transferencias` (abiertas a `OPERACION`)
+  llamaban a ese endpoint y recibían 403. Se agrega una lista breve (`id`, `nombre`) de depósitos
+  activos para cualquier sesión, sin datos de gestión (identificador, dirección). La matriz de 006 se
+  actualiza. **Pendiente fuera de alcance**: `GET /api/depositos/{id}/ubicaciones` sigue siendo
+  `GESTION`, así que el selector de ubicación de `/movimientos` y `/transferencias` no carga para
+  `OPERACION` (los movimientos se imputan al depósito).
+- **SC-018 sin índice** (T018/T019): ~37 ms por variante con 10.000 productos (ver research R6);
+  T019 no aplica.

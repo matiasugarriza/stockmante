@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { ApiError } from './client';
 import {
+	listarDepositosActivos,
 	actualizarDeposito,
 	actualizarUbicacion,
 	crearDeposito,
@@ -235,5 +236,22 @@ describe('cliente de depósitos y ubicaciones', () => {
 
 		expect(await ubicacionesDeProductos([])).toEqual({});
 		expect(fetchMock).not.toHaveBeenCalled();
+	});
+
+	it('listarDepositosActivos pide la lista breve abierta a cualquier sesión (010)', async () => {
+		const fetchMock = vi.fn(
+			async () =>
+				new Response(JSON.stringify([{ id: 3, nombre: 'Principal' }]), {
+					status: 200,
+					headers: { 'Content-Type': 'application/json' }
+				})
+		);
+		vi.stubGlobal('fetch', fetchMock);
+
+		const lista = await listarDepositosActivos();
+
+		const [url] = fetchMock.mock.calls[0] as unknown as [string, RequestInit];
+		expect(url).toContain('/api/depositos/activos');
+		expect(lista).toEqual([{ id: 3, nombre: 'Principal' }]);
 	});
 });

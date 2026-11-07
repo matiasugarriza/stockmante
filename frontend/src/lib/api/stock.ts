@@ -19,6 +19,8 @@ export interface ListarStockParams {
 	activo?: 'true' | 'false' | 'all';
 	pagina?: number;
 	porPagina?: number;
+	/** Restringe a estos productos (1–50); vacío = sin filtro (010). */
+	productoIds?: number[];
 }
 
 function queryString(params: ListarStockParams): string {
@@ -30,6 +32,9 @@ function queryString(params: ListarStockParams): string {
 	if (params.activo) query.set('activo', params.activo);
 	if (params.pagina !== undefined) query.set('pagina', String(params.pagina));
 	if (params.porPagina !== undefined) query.set('por_pagina', String(params.porPagina));
+	if (params.productoIds && params.productoIds.length > 0) {
+		query.set('producto_ids', params.productoIds.join(','));
+	}
 	const serializado = query.toString();
 	return serializado ? `?${serializado}` : '';
 }

@@ -1,14 +1,16 @@
 //! Handlers de depósitos (005, contracts/api.md).
 //!
-//! Toda la superficie exige familia GESTION. El borrado físico responde 409
+//! Toda la superficie exige familia GESTION, salvo `GET /activos` (010, R1): la
+//! lista breve que necesitan caja, movimientos y transferencias. El borrado físico responde 409
 //! `deposito_con_dependencias`; la baja lógica es la alternativa.
 
 use crate::app::AppEstado;
-use crate::auth::extractors::RequiereGestion;
+use crate::auth::extractors::{AuthUsuario, RequiereGestion};
 use crate::docs::ErrorRespuesta;
 use crate::error::AppError;
 use crate::extractores::{JsonValido, PathValido, QueryValida};
 use crate::models::deposito::{Deposito, ListaUbicaciones};
+use crate::models::stock::DepositoBreve;
 use crate::services::depositos::{self, CambiosDeposito, NuevoDeposito};
 use axum::{
     extract::State,
@@ -22,6 +24,7 @@ use utoipa::{IntoParams, ToSchema};
 pub fn router() -> Router<AppEstado> {
     Router::new()
         .route("/", get(listar).post(crear))
+        .route("/activos", get(activos))
         .route(
             "/{id}",
             get(obtener).put(actualizar).delete(eliminar),
@@ -29,6 +32,33 @@ pub fn router() -> Router<AppEstado> {
         .route("/{id}/ubicaciones", get(listar_ubicaciones))
         .route("/{id}/desactivar", post(desactivar))
         .route("/{id}/reactivar", post(reactivar))
+}
+
+/// GET /api/depositos/activos → `[{ id, nombre }]` para cualquier sesión vigente.
+#[utoipa::path(
+    get,
+    path = "/api/depositos/activos",
+    tag = "depositos",
+    summary = "Depósitos activos (lista breve)",
+    description = "Solo `id` y `nombre`, ordenados por nombre. Abierta a OPERACION y GESTION: es lo que necesitan caja, movimientos y transferencias.",
+    responses(
+        (status = 200, description = "Depósitos activos", body = Vec<DepositoBreve>),
+        (status = 401, description = "Sin sesión", body = ErrorRespuesta)
+    )
+)]
+pub async fn activos(
+    State(estado): State<AppEstado>,
+    _sesion: AuthUsuario,
+) -> Result<Json<Vec<DepositoBreve>>, AppError> {
+    let lista = depositos::listar(&estado.pool, Some(true))
+        .await?
+        .into_iter()
+        .map(|d| DepositoBreve {
+            id: d.id,
+            nombre: d.nombre,
+        })
+        .collect();
+    Ok(Json(lista))
 }
 
 #[derive(Debug, Deserialize, IntoParams)]
@@ -88,7 +118,7 @@ pub struct CrearDepositoDto {
 )]
 pub async fn crear(
     State(estado): State<AppEstado>,
-    _gestion: RequiereGestion,
+    RequiereGestion(actor): RequiereGestion,
     JsonValido(dto): JsonValido<CrearDepositoDto>,
 ) -> Result<(StatusCode, Json<Deposito>), AppError> {
     let nuevo = NuevoDeposito {
@@ -96,7 +126,7 @@ pub async fn crear(
         identificador: dto.identificador,
         direccion: dto.direccion,
     };
-    let deposito = depositos::crear(&estado.pool, nuevo).await?;
+    let deposito = depositos::crear(&estado.pool, nuevo, actor.id).await?;
     Ok((StatusCode::CREATED, Json(deposito)))
 }
 
@@ -157,7 +187,7 @@ pub struct ActualizarDepositoDto {
 )]
 pub async fn actualizar(
     State(estado): State<AppEstado>,
-    _gestion: RequiereGestion,
+    RequiereGestion(actor): RequiereGestion,
     PathValido(id): PathValido<i32>,
     JsonValido(dto): JsonValido<ActualizarDepositoDto>,
 ) -> Result<Json<Deposito>, AppError> {
@@ -171,7 +201,7 @@ pub async fn actualizar(
         identificador: dto.identificador,
         direccion: dto.direccion,
     };
-    Ok(Json(depositos::actualizar(&estado.pool, id, cambios).await?))
+    Ok(Json(depositos::actualizar(&estado.pool, id, cambios, actor.id).await?))
 }
 
 /// DELETE /api/depositos/{id} → 204 solo sin dependencias.
@@ -191,10 +221,10 @@ pub async fn actualizar(
 )]
 pub async fn eliminar(
     State(estado): State<AppEstado>,
-    _gestion: RequiereGestion,
+    RequiereGestion(actor): RequiereGestion,
     PathValido(id): PathValido<i32>,
 ) -> Result<StatusCode, AppError> {
-    depositos::eliminar(&estado.pool, id).await?;
+    depositos::eliminar(&estado.pool, id, actor.id).await?;
     Ok(StatusCode::NO_CONTENT)
 }
 
@@ -237,10 +267,10 @@ pub async fn listar_ubicaciones(
 )]
 pub async fn desactivar(
     State(estado): State<AppEstado>,
-    _gestion: RequiereGestion,
+    RequiereGestion(actor): RequiereGestion,
     PathValido(id): PathValido<i32>,
 ) -> Result<StatusCode, AppError> {
-    depositos::desactivar(&estado.pool, id).await?;
+    depositos::desactivar(&estado.pool, id, actor.id).await?;
     Ok(StatusCode::NO_CONTENT)
 }
 
@@ -260,9 +290,9 @@ pub async fn desactivar(
 )]
 pub async fn reactivar(
     State(estado): State<AppEstado>,
-    _gestion: RequiereGestion,
+    RequiereGestion(actor): RequiereGestion,
     PathValido(id): PathValido<i32>,
 ) -> Result<StatusCode, AppError> {
-    depositos::reactivar(&estado.pool, id).await?;
+    depositos::reactivar(&estado.pool, id, actor.id).await?;
     Ok(StatusCode::NO_CONTENT)
 }

@@ -53,3 +53,17 @@ Fecha: 2026-11-07. Fuente: clarificaciones del spec y hallazgos de `/speckit ana
   `CREATE INDEX idx_productos_sku_trgm ON productos USING gin (sku gin_trgm_ops)` y se repite.
 - **Rationale**: el `OR p.sku ILIKE '%…%'` no tiene índice; medir antes de agregarlo evita un
   índice innecesario (Principio I).
+
+### R6 — Medición observada (2026-11-07)
+
+`cargo test --test test_stock_http sc018 -- --ignored --nocapture` sobre `stockmante_test` con
+10.000 productos y 3 depósitos (PostgreSQL 18 local, build debug):
+
+| Variante | Tiempo HTTP |
+|---|---|
+| página sin `q` (`deposito_id`) | 37,7 ms |
+| `q` por nombre | 37,2 ms |
+| `q` por SKU | 36,7 ms |
+
+Todas muy por debajo de 1 s: no se crea `0015_productos_sku_trgm.sql` (T019 no aplica). El test
+limpia los datos sembrados al terminar.

@@ -227,6 +227,13 @@ pub struct StockFila {
     pub stock_actual: i64,
     pub stock_minimo: i32,
     pub stock_deposito: Option<i64>,
+    /// `productos.costo`; solo se expone a GESTION (010).
+    pub costo: rust_decimal::Decimal,
+}
+
+/// `max(stock_minimo - stock_actual, 0)` (010, FR-038).
+pub fn faltante(stock_actual: i64, stock_minimo: i32) -> i64 {
+    (i64::from(stock_minimo) - stock_actual).max(0)
 }
 
 /// Item del listado de stock.
@@ -244,12 +251,34 @@ pub struct StockItem {
     pub bajo_minimo: bool,
     /// Solo presente cuando se filtra por depósito.
     pub stock_deposito: Option<i64>,
+    /// Unidades que faltan para llegar al mínimo (nunca negativo).
+    pub faltante: i64,
+    /// Costo unitario; `null` si la sesión no es GESTION.
+    #[schema(value_type = Option<f64>)]
+    pub costo: Option<rust_decimal::Decimal>,
+    /// `costo x (stock_deposito ?? stock_actual)`, a 2 decimales; `null` si no es GESTION.
+    #[schema(value_type = Option<f64>)]
+    pub valorizado: Option<rust_decimal::Decimal>,
 }
 
-impl From<StockFila> for StockItem {
-    fn from(fila: StockFila) -> Self {
+impl StockItem {
+    /// Arma el item; `ver_costo` lo decide el perfil de la sesión (GESTION).
+    pub fn desde_fila(fila: StockFila, ver_costo: bool) -> Self {
         let bajo_minimo = fila.stock_minimo > 0 && fila.stock_actual < i64::from(fila.stock_minimo);
+        let base = fila.stock_deposito.unwrap_or(fila.stock_actual);
+        let (costo, valorizado) = if ver_costo {
+            let valor = (fila.costo * rust_decimal::Decimal::from(base)).round_dp_with_strategy(
+                2,
+                rust_decimal::RoundingStrategy::MidpointAwayFromZero,
+            );
+            (Some(fila.costo), Some(valor))
+        } else {
+            (None, None)
+        };
         StockItem {
+            faltante: faltante(fila.stock_actual, fila.stock_minimo),
+            costo,
+            valorizado,
             producto_id: fila.producto_id,
             nombre: fila.nombre,
             sku: fila.sku,
@@ -295,5 +324,7 @@ pub struct StockProducto {
     pub stock_actual: i64,
     pub stock_minimo: i32,
     pub bajo_minimo: bool,
+    /// `max(stock_minimo - stock_actual, 0)` (010).
+    pub faltante: i64,
     pub desglose: Vec<DesgloseStock>,
 }

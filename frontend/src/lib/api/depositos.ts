@@ -1,7 +1,9 @@
 /**
  * Cliente de depósitos, ubicaciones y asignaciones producto–ubicación (005).
- * Toda la superficie exige familia GESTION; el backend sigue siendo la autoridad.
+ * Toda la superficie exige familia GESTION salvo `listarDepositosActivos` (010); el
+ * backend sigue siendo la autoridad.
  */
+import { z } from 'zod';
 import { api } from './client';
 import {
 	ListaDepositosSchema,
@@ -23,6 +25,15 @@ export async function listarDepositos(activo: FiltroActivo = 'true'): Promise<De
 	const query = new URLSearchParams({ activo });
 	const body = await api<unknown>(`/api/depositos?${query.toString()}`);
 	return ListaDepositosSchema.parse(body);
+}
+
+export const DepositoActivoSchema = z.object({ id: z.number().int(), nombre: z.string() });
+export type DepositoActivo = z.infer<typeof DepositoActivoSchema>;
+
+/** Depósitos activos en forma breve; abierto a cualquier sesión (caja, movimientos). */
+export async function listarDepositosActivos(): Promise<DepositoActivo[]> {
+	const body = await api<unknown>('/api/depositos/activos');
+	return z.array(DepositoActivoSchema).parse(body);
 }
 
 export async function obtenerDeposito(id: number): Promise<Deposito> {

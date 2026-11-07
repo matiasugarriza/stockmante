@@ -25,6 +25,10 @@ pub struct FiltrosStock {
     pub activo: Option<bool>,
     pub pagina: Option<i64>,
     pub por_pagina: Option<i64>,
+    /// Restringe a estos ids (1-50, ya validados por el handler).
+    pub producto_ids: Option<Vec<i32>>,
+    /// Expone `costo` y `valorizado` (solo GESTION).
+    pub ver_costo: bool,
 }
 
 /// Fila del detalle de producto (cabecera del desglose).
@@ -62,12 +66,14 @@ pub async fn listar(pool: &PgPool, filtros: FiltrosStock) -> Result<ListaStock, 
               AND ($2::int IS NULL OR p.categoria_id = $2)
               AND ($3::bool IS NULL OR p.activo = $3)
               AND ($4::bool IS NOT TRUE
-                   OR (p.stock_minimo > 0 AND p.stock_actual < p.stock_minimo))"#,
+                   OR (p.stock_minimo > 0 AND p.stock_actual < p.stock_minimo))
+              AND ($5::int[] IS NULL OR p.id = ANY($5))"#,
     )
     .bind(q.as_deref())
     .bind(filtros.categoria_id)
     .bind(filtros.activo)
     .bind(filtros.bajo_minimo)
+    .bind(filtros.producto_ids.as_deref())
     .fetch_one(pool)
     .await?;
 
@@ -83,7 +89,8 @@ pub async fn listar(pool: &PgPool, filtros: FiltrosStock) -> Result<ListaStock, 
                              WHERE s.producto_id = p.id AND s.deposito_id = $5),
                            0
                        )::bigint
-                  END AS stock_deposito
+                  END AS stock_deposito,
+                  p.costo
              FROM productos p
              JOIN categorias c ON c.id = p.categoria_id
             WHERE ($1::text IS NULL OR p.nombre ILIKE '%' || $1 || '%' OR p.sku ILIKE '%' || $1 || '%')
@@ -91,6 +98,7 @@ pub async fn listar(pool: &PgPool, filtros: FiltrosStock) -> Result<ListaStock, 
               AND ($3::bool IS NULL OR p.activo = $3)
               AND ($4::bool IS NOT TRUE
                    OR (p.stock_minimo > 0 AND p.stock_actual < p.stock_minimo))
+              AND ($8::int[] IS NULL OR p.id = ANY($8))
             ORDER BY p.nombre, p.id
             LIMIT $6 OFFSET $7"#,
     )
@@ -101,10 +109,14 @@ pub async fn listar(pool: &PgPool, filtros: FiltrosStock) -> Result<ListaStock, 
     .bind(filtros.deposito_id)
     .bind(por_pagina)
     .bind(offset)
+    .bind(filtros.producto_ids.as_deref())
     .fetch_all(pool)
     .await?;
 
-    let items = filas.into_iter().map(StockItem::from).collect();
+    let items = filas
+        .into_iter()
+        .map(|fila| StockItem::desde_fila(fila, filtros.ver_costo))
+        .collect();
 
     Ok(ListaStock {
         items,
@@ -153,6 +165,7 @@ pub async fn detalle(pool: &PgPool, producto_id: i32) -> Result<StockProducto, A
         stock_actual: producto.stock_actual,
         stock_minimo: producto.stock_minimo,
         bajo_minimo,
+        faltante: crate::models::stock::faltante(producto.stock_actual, producto.stock_minimo),
         desglose,
     })
 }

@@ -24,14 +24,14 @@ registra el RED.
 
 ## Phase 1: Setup
 
-- [ ] T001 Verificar con el MCP de PostgreSQL (o `sqlx-cli`) las columnas y nullables de `productos` (`costo`, `stock_actual`, `stock_minimo`), `stock_por_deposito`, `depositos`, `ubicaciones` y `categorias` contra `specs/010-consulta-stock/data-model.md`; anotar diferencias en el data-model antes de seguir
+- [X] T001 Verificar con el MCP de PostgreSQL (o `sqlx-cli`) las columnas y nullables de `productos` (`costo`, `stock_actual`, `stock_minimo`), `stock_por_deposito`, `depositos`, `ubicaciones` y `categorias` contra `specs/010-consulta-stock/data-model.md`; anotar diferencias en el data-model antes de seguir
 
 ---
 
 ## Phase 2: Foundational (bloquea US10)
 
-- [ ] T002 [US10] Escribir `backend/tests/unit/test_stock_item.rs` (registrarlo en `backend/Cargo.toml`): `faltante` = max(mínimo − stock, 0) con mínimo 0, stock mayor y menor; `costo`/`valorizado` en `None` si `ver_costo = false`; `valorizado` usa `stock_deposito` si existe y si no `stock_actual`, redondeado a 2 decimales. Registrar el RED
-- [ ] T003 [US10] En `backend/src/models/stock.rs`: agregar `costo: Decimal` a `StockFila`; agregar `faltante`, `costo: Option<Decimal>`, `valorizado: Option<Decimal>` a `StockItem` y `faltante` a `StockProducto`; reemplazar `From<StockFila>` por `StockItem::desde_fila(fila, ver_costo)` (depende de T001, T002 → GREEN)
+- [X] T002 [US10] Escribir `backend/tests/unit/test_stock_item.rs` (registrarlo en `backend/Cargo.toml`): `faltante` = max(mínimo − stock, 0) con mínimo 0, stock mayor y menor; `costo`/`valorizado` en `None` si `ver_costo = false`; `valorizado` usa `stock_deposito` si existe y si no `stock_actual`, redondeado a 2 decimales. Registrar el RED
+- [X] T003 [US10] En `backend/src/models/stock.rs`: agregar `costo: Decimal` a `StockFila`; agregar `faltante`, `costo: Option<Decimal>`, `valorizado: Option<Decimal>` a `StockItem` y `faltante` a `StockProducto`; reemplazar `From<StockFila>` por `StockItem::desde_fila(fila, ver_costo)` (depende de T001, T002 → GREEN)
 
 ---
 
@@ -45,40 +45,40 @@ por depósito en `/caja`.
 
 ### Tests backend (escribir primero)
 
-- [ ] T004 [US10] Crear `backend/tests/integration/test_stock_http.rs` (registrarlo en `backend/Cargo.toml`): `GESTION` recibe `costo`/`valorizado` numéricos y `OPERACION` los recibe `null` (escenario 10.7); `bajo_minimo=true` trae `faltante` (10.4); `producto_ids` devuelve solo esos ids con `stock_deposito`; `producto_ids` con 51 ids o no numérico → 422 con mensaje específico; el detalle trae `faltante` y su desglose suma `stock_actual`; id inexistente → 404 `"Producto no encontrado."` (10.5). Registrar el RED
+- [X] T004 [US10] Crear `backend/tests/integration/test_stock_http.rs` (registrarlo en `backend/Cargo.toml`): `GESTION` recibe `costo`/`valorizado` numéricos y `OPERACION` los recibe `null` (escenario 10.7); `bajo_minimo=true` trae `faltante` (10.4); `producto_ids` devuelve solo esos ids con `stock_deposito`; `producto_ids` con 51 ids o no numérico → 422 con mensaje específico; el detalle trae `faltante` y su desglose suma `stock_actual`; id inexistente → 404 `"Producto no encontrado."` (10.5). Registrar el RED
 
 ### Implementación backend
 
-- [ ] T005 [US10] En `backend/src/services/stock.rs`: agregar `producto_ids: Option<Vec<i32>>` y `ver_costo: bool` a `FiltrosStock`; sumar `p.costo` al SELECT y `($8::int[] IS NULL OR p.id = ANY($8))` al listado y al `count`; usar `StockItem::desde_fila`; calcular `faltante` en `detalle` (depende de T003)
-- [ ] T006 [US10] En `backend/src/handlers/stock.rs`: leer `AuthUsuario(usuario)` y pasar `ver_costo = usuario.familia_rol == "GESTION"`; parsear `producto_ids` (coma, 1–50 enteros) devolviendo `AppError::Validacion` con mensaje específico; actualizar la documentación utoipa (depende de T005 → T004 en GREEN)
-- [ ] T007 [US10] Correr `cargo sqlx prepare` en `backend/` y actualizar la sección de stock de `docs/api.md` (parámetro `producto_ids`, campos `faltante`/`costo`/`valorizado`, regla de perfil) (depende de T006)
+- [X] T005 [US10] En `backend/src/services/stock.rs`: agregar `producto_ids: Option<Vec<i32>>` y `ver_costo: bool` a `FiltrosStock`; sumar `p.costo` al SELECT y `($8::int[] IS NULL OR p.id = ANY($8))` al listado y al `count`; usar `StockItem::desde_fila`; calcular `faltante` en `detalle` (depende de T003)
+- [X] T006 [US10] En `backend/src/handlers/stock.rs`: leer `AuthUsuario(usuario)` y pasar `ver_costo = usuario.familia_rol == "GESTION"`; parsear `producto_ids` (coma, 1–50 enteros) devolviendo `AppError::Validacion` con mensaje específico; actualizar la documentación utoipa (depende de T005 → T004 en GREEN)
+- [X] T007 [US10] Correr `cargo sqlx prepare` en `backend/` y actualizar la sección de stock de `docs/api.md` (parámetro `producto_ids`, campos `faltante`/`costo`/`valorizado`, regla de perfil) (depende de T006)
 
 ### Frontend: cliente y lógica (tests primero)
 
-- [ ] T008 [P] [US10] Agregar casos a `frontend/src/lib/schemas/movimientos.test.ts`: `StockItemSchema` acepta `faltante`, `costo`/`valorizado` numéricos o `null`; `StockProductoSchema` acepta `faltante`. Registrar el RED
-- [ ] T009 [P] [US10] Crear `frontend/src/lib/api/stock.test.ts`: `listarStock` serializa `categoria_id`, `activo` y `producto_ids` (coma); omite `producto_ids` vacío; `obtenerStockProducto` propaga el 404. Registrar el RED
-- [ ] T010 [P] [US10] Crear `frontend/src/lib/utils/stock.test.ts`: `indexarPorProducto(items)` → mapa `producto_id → stock_deposito`; `elegirDeposito(guardado, activos)` descarta un id inactivo y toma el primero; `textoValorizado(item)` muestra "—" cuando `valorizado` es `null`. Registrar el RED
-- [ ] T011 [US10] Extender `StockItemSchema` y `StockProductoSchema` en `frontend/src/lib/schemas/movimientos.ts` (depende de T008)
-- [ ] T012 [US10] Agregar `productoIds?: number[]` a `ListarStockParams` en `frontend/src/lib/api/stock.ts` (depende de T009, T011)
-- [ ] T013 [US10] Crear `frontend/src/lib/utils/stock.ts` con `indexarPorProducto`, `elegirDeposito` y `textoValorizado` (depende de T010, T011)
+- [X] T008 [P] [US10] Agregar casos a `frontend/src/lib/schemas/movimientos.test.ts`: `StockItemSchema` acepta `faltante`, `costo`/`valorizado` numéricos o `null`; `StockProductoSchema` acepta `faltante`. Registrar el RED
+- [X] T009 [P] [US10] Crear `frontend/src/lib/api/stock.test.ts`: `listarStock` serializa `categoria_id`, `activo` y `producto_ids` (coma); omite `producto_ids` vacío; `obtenerStockProducto` propaga el 404. Registrar el RED
+- [X] T010 [P] [US10] Crear `frontend/src/lib/utils/stock.test.ts`: `indexarPorProducto(items)` → mapa `producto_id → stock_deposito`; `elegirDeposito(guardado, activos)` descarta un id inactivo y toma el primero; `textoValorizado(item)` muestra "—" cuando `valorizado` es `null`. Registrar el RED
+- [X] T011 [US10] Extender `StockItemSchema` y `StockProductoSchema` en `frontend/src/lib/schemas/movimientos.ts` (depende de T008)
+- [X] T012 [US10] Agregar `productoIds?: number[]` a `ListarStockParams` en `frontend/src/lib/api/stock.ts` (depende de T009, T011)
+- [X] T013 [US10] Crear `frontend/src/lib/utils/stock.ts` con `indexarPorProducto`, `elegirDeposito` y `textoValorizado` (depende de T010, T011)
 
 ### Frontend: pantallas
 
-- [ ] T014 [US10] Completar `frontend/src/routes/admin/stock/+page.svelte`: filtros de categoría (`listarCategorias`) y activo (activos/inactivos/todos); columnas stock global, stock en depósito (si hay depósito elegido), mínimo, faltante, costo y valorizado; fila clickeable que abre el desglose con `obtenerStockProducto`; reiniciar a página 1 al cambiar filtros; errores con qué falló, qué hacer y botón Reintentar, sin descartar en silencio el fallo de depósitos (FR-040, K1; depende de T012, T013)
-- [ ] T015 [US10] En `frontend/src/routes/caja/+page.svelte`: selector de depósitos activos recordado en `localStorage` vía `elegirDeposito`; tras cada búsqueda, `listarStock({ productoIds, depositoId, porPagina: 50 })` y columna "Stock en <depósito>"; respetar la secuencia de turnos existente para descartar respuestas viejas; mensaje cuando no hay depósitos activos; sin costo ni valorizado (escenario 10.6, R1, R4; depende de T012, T013)
-- [ ] T016 [US10] Verificar que el enlace "Stock" de `frontend/src/routes/+layout.svelte` sigue visible solo para `GESTION` y que el aviso de bajo mínimo sigue funcionando con el schema extendido (depende de T011)
+- [X] T014 [US10] Completar `frontend/src/routes/admin/stock/+page.svelte`: filtros de categoría (`listarCategorias`) y activo (activos/inactivos/todos); columnas stock global, stock en depósito (si hay depósito elegido), mínimo, faltante, costo y valorizado; fila clickeable que abre el desglose con `obtenerStockProducto`; reiniciar a página 1 al cambiar filtros; errores con qué falló, qué hacer y botón Reintentar, sin descartar en silencio el fallo de depósitos (FR-040, K1; depende de T012, T013)
+- [X] T015 [US10] En `frontend/src/routes/caja/+page.svelte`: selector de depósitos activos recordado en `localStorage` vía `elegirDeposito`; tras cada búsqueda, `listarStock({ productoIds, depositoId, porPagina: 50 })` y columna "Stock en <depósito>"; respetar la secuencia de turnos existente para descartar respuestas viejas; mensaje cuando no hay depósitos activos; sin costo ni valorizado (escenario 10.6, R1, R4; depende de T012, T013)
+- [X] T016 [US10] Verificar que el enlace "Stock" de `frontend/src/routes/+layout.svelte` sigue visible solo para `GESTION` y que el aviso de bajo mínimo sigue funcionando con el schema extendido (depende de T011)
 
 ### Asistente
 
-- [ ] T017 [P] [US10] Verificar en `asistente/src/tools.ts` y `asistente/src/pruebas/api-falsa.ts` que la herramienta de stock tolera `faltante`, `costo` y `valorizado` (null o numéricos); ajustar el fixture y correr `npm test` en `asistente/` (depende de T006)
+- [X] T017 [P] [US10] Verificar en `asistente/src/tools.ts` y `asistente/src/pruebas/api-falsa.ts` que la herramienta de stock tolera `faltante`, `costo` y `valorizado` (null o numéricos); ajustar el fixture y correr `npm test` en `asistente/` (depende de T006)
 
 ---
 
 ## Phase 4: Polish & cross-cutting
 
-- [ ] T018 [US10] Agregar a `backend/tests/integration/test_stock_http.rs` el test `sc018` con `#[ignore]`: sembrar 10.000 productos y 3 depósitos, medir por HTTP una página sin `q`, con `q` por nombre y con `q` por SKU, e imprimir `EXPLAIN ANALYZE`; registrar los tiempos en `specs/010-consulta-stock/research.md` (R6) (depende de T006)
-- [ ] T019 [US10] Solo si T018 supera 1 s en alguna variante: crear `migrations/0015_productos_sku_trgm.sql` con el índice GIN trigram sobre `productos.sku`, repetir T018 y actualizar el spec (sección Dependencias) y el ledger de migraciones de `specs/README.md` (depende de T018)
-- [ ] T020 Quality gates: `cargo test` y `cargo sqlx prepare --check` en `backend/`; `npm test`, `npm run check` y `npm run build` en `frontend/`; `npm test` en `asistente/`; sin `unwrap`/`expect`/`panic!` en el código nuevo de producción
+- [X] T018 [US10] Agregar a `backend/tests/integration/test_stock_http.rs` el test `sc018` con `#[ignore]`: sembrar 10.000 productos y 3 depósitos, medir por HTTP una página sin `q`, con `q` por nombre y con `q` por SKU, e imprimir `EXPLAIN ANALYZE`; registrar los tiempos en `specs/010-consulta-stock/research.md` (R6) (depende de T006)
+- [X] T019 *(no aplica: SC-018 ≈ 37 ms, ver research R6)* [US10] Solo si T018 supera 1 s en alguna variante: crear `migrations/0015_productos_sku_trgm.sql` con el índice GIN trigram sobre `productos.sku`, repetir T018 y actualizar el spec (sección Dependencias) y el ledger de migraciones de `specs/README.md` (depende de T018)
+- [X] T020 Quality gates: `cargo test` y `cargo sqlx prepare --check` en `backend/`; `npm test`, `npm run check` y `npm run build` en `frontend/`; `npm test` en `asistente/`; sin `unwrap`/`expect`/`panic!` en el código nuevo de producción
 - [ ] T021 Recorrer `specs/010-consulta-stock/quickstart.md` (pasos manuales 1–5) y actualizar el estado del spec a Implementado
 
 ---

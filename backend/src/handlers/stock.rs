@@ -33,6 +33,33 @@ pub struct ListarStockQuery {
     pub activo: Option<String>,
     pub pagina: Option<i64>,
     pub por_pagina: Option<i64>,
+    /// Ids separados por coma (1-50): restringe el listado a esos productos.
+    pub producto_ids: Option<String>,
+}
+
+/// Tope de `producto_ids` por consulta (010).
+const PRODUCTO_IDS_MAX: usize = 50;
+
+/// `producto_ids` vacío o ausente = sin filtro.
+fn parsear_producto_ids(valor: Option<&str>) -> Result<Option<Vec<i32>>, AppError> {
+    let Some(valor) = valor.map(str::trim).filter(|v| !v.is_empty()) else {
+        return Ok(None);
+    };
+    let ids = valor
+        .split(',')
+        .map(|parte| parte.trim().parse::<i32>().ok().filter(|id| *id > 0))
+        .collect::<Option<Vec<_>>>()
+        .ok_or_else(|| {
+            AppError::Validacion(
+                "producto_ids debe ser una lista de enteros mayores a 0 separados por coma.".into(),
+            )
+        })?;
+    if ids.len() > PRODUCTO_IDS_MAX {
+        return Err(AppError::Validacion(format!(
+            "producto_ids admite hasta {PRODUCTO_IDS_MAX} ids."
+        )));
+    }
+    Ok(Some(ids))
 }
 
 /// GET /api/stock?q=&deposito_id=&categoria_id=&bajo_minimo=&activo=&pagina=&por_pagina=
@@ -41,7 +68,7 @@ pub struct ListarStockQuery {
     path = "/api/stock",
     tag = "stock",
     summary = "Listado de stock por producto",
-    description = "`stock_actual` es el total del producto; con `deposito_id` se agrega `stock_deposito`.",
+    description = "`stock_actual` es el total del producto; con `deposito_id` se agrega `stock_deposito`. `faltante` siempre; `costo` y `valorizado` solo para GESTION (`null` para OPERACION). `producto_ids` admite hasta 50 ids.",
     params(ListarStockQuery),
     responses(
         (status = 200, description = "Página de stock", body = ListaStock),
@@ -51,7 +78,7 @@ pub struct ListarStockQuery {
 )]
 pub async fn listar(
     State(estado): State<AppEstado>,
-    _usuario: AuthUsuario,
+    AuthUsuario(usuario): AuthUsuario,
     QueryValida(query): QueryValida<ListarStockQuery>,
 ) -> Result<Json<ListaStock>, AppError> {
     let filtros = FiltrosStock {
@@ -62,6 +89,8 @@ pub async fn listar(
         activo: super::parsear_activo(query.activo.as_deref(), Some(true))?,
         pagina: query.pagina,
         por_pagina: query.por_pagina,
+        producto_ids: parsear_producto_ids(query.producto_ids.as_deref())?,
+        ver_costo: usuario.familia_rol == "GESTION",
     };
     Ok(Json(stock::listar(&estado.pool, filtros).await?))
 }
