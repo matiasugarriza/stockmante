@@ -51,6 +51,12 @@ Registra una transferencia inmediata de stock entre dos depósitos distintos.
 }
 ```
 
+**Semántica de stock** (plan, decisión 9): el stock que se valida y se informa es el de la fila
+`(producto, depósito, ubicación)`. Sin `ubicacion_origen_id` es la fila sin ubicación del
+depósito de origen, no el total del depósito; lo mismo vale para el destino.
+`stock_origen_resultante` y `stock_destino_resultante` son el saldo de esas filas después de la
+transferencia.
+
 **Errores**:
 
 | Status | Código | Mensaje |
@@ -101,10 +107,12 @@ Detalle de una transferencia con los dos movimientos generados.
 
 **Permiso**: sesión vigente.
 
-**Respuesta 200**: `TransferenciaDetalle` (mismo shape que el 201 de POST).
+**Respuesta 200**: `TransferenciaDetalle` (mismo shape que el 201 de POST). Los dos movimientos
+generados se referencian por `movimiento_salida_id` y `movimiento_entrada_id`; su tipo, depósito,
+motivo y línea se leen con `GET /api/movimientos/{id}` (plan, decisión 11).
 
 **Errores**:
 
 | Status | Código | Mensaje |
 |---|---|---|
-| 404 | `recurso_no_encontrado` | `No existe la transferencia {id}.` |
+| 404 | `recurso_no_encontrado` | `No existe la transferencia {id}. Revisá el número o buscala en el listado de transferencias.` |

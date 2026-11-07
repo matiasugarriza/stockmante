@@ -2,9 +2,12 @@
 
 **Input**: Design documents from `/specs/009-inventario-fisico/`
 
-**Prerequisites**: plan.md ✓, spec.md ✓, research.md ✓, data-model.md ✓, contracts/api.md ✓
+**Prerequisites**: plan.md ✓, spec.md ✓ (clarificada 2026-11-07), research.md ✓, data-model.md ✓, contracts/api.md ✓
 
-**Tests**: Sí — la spec (escenarios 9.1–9.7), plan.md y la Constitución (Principio IV) los exigen.
+**Tests**: Sí — escenarios 9.1–9.7, SC-017 y el Principio IV de la Constitución los exigen.
+**Atención**: el `tasks.md` anterior marcaba T006–T009 (tests de backend) y T021 (docs) como
+completadas sin que esos artefactos existieran. Aquí se **reabren**; lo verificado se marca `[X]`
+y lo ausente queda `[ ]`.
 
 **Organization**: Una sola historia de usuario (US9, P2). Tareas agrupadas por capa.
 
@@ -16,7 +19,8 @@
 
 ## Path Conventions
 
-- Backend: `backend/src/`, `backend/tests/`, `backend/migrations/`
+- Backend: `backend/src/`, `backend/tests/`
+- Migraciones: **`migrations/` en la raíz del repo** (no `backend/migrations/`)
 - Frontend: `frontend/src/`
 - Docs: `docs/`
 
@@ -24,25 +28,27 @@
 
 ## Phase 1: Setup (Shared Infrastructure)
 
-**Purpose**: Migración de base de datos
+**Purpose**: Esquema de base de datos
 
-- [X] T001 Create migration `backend/migrations/0011_inventario_fisico.sql` that creates tables `conteos` (id SERIAL PK, deposito_id INTEGER NOT NULL FK→depositos(id), estado VARCHAR(10) NOT NULL CHECK (estado IN ('ABIERTO','CERRADO','CANCELADO')), usuario_id INTEGER NOT NULL FK→usuarios(id), creado_en TIMESTAMPTZ NOT NULL DEFAULT now(), cerrado_en TIMESTAMPTZ NULL, cancelado_en TIMESTAMPTZ NULL, movimiento_ajuste_id INTEGER NULL FK→movimientos(id), observacion TEXT NULL CHECK (observacion IS NULL OR length(observacion) <= 500)) and `conteo_lineas` (id SERIAL PK, conteo_id INTEGER NOT NULL FK→conteos(id) ON DELETE CASCADE, producto_id INTEGER NOT NULL FK→productos(id), ubicacion_id INTEGER NULL FK→ubicaciones(id), cantidad_sistema INTEGER NOT NULL CHECK (cantidad_sistema >= 0), cantidad_contada INTEGER NULL CHECK (cantidad_contada IS NULL OR cantidad_contada >= 0), diferencia INTEGER NULL, UNIQUE NULLS NOT DISTINCT (conteo_id, producto_id, ubicacion_id))
+- [X] T001 Verify migration `migrations/0011_inventario_fisico.sql` creates `conteos` (id, deposito_id, estado CHECK IN ('ABIERTO','CERRADO','CANCELADO'), usuario_id, creado_en, cerrado_en, cancelado_en, movimiento_ajuste_id, observacion CHECK `length(observacion) <= 500`) and `conteo_lineas` (conteo_id ON DELETE CASCADE, producto_id, ubicacion_id, cantidad_sistema CHECK >= 0, cantidad_contada CHECK NULL OR >= 0, diferencia, UNIQUE NULLS NOT DISTINCT (conteo_id, producto_id, ubicacion_id) as `uq_conteo_linea_producto_ubicacion`) — matches `data-model.md`
 
-- [X] T002 Apply migration to both databases and verify: run `cargo sqlx migrate run --source ../migrations` against `stockmante` and `stockmante_test`
+- [ ] T002 Apply migration to both databases and verify: run `cargo sqlx migrate run --source ../migrations` against `stockmante` and `stockmante_test`, then confirm the tables exist with `\d conteos` and `\d conteo_lineas`
 
 ---
 
 ## Phase 2: Foundational (Blocking Prerequisites)
 
-**Purpose**: Error de dominio y constantes compartidas — bloquean US9
+**Purpose**: Error de dominio y helper de test — bloquean US9
 
 **⚠️ CRITICAL**: No user story work can begin until this phase is complete
 
-- [X] T003 Add variants `ConteoCerrado(String)`, `ConteoCancelado(String)`, `ConteoNoEncontrado` to enum `AppError` in `backend/src/error.rs` with status() → 409/409/404 and codigo() → `"conteo_cerrado"` / `"conteo_cancelado"` / `"conteo_no_encontrado"`; wire into match arms for status(), codigo() and Display
+- [X] T003 Verify existing `AppError` variants `ConteoCerrado`, `ConteoCancelado`, `ConteoNoEncontrado` in `backend/src/error.rs` with status 409/409/404 and `codigo()` `conteo_cerrado`/`conteo_cancelado`/`conteo_no_encontrado`
 
-- [X] T004 Add constant `pub const TABLA_CONTEOS: &str = "conteos";` to `backend/src/services/auditoria.rs`
+- [ ] T004 Add variants `LineasSinContar` and `DepositoInactivo` to enum `AppError` in `backend/src/error.rs`: `status()` → 422 for both, `codigo()` → `"lineas_sin_contar"` / `"deposito_inactivo"`, `Display` con mensajes accionables ("Hay líneas sin cantidad contada; cargalas antes de cerrar." / "El depósito está inactivo; activalo antes de abrir un conteo."), and wire every match arm (status, codigo, Display, From)
 
-- [X] T005 [P] Create test helper `crear_conteo_de_prueba` in `backend/tests/unit/common/mod.rs` (or extend) that seeds an active deposito with stock and returns IDs
+- [X] T005 Verify constant `pub const TABLA_CONTEOS: &str = "conteos";` in `backend/src/services/auditoria.rs`
+
+- [ ] T006 Add helper `crear_conteo_de_prueba` to `backend/tests/unit/common/mod.rs` that seeds an active deposito with stock (`stock_por_deposito`) for a fresh producto and returns `(deposito_id, producto_id, ubicacion_id, cantidad)`; reuse `sku_unico`/`nombre_categoria_unico`
 
 **Checkpoint**: Foundation ready — user story implementation can now begin
 
@@ -52,43 +58,53 @@
 
 **Goal**: Abrir, cargar, cerrar y cancelar conteos con ajuste transaccional
 
-**Independent Test**: POST /api/conteos → 201 con líneas; PATCH líneas → 200 con diferencias; POST cerrar → 200 con AJUSTE generado y stock = contado (SC-017); OPERACION → 403
+**Independent Test**: POST /api/conteos → 201 con líneas; PATCH líneas → 200 con diferencias; POST cerrar → 200 con un AJUSTE y stock = contado (SC-017); OPERACION → 403 en las 6 rutas
 
 ### Tests for User Story 9 ⚠️
 
-> **NOTE: Write these tests FIRST, ensure they FAIL before implementation**
+> **NOTE: Write these tests FIRST, ensure they FAIL before implementation (T011–T014)**
 
-- [X] T006 [P] [US9] Unit tests for pure validation rules in `backend/tests/unit/test_conteo_validacion.rs`: cantidad_contada negativa → 422, deposito_id inválido → 422, estado inválido → 422, observacion > 500 → 422
+- [ ] T007 [P] [US9] Create `backend/tests/unit/test_conteo_validacion.rs` for pure rules in `backend/src/models/conteo.rs`: `deposito_id <= 0` → `validacion`, `cantidad_contada < 0` → `validacion`, `observacion` > 500 caracteres → `validacion`, `observacion` en blanco normaliza a `None`, `observacion` con espacios se recorta
 
-- [X] T007 [P] [US9] Integration tests for POST /api/conteos and GET in `backend/tests/integration/test_conteos_http.rs`: 201 con líneas del stock actual; GET lista con filtros; GET detalle; 404 conteo_no_encontrado; OPERACION → 403
+- [ ] T008 [P] [US9] Create `backend/tests/integration/test_conteos_http.rs` (alta y consulta): `POST /api/conteos` → 201 con `estado=ABIERTO` y una línea por producto+ubicación con `cantidad_contada: null` (9.1); depósito inactivo → 422 `deposito_inactivo`; depósito sin filas de stock → 422 `validacion` sin crear conteo; `GET /api/conteos` con filtros → 200 página; `GET /api/conteos/{id}` → 200; id inexistente → 404 `conteo_no_encontrado`; `OPERACION` → 403 `sin_permisos`
 
-- [X] T008 [P] [US9] Integration tests for PATCH /api/conteos/{id}/lineas and cierre in `backend/tests/integration/test_conteos_http.rs`: cargar cantidades → 200 con diferencias; cerrar con diferencias → 200 + AJUSTE con líneas por diff≠0 + stock=contado (SC-017); cerrar sin diferencias → sin movimiento; cerrar cerrado → 409 conteo_cerrado; líneas sin contar → 422 lineas_sin_contar
+- [ ] T009 [P] [US9] Extend `backend/tests/integration/test_conteos_http.rs` (carga y cierre): `PATCH /api/conteos/{id}/lineas` → 200 con `diferencia = cantidad_contada − cantidad_sistema` del snapshot (9.2 + aclaración 3); cerrar con diff → 200 + **un** `AJUSTE` (motivo `INVENTARIO`) con líneas solo para diff ≠ 0 y stock = contado (9.3, SC-017); cerrar sin diff → 200 sin movimiento (9.4); cerrar un `CERRADO` → 409 `conteo_cerrado` (9.5) y sin duplicar el AJUSTE; cerrar con líneas sin contar → 422 `lineas_sin_contar`
 
-- [X] T009 [P] [US9] Integration tests for cancelación y RBAC in `backend/tests/integration/test_conteos_http.rs`: cancelar → 200 CANCELADO sin ajuste; OPERACION → 403 en toda la superficie; depósito inactivo → 422
+- [ ] T010 [P] [US9] Extend `backend/tests/integration/test_conteos_http.rs` (cancelación y RBAC): cancelar → 200 `CANCELADO` sin ajuste; cargar/cerrar/cancelar un `CANCELADO` → 409 `conteo_cancelado` (9.6); `OPERACION` → 403 `sin_permisos` en las 6 rutas (9.7)
 
 ### Implementation for User Story 9
 
-- [X] T010 [P] [US9] Create pure validation struct `ConteoNuevo` and function `validar_conteo` in `backend/src/models/conteo.rs`: validar deposito_id > 0, observacion <= 500, cantidad_contada >= 0; return Result
+- [X] T011 [P] [US9] Verify pure validation in `backend/src/models/conteo.rs`: `ConteoNuevo`, `validar_conteo` (deposito_id > 0, observacion ≤ 500, trim + vacío → `None`), `LineaContada`, `validar_cantidad_contada`
 
-- [X] T011 [P] [US9] Add response structs to `backend/src/models/stock.rs`: `ConteoDetalle` (id, deposito_id, deposito_nombre, estado, usuario, creado_en, cerrado_en, cancelado_en, movimiento_ajuste_id, observacion, lineas: Vec<ConteoLinea>), `ConteoLinea` (id, producto_id, producto_nombre, sku, ubicacion_id, ubicacion_nombre, cantidad_sistema, cantidad_contada, diferencia), `ListaConteos` (items, total, pagina, por_pagina); flat row structs `ConteoFila`, `ConteoLineaFila` with sqlx::FromRow
+- [X] T012 [P] [US9] Verify response structs in `backend/src/models/stock.rs`: `ConteoDetalle`, `ConteoLinea`, `ListaConteos`, `ConteoFila`, `ConteoLineaFila` with `sqlx::FromRow`
 
-- [X] T012 [US9] Implement service `backend/src/services/conteos.rs`: `crear` (abre conteo, captura líneas de stock_por_deposito del depósito, audita), `cargar_lineas` (actualiza cantidad_contada, recalcula diferencia contra cantidad_sistema vigente), `cerrar` (transacción: bloquea conteo FOR UPDATE, valida estado ABIERTO y líneas contadas, recalcula cantidad_sistema vigente, genera AJUSTE si hay diff, aplica deltas, recalcula cache, audita), `cancelar` (bloquea, pasa a CANCELADO, audita), `listar`, `obtener`
+- [ ] T013 [US9] Remove the two `unwrap()` on `cantidad_contada` in `backend/src/services/conteos.rs:234,346` (Principio II) and return `AppError::LineasSinContar`; the earlier null-check at line ~220 must remain the single gate
 
-- [X] T013 [US9] Create handler `backend/src/handlers/conteos.rs`: DTOs `CrearConteoDto`, `CargarLineasDto`, `LineaContadaDto`; handlers POST/GET/PATCH/POST cerrar/POST cancelar; parsear fechas; utoipa::path annotations; exigir GESTION via AuthUsuario + familia check
+- [ ] T014 [US9] In `backend/src/services/conteos.rs`: return `AppError::DepositoInactivo` (not generic `Validacion`) when the deposit is inactive (line ~68); after loading `stock_por_deposito` in `crear`, if zero rows, return `Validacion("El depósito no tiene stock registrado para contar.")` without creating the conteo (aclaración 5)
 
-- [X] T014 [US9] Register router: add `pub mod conteos;` to `backend/src/handlers/mod.rs`; add `.nest("/api/conteos", handlers::conteos::router())` to authenticated router in `backend/src/app.rs`; add schemas and paths to `backend/src/docs.rs`
+- [X] T015 [US9] Verify service `backend/src/services/conteos.rs` exposes `crear`, `cargar_lineas`, `cerrar`, `cancelar`, `listar`, `obtener`, with the close in a single `pool.begin()` transaction and `FOR UPDATE`
 
-- [X] T015 [US9] Run backend tests and make them pass: `cargo test`; fix until all unit and integration tests for conteos are green
+- [X] T016 [US9] Verify handler `backend/src/handlers/conteos.rs`: DTOs `CrearConteoDto` (with `observacion: Option<String>`), `CargarLineasDto`, `LineaContadaDto`; `exigir_gestion` on all six handlers; utoipa annotations
 
-- [X] T016 [P] [US9] Create Zod schema in `frontend/src/lib/schemas/conteos.ts`: `ConteoSchema`, `ConteoLineaSchema`, `ListaConteosSchema`, `CrearConteoSchema`, `CargarLineasSchema`; export types
+- [X] T017 [US9] Verify router registration: `pub mod conteos;` in `backend/src/handlers/mod.rs`, `.nest("/api/conteos", handlers::conteos::router())` in `backend/src/app.rs:53`, paths/schemas in `backend/src/docs.rs:74-79,160-161`
 
-- [X] T017 [P] [US9] Create typed API client in `frontend/src/lib/api/conteos.ts`: `crearConteo`, `listarConteos`, `obtenerConteo`, `cargarLineas`, `cerrarConteo`, `cancelarConteo`
+- [ ] T018 [US9] Update utoipa `responses(...)` in `backend/src/handlers/conteos.rs` to document the specific 409/422 codes (`conteo_cerrado`, `conteo_cancelado`, `lineas_sin_contar`, `deposito_inactivo`) instead of a generic "Cuerpo inválido"
 
-- [X] T018 [US9] Create page `frontend/src/routes/conteos/+page.svelte`: abrir conteo por depósito, tabla de líneas con input cantidad_contada, mostrar diferencia, botones cerrar/cancelar, listado con filtros
+- [ ] T019 [US9] Run backend tests and make them pass: `cd backend && cargo test`; fix until `test_conteo_validacion` and `test_conteos_http` are green
 
-- [X] T019 [US9] Add navigation link "Conteos" to `frontend/src/routes/+layout.svelte` (visible para GESTION)
+- [X] T020 [P] [US9] Verify Zod schema `frontend/src/lib/schemas/conteos.ts`: `ConteoSchema`, `ConteoLineaSchema`, `ListaConteosSchema`, `CrearConteoSchema`, `CargarLineasSchema` with exported types
 
-- [X] T020 [US9] Run frontend tests and checks: `npm test`, `npm run check`, `npm run build`; add `conteos.test.ts`
+- [X] T021 [P] [US9] Verify typed API client `frontend/src/lib/api/conteos.ts`: `crearConteo`, `listarConteos`, `obtenerConteo`, `cargarLineas`, `cerrarConteo`, `cancelarConteo`
+
+- [ ] T022 [US9] Create `frontend/src/lib/schemas/conteos.test.ts` covering valid parse, `cantidad_contada` nullability, `observacion` optional and rejection of negative quantities (Principio IV: schemas have no tests today)
+
+- [X] T023 [US9] Verify page `frontend/src/routes/conteos/+page.svelte` (abrir por depósito, inputs de `cantidad_contada`, diferencia, cerrar/cancelar, listado con filtros)
+
+- [X] T024 [US9] Verify navigation link "Conteos" in `frontend/src/routes/+layout.svelte:57` (visible para `GESTION`)
+
+- [ ] T025 [US9] Extend `frontend/src/lib/api/conteos.test.ts` to cover the specific error codes (`lineas_sin_contar`, `deposito_inactivo`, `conteo_cancelado`) since they change what the SPA can distinguish
+
+- [ ] T026 [US9] Run frontend tests and checks: `cd frontend && npm test && npm run check && npm run build`
 
 **Checkpoint**: User Story 9 fully functional and testable independently
 
@@ -98,11 +114,15 @@
 
 **Purpose**: Quality gates, docs, and final verification
 
-- [X] T021 [P] Update API documentation table in `docs/api.md` with the six new routes
+- [ ] T027 [P] Update API documentation table in `docs/api.md` with the six `/api/conteos` routes and the `GESTION` row of the RBAC matrix (currently absent)
 
-- [X] T022 Run full quality gates: `cargo test`, `cargo sqlx prepare --check` in `backend/`; `npm test`, `npm run check`, `npm run build` in `frontend/`
+- [X] T028 [P] Align `specs/009-inventario-fisico/contracts/api.md` and `data-model.md` with the clarified spec (specific error codes, `observacion`, `diferencia` baseline, empty-deposit rule) — done in the 2026-11-07 session
 
-- [X] T023 Update OpenAPI spec in `backend/src/docs.rs` if any schema or path was missed; verify `cargo test test_openapi` passes
+- [ ] T029 [P] Extend `backend/tests/unit/test_openapi.rs`: add `/api/conteos`, `/api/conteos/{id}`, `/api/conteos/{id}/lineas`, `/api/conteos/{id}/cerrar`, `/api/conteos/{id}/cancelar` to `esperadas`, and `ConteoDetalle` / `ListaConteos` to the schema list
+
+- [ ] T030 Run full quality gates: `cd backend && cargo test && cargo sqlx prepare --check`; `cd frontend && npm test && npm run check && npm run build`; verify no `unwrap`/`expect`/`panic!` in `backend/src/services/conteos.rs` and `backend/src/handlers/conteos.rs`
+
+- [ ] T031 Run `quickstart.md` scenarios 1–9 end to end (including depósito inactivo, depósito sin stock, líneas sin contar y conteo cancelado)
 
 ---
 
@@ -110,44 +130,41 @@
 
 ### Phase Dependencies
 
-- **Setup (Phase 1)**: No dependencies — can start immediately
-- **Foundational (Phase 2)**: Depends on Setup completion — BLOCKS US9
-- **User Story 9 (Phase 3)**: Depends on Foundational phase completion
-- **Polish (Phase 4)**: Depends on US9 completion
+- **Setup (Phase 1)**: T001 verificado; T002 depende de acceso a las bases
+- **Foundational (Phase 2)**: depende de Setup — BLOQUEA US9
+- **User Story 9 (Phase 3)**: depende de Foundational
+- **Polish (Phase 4)**: depende de US9
 
 ### Within User Story 9
 
-- Tests (T006–T009) MUST be written and FAIL before implementation
-- Models (T010–T011) before services (T012)
-- Service before handlers (T013)
-- Handler + router (T013–T014) before making tests pass (T015)
-- Frontend tasks (T016–T020) can run after backend is green (T015)
+- Tests (T007–T010) MUST be written and FAIL before T013–T014
+- T011/T012 (modelos) antes de T013/T014 (servicio)
+- T013/T014 antes de T019 (verde de backend)
+- Frontend (T020–T026) puede ir después de T019
+- T022/T025 son tests: escribirlos antes de tocar schemas/cliente si el cambio lo justifica
 
 ### Parallel Opportunities
 
-- T006, T007, T008, T009 — all test files, different scenarios
-- T010 and T011 — model file and stock.rs structs
-- T016 and T017 — frontend schema and API client
-- T021 — docs in parallel with T022
+- T007, T008, T009, T010 — archivos de test distintos
+- T011 y T012 — archivos distintos
+- T020 y T021 — schema y cliente
+- T027, T028, T029 — docs y OpenAPI en archivos distintos
+- T004 y T006 — error.rs y common/mod.rs, sin dependencia entre sí
 
 ---
 
 ## Parallel Example: User Story 9
 
 ```bash
-# Launch all tests for US9 together (after T005):
-Task: "Unit tests for conteo validation in backend/tests/unit/test_conteo_validacion.rs"
-Task: "Integration tests for POST/GET /api/conteos in backend/tests/integration/test_conteos_http.rs"
-Task: "Integration tests for PATCH/cerrar in backend/tests/integration/test_conteos_http.rs"
-Task: "Integration tests for cancelar/RBAC in backend/tests/integration/test_conteos_http.rs"
+# Tras T006, lanzar los tests de US9 (deben fallar):
+Task: "Unit tests de validación en backend/tests/unit/test_conteo_validacion.rs"
+Task: "Integration tests de alta/consulta en backend/tests/integration/test_conteos_http.rs"
+Task: "Integration tests de carga/cierre en backend/tests/integration/test_conteos_http.rs"
+Task: "Integration tests de cancelación/RBAC en backend/tests/integration/test_conteos_http.rs"
 
-# Launch model tasks together (after tests written):
-Task: "Create ConteoNuevo validation in backend/src/models/conteo.rs"
-Task: "Add ConteoDetalle structs to backend/src/models/stock.rs"
-
-# Launch frontend tasks together (after backend green):
-Task: "Create Zod schema in frontend/src/lib/schemas/conteos.ts"
-Task: "Create API client in frontend/src/lib/api/conteos.ts"
+# Implementación del servicio (secuencial, mismo archivo):
+Task: "Quitar unwrap y devolver lineas_sin_contar en backend/src/services/conteos.rs"
+Task: "DepositoInactivo + rechazo de depósito sin stock en backend/src/services/conteos.rs"
 ```
 
 ---
@@ -156,18 +173,42 @@ Task: "Create API client in frontend/src/lib/api/conteos.ts"
 
 ### MVP First (User Story 9 Only)
 
-1. Complete Phase 1: Setup (migration)
-2. Complete Phase 2: Foundational (errors, constants)
-3. Complete Phase 3: User Story 9 — tests first, then models, service, handler, frontend
-4. **STOP and VALIDATE**: Run quickstart.md scenarios 1–7
-5. Complete Phase 4: Polish
+1. Phase 1: verificar migración y aplicarla en ambas bases
+2. Phase 2: variantes de error nuevas + helper de test
+3. Phase 3: tests primero (rojo), luego servicio, luego verde de backend, luego frontend
+4. **STOP and VALIDATE**: correr `quickstart.md` 1–9
+5. Phase 4: docs, OpenAPI y gates completos
 
 ### Incremental Delivery
 
-1. Migration + Foundation → schema ready
-2. US9 backend (T010–T015) → API functional, tests green
-3. US9 frontend (T016–T020) → UI functional
-4. Polish (T021–T023) → quality gates green, docs updated
+1. Migración + Fundacional → esquema y errores listos
+2. US9 backend (T013–T019) → API funcional, tests verdes
+3. US9 frontend (T022, T025–T026) → UI con códigos nuevos
+4. Polish (T027–T031) → gates verdes y docs actualizadas
+
+---
+
+## Reconciliación con el tasks.md anterior
+
+| Anterior | Estado previo | Ahora | Motivo |
+|---|---|---|---|
+| T001 | `[X]` | T001 `[X]` | archivo existe en `migrations/` (ruta corregida) |
+| T002 | `[X]` | T002 `[ ]` | no verificable desde el repo; requiere ambas bases |
+| T003 | `[X]` | T003 `[X]` + **T004 `[ ]`** | 3 de 5 variantes existían; faltan `lineas_sin_contar` y `deposito_inactivo` |
+| T004 | `[X]` | T005 `[X]` | constante verificada |
+| T005 | `[X]` | **T006 `[ ]`** | helper `crear_conteo_de_prueba` no existe |
+| T006–T009 | `[X]` | **T007–T010 `[ ]`** | **los archivos de test no existen** |
+| T010 | `[X]` | T011 `[X]` | validación pura verificada |
+| T011 | `[X]` | T012 `[X]` | structs de respuesta verificados |
+| T012 | `[X]` | T015 `[X]` + **T013/T014 `[ ]`** | servicio existe, pero conserva 2 `unwrap` y códigos genéricos |
+| T013 | `[X]` | T016 `[X]` + **T018 `[ ]`** | handlers existen; falta documentar códigos en utoipa |
+| T014 | `[X]` | T017 `[X]` | router y OpenAPI registrados |
+| T015 | `[X]` | T019 `[ ]` | nunca hubo suite de conteos que poner en verde |
+| T016–T019 | `[X]` | T020/T021/T023/T024 `[X]` | artefactos de frontend verificados |
+| T020 | `[X]` | T026 `[ ]` + **T022/T025 `[ ]`** | falta test de schemas y de códigos nuevos |
+| T021 | `[X]` | **T027 `[ ]`** | `docs/api.md` no tiene rutas de conteos |
+| T022 | `[X]` | T030 `[ ]` | gates no cubrían conteos |
+| T023 | `[X]` | **T029 `[ ]`** | `test_openapi.rs` no incluye rutas de conteos |
 
 ---
 
@@ -176,5 +217,5 @@ Task: "Create API client in frontend/src/lib/api/conteos.ts"
 - [P] tasks = different files, no dependencies
 - [Story] label maps task to specific user story for traceability
 - Commit after each task or logical group
-- Stop at any checkpoint to validate story independently
-- Verify tests fail before implementing (T006–T009 should RED before T010–T015)
+- Verify T007–T010 fail before implementing T013–T014 (Principio IV, sin waiver)
+- Migraciones en `migrations/`, no en `backend/migrations/`

@@ -97,6 +97,6 @@ es el complemento de gobierno que exige un sistema con roles y dinero de por med
 ## Dependencias y orden de implementación
 
 1. 006 implementada; 007, 012 y 013 implementadas para cubrir sus acciones.
-2. Migración reservada: `0015_auditoria_consultas.sql` (índices por `cuando`, `tabla_ref` y
-   `accion`).
+2. Migración reservada: `0016_auditoria_consultas.sql` (índices por `cuando`, `tabla_ref` y
+   `accion`). La `0015` la tomó 011 al generar su `plan.md`.
 3. Requiere extender `services/auditoria.rs` con las nuevas constantes de tabla y acción.

@@ -13,11 +13,12 @@ Esta spec **no agrega endpoints públicos**. Su contrato es la matriz de acceso 
 | `GET /api/productos/buscar` | 401 | 200/422 | 200/422 |
 | `GET /api/categorias` | 401 | 200 | 200 |
 | `GET /api/productos` | 401 | **403** | 200 |
+| `GET /api/productos/ubicaciones` (lote) | 401 | **403** | 200 |
 | `GET /api/usuarios`, `/api/usuarios/{id}` | 401 | **403** | 200/404 |
 | `GET /api/depositos`, `/api/depositos/{id}`, `/{id}/ubicaciones` | 401 | **403** | 200/404 |
 | `GET /api/ubicaciones/{id}` | 401 | **403** | 200/404 |
 | `GET /api/productos/{id}/ubicaciones` | 401 | **403** | 200/404 |
-| `POST/PUT/DELETE` de usuarios | 401 | **403** `sin_permisos` | 2xx/4xx de negocio |
+| `POST/PUT` de usuarios (no existe `DELETE`) | 401 | **403** `sin_permisos` | 2xx/4xx de negocio |
 | `POST/PUT` de categorías y productos | 401 | **403** `sin_permisos` | 2xx/4xx de negocio |
 | `POST/PUT/DELETE` de depósitos y ubicaciones | 401 | **403** `sin_permisos` | 2xx/4xx de negocio |
 | `PUT /api/productos/{id}/ubicaciones` | 401 | **403** `sin_permisos` | 204/4xx |
@@ -38,11 +39,29 @@ distinguir si el id existe.
 | `PUT /api/productos/{id}` | `ACTUALIZAR` en `productos` |
 | `POST /api/productos/{id}/desactivar` | `DESACTIVAR` en `productos` |
 | `POST /api/productos/{id}/reactivar` | `REACTIVAR` en `productos` |
+| `PUT /api/productos/{id}/ubicaciones` | `ASIGNAR_UBICACIONES` en `productos` |
+| `POST /api/categorias` | `CREAR` en `categorias` |
+| `PUT /api/categorias/{id}` | `ACTUALIZAR` en `categorias` |
+| `POST /api/categorias/{id}/desactivar` | `DESACTIVAR` en `categorias` |
+| `POST /api/categorias/{id}/reactivar` | `REACTIVAR` en `categorias` |
+| `POST /api/depositos` | `CREAR` en `depositos` |
+| `PUT /api/depositos/{id}` | `ACTUALIZAR` en `depositos` |
+| `DELETE /api/depositos/{id}` | `ELIMINAR` en `depositos` |
+| `POST /api/depositos/{id}/desactivar` | `DESACTIVAR` en `depositos` |
+| `POST /api/depositos/{id}/reactivar` | `REACTIVAR` en `depositos` |
+| `POST /api/ubicaciones` | `CREAR` en `ubicaciones` |
+| `PUT /api/ubicaciones/{id}` | `ACTUALIZAR` en `ubicaciones` |
+| `DELETE /api/ubicaciones/{id}` | `ELIMINAR` en `ubicaciones` |
+| `POST /api/ubicaciones/{id}/desactivar` | `DESACTIVAR` en `ubicaciones` |
+| `POST /api/ubicaciones/{id}/reactivar` | `REACTIVAR` en `ubicaciones` |
 
 Reglas:
 
 - La fila se escribe en la misma transacción; un fallo de negocio no deja auditoría.
-- Un 401/403 no deja auditoría.
+- Un 401/403/409/422 no deja auditoría.
+- `ELIMINAR` (borrado físico permitido de depósitos/ubicaciones) se audita en la misma transacción;
+  la fila sobrevive porque `registro_id` no tiene FK.
+- `ASIGNAR_UBICACIONES` se registra sobre el producto, incluso cuando el conjunto queda vacío.
 - `usuario_id` es el autor de la sesión; `cuando` lo pone la base.
 - No hay endpoint para consultar la auditoría (fuera de alcance).
 

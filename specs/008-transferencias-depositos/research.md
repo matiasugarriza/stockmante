@@ -60,6 +60,12 @@ cualquier posibilidad de deriva.
 **Rationale**: mismo patrón que 007; dos transferencias concurrentes que involucran los
 mismos depósitos en orden inverso no generan deadlock porque el orden es determinístico.
 
+### 5b. Orden de bloqueo real (revisión 2026-11-07)
+
+El código bloquea las filas de stock en orden origen → destino, no por `deposito_id`. Es seguro
+porque el bloqueo previo de los depósitos (por id ascendente) ya serializa a dos transferencias
+que comparten el par de depósitos. Se documenta en vez de reordenar el código.
+
 ### 6. Migración
 
 **Decisión**: `0010_transferencias.sql` crea la tabla `transferencias` y agrega
@@ -67,3 +73,32 @@ mismos depósitos en orden inverso no generan deadlock porque el orden es determ
 
 **Rationale**: reserva de migración ya anunciada en `specs/README.md`. Las filas existentes
 de `movimientos` quedan con `transferencia_id = NULL`.
+
+### 7. Semántica de "stock en origen" (revisión 2026-11-07)
+
+**Decisión**: se valida y se informa el saldo de la fila `(producto, depósito, ubicación)`; sin
+ubicación, la fila con `ubicacion_id IS NULL`.
+
+**Rationale**: es lo que hacen las salidas de 007, y una transferencia es una salida más una
+entrada. Validar contra el total del depósito obligaría a repartir el descuento entre
+ubicaciones, una regla que ninguna spec define.
+
+**Alternativas descartadas**:
+- *Total del depósito*: hay que elegir de qué ubicaciones descontar; excede la spec.
+- *Ubicación obligatoria cuando el depósito tiene ubicaciones*: rompe la simetría con 007.
+
+Confirmada en la spec (Clarifications, sesión 2026-11-07).
+
+### 8. Detalle de los movimientos generados (revisión 2026-11-07)
+
+**Decisión**: el detalle expone los dos ids; los movimientos completos se leen con
+`GET /api/movimientos/{id}`.
+
+**Rationale**: Principio I; embeberlos duplicaría el shape de 007 sin un consumidor que lo pida.
+Confirmada en la spec (Clarifications, sesión 2026-11-07; escenario 8.5).
+
+### 9. Consultas sin macro de SQLx (revisión 2026-11-07)
+
+**Decisión**: se mantiene `sqlx::query*` sin macro, como en 007. Los tests de integración sobre
+`stockmante_test` ejecutan todas las consultas del servicio y son la verificación contra el
+esquema real. Migrar a `query!` se decide para todo el proyecto, no solo en 008.

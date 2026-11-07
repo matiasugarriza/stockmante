@@ -27,11 +27,15 @@ sesión adicionales.
 
 ### 3. Acciones cubiertas
 
-**Decisión**: altas, ediciones, bajas lógicas, reactivaciones y reseteo de contraseña temporal de
-usuarios; altas, ediciones (incluido precio), bajas y reactivaciones de productos.
+**Decisión (base 2026-10-26)**: altas, ediciones, bajas lógicas, reactivaciones y reseteo de
+contraseña temporal de usuarios; altas, ediciones (incluido precio), bajas y reactivaciones de
+productos. **Ampliación 2026-11-07**: también categorías (alta, edición, baja, reactivación),
+depósitos y ubicaciones (alta, edición, borrado físico permitido, baja, reactivación) y
+`ASIGNAR_UBICACIONES` sobre el producto.
 
-**Por qué**: FR-019 pide "altas, bajas y cambios sensibles de usuarios y productos". Incluir el
-alta y el reseteo completa el ciclo sin agregar un log rico.
+**Por qué**: FR-019 pide las escrituras de gestión de 001–005; la clarificación del 2026-11-07
+decidió extender el alcance a todas ellas, no solo a usuarios y productos. Incluir el alta y el
+reseteo completa el ciclo sin agregar un log rico.
 
 ### 4. Referencia al registro y al autor
 
@@ -65,6 +69,21 @@ vacíos.
 **Por qué**: así se prueba el control de acceso sin crear datos ni depender del estado; los
 códigos 404/422 demuestran que GESTION pasó el extractor y OPERACION recibió 403 antes de
 cualquier validación.
+
+### 8. Ampliación del alcance de auditoría (2026-11-07)
+
+**Decisión**: auditar todas las escrituras de gestión de 001–005, incluidas categorías, depósitos,
+ubicaciones y asignación producto–ubicación.
+
+**Por qué**: la clarificación del 2026-11-07 eligió la opción B; el escenario 3 de US6 hablaba de
+“cualquier acción de gestión” y el alcance anterior solo cubría usuarios y productos.
+
+**Alternativas consideradas**: mantener solo usuarios/productos (menor costo, pero deja el escenario
+3 incompleto); auditar también stock/ventas/compras (fuera de 001–005 y con auditoría propia en
+007+); auditar solo categorías (punto intermedio, no cubre depósitos/ubicaciones).
+
+**Costo**: instrumentar cuatro servicios y ampliar los tests; sin migración porque la tabla es
+genérica.
 
 ## Riesgos abiertos
 

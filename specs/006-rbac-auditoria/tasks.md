@@ -1,15 +1,20 @@
 # Tasks — RBAC transversal y auditoría (006)
 
 **Spec**: [spec.md](./spec.md) | **Plan**: [plan.md](./plan.md) | **Contratos**:
-[contracts/api.md](./contracts/api.md) | **Creado**: 2026-10-26
+[contracts/api.md](./contracts/api.md) | **Creado**: 2026-10-26 | **Ampliado**: 2026-11-07
 
 **Tests**: sí. Matriz HTTP transversal + verificación SQL de auditoría + guard estructural.
+
+**Ampliación 2026-11-07**: T001–T011 son la base implementada; **T012–T027 quedan pendientes**
+(auditoría de categorías/depósitos/ubicaciones/asignaciones y cierre de hallazgos).
 
 ## Fase 1 — Auditoría
 
 - [X] T001 Crear `migrations/0008_auditoria.sql` con `auditoria(id, tabla_ref, registro_id,
   accion, usuario_id, cuando)` e índices; aplicar en `stockmante` y `stockmante_test`.
   **Aceptación**: migración 8 aplicada en ambas bases.
+- [ ] T001a Registrar en `progress.md` la verificación de esquema previa a `0008` (tipo de
+  `usuarios.id`, FK y columnas) o un waiver acotado. **Aceptación**: evidencia o waiver.
 - [X] T002 Crear `services/auditoria.rs` con constantes de tabla/acción y
   `registrar(&mut Transaction, ...)`.
 - [X] T003 Instrumentar usuarios: alta, edición, baja, reactivación y contraseña temporal dentro
@@ -44,16 +49,70 @@
   `contracts/api.md`, `quickstart.md`, `tasks.md`, `progress.md`) y actualizar la spec
   (`0006` → `0008`), `specs/README.md` y `.specify/feature.json`.
 
+## Fase 5 — Ampliación de auditoría (FR-019, 2026-11-07)
+
+**Goal**: auditar todas las escrituras de gestión de 001–005, además de usuarios y productos.
+
+- [ ] T012 RED: extender `tests/integration/test_rbac_matriz.rs` con auditoría de categorías
+  (alta, edición, baja, reactivación) y un 403 que no audita. **Aceptación**: falla antes de
+  instrumentar.
+- [ ] T013 Instrumentar `backend/src/services/categorias.rs`: `CREAR`, `ACTUALIZAR`, `DESACTIVAR`,
+  `REACTIVAR` en la misma transacción; el handler pasa el actor de `RequiereGestion`.
+- [ ] T014 Instrumentar `backend/src/services/depositos.rs` (depósitos): `CREAR`, `ACTUALIZAR`,
+  `ELIMINAR`, `DESACTIVAR`, `REACTIVAR`; el handler pasa el actor. El `DELETE` con dependencias
+  (409) no audita.
+- [ ] T015 Instrumentar `backend/src/services/depositos.rs` (ubicaciones): `CREAR`, `ACTUALIZAR`,
+  `ELIMINAR`, `DESACTIVAR`, `REACTIVAR`; el handler pasa el actor. El `DELETE` con hijos/asignaciones
+  (409) no audita.
+- [ ] T016 Instrumentar la asignación producto–ubicación en `backend/src/services/depositos.rs`:
+  `ASIGNAR_UBICACIONES` sobre `productos` (`registro_id = producto_id`), incluso con `[]`; el
+  handler de productos pasa el actor.
+- [ ] T017 Extender `tests/integration/test_rbac_matriz.rs`: consultas SQL por entidad, autor y
+  timestamp, y 403 sin filas para las nuevas acciones. **Aceptación**: suite en verde.
+- [ ] T018 Actualizar `data-model.md`, `contracts/api.md`, `quickstart.md`, `progress.md` y
+  `specs/README.md` (FR-019/SC-030) con el alcance ampliado.
+
+## Fase 6 — Cierre de hallazgos del análisis (2026-11-07)
+
+**Goal**: cubrir la matriz completa (incluido el endpoint masivo), las lecturas permitidas, la
+degradación de rol, SC-007 directo y la evidencia de gates.
+
+**Independent Test**: ejecutar `test_rbac_matriz` ampliado y comprobar 403/200 según la matriz, el
+caso de degradación, el 409 de SC-007 y las filas de auditoría por entidad.
+
+- [ ] T019 Agregar `GET /api/productos/ubicaciones` a la matriz de `contracts/api.md`, a
+  `test_rbac_matriz.rs` y al conteo de `progress.md`.
+- [ ] T020 Agregar aserciones de lecturas permitidas a OPERACION en
+  `backend/tests/integration/test_rbac_matriz.rs`: `GET /productos/{id}`, `/productos/buscar`,
+  `GET /categorias` y `GET /categorias/{id}` → 200.
+- [ ] T021 Agregar test de degradación de rol en `backend/tests/integration/test_rbac_matriz.rs`:
+  sesión GESTION degradada a OPERARIO → siguiente request a `/api/usuarios` responde 403.
+- [ ] T022 Agregar caso directo de SC-007 en `backend/tests/integration/test_rbac_matriz.rs`:
+  `DELETE` de depósito con ubicaciones y de ubicación con hijos → 409; `desactivar` → 204.
+- [ ] T023 Dejar un único guard en `frontend/src/routes/admin/+layout.svelte` (OPERACION → `/caja`)
+  y eliminar los redirects a `/` de `frontend/src/routes/admin/{productos,categorias,depositos,usuarios}/+page.svelte`.
+- [ ] T024 Registrar evidencia de RED (o waiver) y documentar el alcance real de
+  `cargo sqlx prepare --check` para el `INSERT` de auditoría (runtime) en
+  `specs/006-rbac-auditoria/progress.md` y `plan.md`.
+- [ ] T025 Corregir `contracts/api.md` (matriz `POST/PUT` de usuarios sin `DELETE`), `plan.md`
+  (`GET /ubicaciones/{id}` y nota de migración) y el conteo de combinaciones en `progress.md`.
+- [ ] T026 Alinear la nullabilidad de `usuario_id`: `Option<i32>` + `LEFT JOIN` en el consumidor o
+  `NOT NULL` con autor definido para acciones de sistema.
+- [ ] T027 Correr gates completos (`cargo test`, `cargo sqlx prepare --check`, `npm test`,
+  `npm run check`, `npm run build`) y actualizar la evidencia.
+
 ## Trazabilidad
 
 | Requisito | Tareas |
 |---|---|
-| FR-003 (verificación) | T007 |
-| FR-019 (auditoría) | T001–T005, T007 |
-| SC-007 | T007 (matriz de `DELETE`), tests de 005 |
-| SC-008 | T007 |
-| US6 escenario 2 (lectura de caja) | T007 |
-| US6 escenario 3 | T003–T005, T007 |
-| Guard frontend y alternativa de baja lógica | T009, T009a |
-| Caso borde 403 sin auditoría | T007 |
-| Soporte (helper/tests, registro, gates, artefactos) | T006, T008, T010, T011 |
+| FR-003 (verificación) | T007, T019, T020 |
+| FR-019 (auditoría de todas las escrituras) | T001–T005, T012–T017 |
+| SC-007 | T007, T009a, T022 |
+| SC-008 | T007, T020 |
+| SC-030 (una fila por escritura, ninguna por rechazo) | T012–T017, T027 |
+| US6 escenario 2 (lectura de caja) | T020 |
+| US6 escenario 3 | T003–T005, T012–T017 |
+| Guard frontend y alternativa de baja lógica | T009, T009a, T023 |
+| Caso borde 403 sin auditoría | T007, T017 |
+| Hallazgos del análisis (matriz, lecturas, degradación, SC-007, gates) | T019–T026 |
+| Soporte (helper/tests, registro, gates, artefactos) | T001a, T006, T008, T010, T011, T027 |

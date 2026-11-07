@@ -2,12 +2,22 @@
 
 **Spec**: `009-inventario-fisico` | **Caso de uso**: US9 | **Prioridad**: P2
 
-**Creado**: 2026-10-26 | **Estado**: Especificado (plan y tasks en generación) | **Módulo**: 2 — Operación de stock
+**Creado**: 2026-10-26 | **Estado**: Clarificado y planificado (plan y tasks regenerados 2026-11-07) | **Módulo**: 2 — Operación de stock
 
 **Origen**: la exactitud del inventario no se puede sostener solo con movimientos; el conteo
 físico es el mecanismo estándar para detectar diferencias y ajustarlas con trazabilidad.
 
 **Depende de**: 007 (movimientos y ajustes), 005 (depósitos y ubicaciones).
+
+## Clarifications
+
+### Session 2026-11-07
+
+- Q: ¿Qué código de error devuelve la API al rechazar el cierre por líneas sin contar, y al abrir un conteo en un depósito inactivo? → A: Códigos específicos: **422** `lineas_sin_contar` y **422** `deposito_inactivo`; FR-035 se corrige para citar `lineas_sin_contar` y ambas variantes se agregan a `AppError`.
+- Q: ¿Qué error devuelve la API al cargar, cerrar o cancelar un conteo ya `CANCELADO`? → A: **409** `conteo_cancelado` (y `conteo_cerrado` solo para uno `CERRADO`); se corrige FR-035 y se extiende el escenario 9.6 con ese rechazo.
+- Q: ¿Contra qué cantidad del sistema se calcula la `diferencia` mostrada al cargar líneas? → A: Contra el snapshot `cantidad_sistema` de apertura; el recálculo contra stock vigente ocurre solo en el cierre.
+- Q: ¿La `observacion` es parte del contrato de creación de un conteo? → A: Sí, opcional con máximo 500 caracteres; se documenta en FR-034 y en el body de `POST /api/conteos`.
+- Q: ¿Qué responde el alta cuando el depósito no tiene filas de stock? → A: **422** `validacion` sin crear el conteo.
 
 ## Escenarios de Usuario y Pruebas *(obligatorio)*
 
@@ -60,6 +70,8 @@ y el inventario pierde confiabilidad; es el control periódico que exige un sist
 - **Dado** un conteo abierto,
 - **Cuando** se cancela,
 - **Entonces** pasa a `CANCELADO`, no ajusta stock y no puede reabrirse.
+- **Y** cualquier intento posterior de cargar líneas, cerrarlo o cancelarlo de nuevo responde
+  **409** `conteo_cancelado`.
 
 **Escenario 9.7 — Operario**
 
@@ -70,19 +82,26 @@ y el inventario pierde confiabilidad; es el control periódico que exige un sist
 ## Requisitos Funcionales
 
 - **FR-034 Conteo y líneas.** El sistema DEBE permitir crear un conteo por depósito activo en
-  estado `ABIERTO`, con líneas por producto y ubicación que incluyan `cantidad_sistema` (snapshot
+  estado `ABIERTO`, aceptando una `observacion` opcional de hasta 500 caracteres, con líneas por
+  producto y ubicación que incluyan `cantidad_sistema` (snapshot
   al abrir, no negativa) y `cantidad_contada` (nula hasta que se cargue). La combinación
   (conteo, producto, ubicación) DEBE ser única. `cantidad_contada`, cuando se cargue, DEBE ser
-  un entero mayor o igual a cero. El conteo DEBE capturar todas las filas de `stock_por_deposito`
-  del depósito al momento de abrir (una línea por producto+ubicación).
+  un entero mayor o igual a cero. La `diferencia` mostrada al cargar DEBE calcularse como
+  `cantidad_contada − cantidad_sistema` usando el snapshot de apertura; el recálculo contra el
+  stock vigente ocurre solo en el cierre (FR-035). El conteo DEBE capturar todas las filas de `stock_por_deposito`
+  del depósito al momento de abrir (una línea por producto+ubicación). Crear un conteo sobre un
+  depósito inactivo DEBE rechazarse con **422** `deposito_inactivo`; un `deposito_id` inexistente
+  DEBE rechazarse con **422** `validacion`. Si el depósito no tiene ninguna fila en
+  `stock_por_deposito`, el alta DEBE rechazarse con **422** `validacion` y no crear el conteo.
 - **FR-035 Cierre con ajuste.** Al cerrar, el sistema DEBE recalcular `cantidad_sistema` con el
   stock vigente (para no ajustar contra un snapshot viejo), generar **un** movimiento `AJUSTE`
   (motivo `INVENTARIO`, que requiere familia `GESTION` según FR-027 de 007) con una línea por
   cada diferencia distinta de cero (delta = `cantidad_contada − cantidad_sistema`), y dejar el
   stock igual a lo contado. El cierre DEBE ser transaccional y no reabrible. Si se intenta
-  cerrar un conteo ya `CERRADO` o `CANCELADO`, responde **409** `conteo_cerrado` sin re-aplicar
-  ningún ajuste (el primer cierre es el único que muta). El cierre DEBE rechazarse con **422**
-  `validacion` si alguna línea tiene `cantidad_contada` nula. Al cerrar se recalcula
+  cerrar un conteo ya `CERRADO`, responde **409** `conteo_cerrado`; si está `CANCELADO`, responde
+  **409** `conteo_cancelado`. En ambos casos no se re-aplica ningún ajuste (el primer cierre es el
+  único que muta). El cierre DEBE rechazarse con **422**
+  `lineas_sin_contar` si alguna línea tiene `cantidad_contada` nula. Al cerrar se recalcula
   `productos.stock_actual` como suma de `stock_por_deposito`. Si todas las diferencias son cero,
   no se genera movimiento.
 - **FR-036 Cancelación y consulta.** El sistema DEBE permitir cancelar un conteo abierto sin
@@ -112,8 +131,10 @@ y el inventario pierde confiabilidad; es el control periódico que exige un sist
 **Cuerpo de `POST /api/conteos`**:
 
 ```json
-{ "deposito_id": 1 }
+{ "deposito_id": 1, "observacion": "Conteo mensual" }
 ```
+
+`observacion` es opcional y admite hasta 500 caracteres.
 
 **Estados**: `ABIERTO`, `CERRADO`, `CANCELADO`. Transiciones: `ABIERTO → CERRADO` (cierra y ajusta),
 `ABIERTO → CANCELADO` (sin ajuste). No se puede reabrir.
@@ -122,7 +143,7 @@ y el inventario pierde confiabilidad; es el control periódico que exige un sist
 
 | Código | Status | Cuándo |
 |---|---|---|
-| `conteo_cerrado` | 409 | El conteo ya está cerrado o cancelado. |
+| `conteo_cerrado` | 409 | El conteo ya está cerrado. |
 | `conteo_cancelado` | 409 | El conteo está cancelado. |
 | `conteo_no_encontrado` | 404 | No existe el conteo. |
 | `lineas_sin_contar` | 422 | Hay líneas con `cantidad_contada` nula al cerrar. |
