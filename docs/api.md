@@ -27,10 +27,19 @@ autoridad: ocultar un enlace en la UI no reemplaza el 403.
 
 ## Auditoría
 
-Las altas, ediciones, bajas lógicas, reactivaciones y el reseteo de contraseña temporal de
-usuarios y productos se registran en la tabla `auditoria` (`tabla_ref`, `registro_id`, `accion`,
-`usuario_id`, `cuando`). La fila se escribe en la misma transacción del cambio: un 401/403 o una
-validación fallida no deja registro. No hay endpoint de consulta en el Módulo 1.
+Las altas, ediciones, bajas lógicas, reactivaciones, reseteos de contraseña temporal, movimientos
+de stock, transferencias, compras, ventas e importaciones se registran en la tabla `auditoria`
+(`tabla_ref`, `registro_id`, `accion`, `usuario_id`, `cuando`). La fila se escribe en la misma
+transacción del cambio: un 401/403 o una validación fallida no deja registro.
+
+La consulta es de solo lectura y exige familia `GESTION` (spec 015):
+
+| Método | Ruta | Query | Éxito |
+|---|---|---|---|
+| GET | `/api/auditoria` | `tabla_ref`, `usuario_id`, `desde`, `hasta`, `pagina`, `por_pagina` | 200 `{ items, total, pagina, por_pagina }` |
+
+`desde`/`hasta` aceptan `AAAA-MM-DD` o RFC 3339. `OPERACION` recibe `403 sin_permisos`. La
+pantalla es `/admin/auditoria`.
 
 ## Sobre de error
 
@@ -153,7 +162,9 @@ nada (cabecera, líneas, auditoría ni stock). Errores nuevos: `409 stock_insufi
 (`"Stock insuficiente en Principal: 3 disponibles, 5 solicitadas. Reducí la cantidad o registrá
 antes una entrada en ese depósito."`), `409 producto_inactivo` (`"El producto está inactivo y no
 admite movimientos. Reactivalo desde Productos o quitalo de la operación."`) y `422 validacion`
-para depósito/ubicación inválidos. Motivo `OTRO` exige observación.
+para depósito/ubicación inválidos. Motivo `OTRO` exige observación; **todo `AJUSTE` exige una
+justificación en `observacion`** (aunque el motivo sea `AJUSTE`), porque es la justificación de
+auditoría de la corrección.
 
 **Matriz de motivos del alta manual** (007, 2026-11-07): `ENTRADA` → `COMPRA`, `DEVOLUCION`,
 `OTRO`; `SALIDA` → `VENTA`, `DEVOLUCION`, `OTRO`; `MERMA` → `MERMA`, `OTRO`; `AJUSTE` → `AJUSTE`,

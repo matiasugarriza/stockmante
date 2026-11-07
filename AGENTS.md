@@ -11,9 +11,9 @@ Desarrollar un sistema de gestión y control de inventario robusto, modular y se
 - **Frontend:** SvelteKit (SPA mode) + Tailwind CSS
 - **Backend:** Rust + Axum + SQLx ORM
 - **Base de Datos:** PostgreSQL
-- **IA / Chatbot:** LangChain + API de LLM (OpenAI/Anthropic)
-- **Herramientas MCP:** MCP Server de PostgreSQL, MCP Server de Filesystem, MCP Server de GitHub, MCP Server Customizado para Inventario
-- **Contexto & Memoria:** Gentle_AI + Engram
+- **IA / Chatbot:** LangChain.js + API de LLM (Groq/OpenAI/Anthropic); Node 24 para `asistente/`
+- **Herramientas MCP:** MCP Server de PostgreSQL (DBHub, readonly) y MCP Server de Playwright. Ambos son externos. No se usa MCP de Filesystem/GitHub ni un MCP custom de inventario (ver `docs/mcp.md`).
+- **Contexto & Memoria:** Gentle_AI (registro local de skills) + specs/`progress.md` como memoria persistente. Engram no se usa (la constitución lo retiró en v1.1.1).
 - **SDD:** Spec Kit
 
 ---
@@ -22,7 +22,7 @@ Desarrollar un sistema de gestión y control de inventario robusto, modular y se
 
 1. **Fase de Especificación:** Prohibido escribir código sin antes verificar o redactar la especificación en `specs/<NNN-feature>/spec.md`, generada con `/speckit.specify` y, cuando corresponda, completada con `/speckit.plan` y `/speckit.tasks`.
 2. **Fase de Verificación de Esquema:** Utiliza el servidor MCP de PostgreSQL (o `sqlx-cli` como fallback) para contrastar la Spec contra el esquema real de la BD antes de generar código.
-3. **Fase de Memoria con Engram:** Antes y después de cada sesión de desarrollo, consulta/actualiza la memoria con Engram para registrar decisiones de arquitectura.
+3. **Fase de Memoria:** Antes y después de cada sesión de desarrollo, registra las decisiones de arquitectura en la spec (`progress.md`, `research.md`) y consulta el mapa de `specs/README.md`. La memoria persistente del proyecto son las specs, no una herramienta externa.
 
 ### Invocación en DSH (DeepSeek Harness)
 

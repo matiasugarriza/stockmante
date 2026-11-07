@@ -2,9 +2,9 @@
 
 **Spec**: `017-asistente-inventario` | **Caso de uso**: US17 | **Prioridad**: P3
 
-**Creado**: 2026-10-26 | **Revisado**: 2026-11-06 (remediación de `/speckit analyze`) | **Estado**:
-Especificado; plan y tasks regenerados, implementación pendiente | **Módulo**: 4 — Gobierno y
-asistencia
+**Creado**: 2026-10-26 | **Revisado**: 2026-11-07 (proveedor `groq`; recorrido real con LLM
+verificado, ver [`docs/evidencia-asistente.md`](../../docs/evidencia-asistente.md)) | **Estado**:
+Implementada y verificada con un LLM real (2026-11-07) | **Módulo**: 4 — Gobierno y asistencia
 
 **Origen**: "IA/chatbot de inventario" figura fuera del alcance del Módulo 1 y la constitución ya
 fija el stack (LangChain + LLM con Tools) y las reglas de seguridad de escritura.
@@ -170,6 +170,8 @@ operación y su valor depende de que 007–014 estén cerradas.
   ejecutar una propuesta confirmada.
 - El proveedor de LLM se configura por entorno en el servicio (`LLM_PROVIDER`, `LLM_API_KEY`,
   `LLM_MODEL`); el backend solo conoce `ASISTENTE_URL`. Sin configuración el endpoint responde 503.
+  Proveedores: `anthropic` (default), `openai` y `groq` (API compatible con OpenAI); los dos
+  últimos exigen `LLM_MODEL` (ajuste de implementación 2026-11-07).
 - El asistente no persiste conversaciones ni historial; el único contexto es el que envía la
   página en cada consulta (FR-077).
 - Las tools devuelven JSON estable de la API, sin adornos, y el modelo solo redacta la respuesta.

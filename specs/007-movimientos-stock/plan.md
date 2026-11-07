@@ -125,6 +125,7 @@ rondas de `/speckit clarify`. Sin migración nueva.
 | Tipo inválido | `El tipo de movimiento debe ser ENTRADA, SALIDA, MERMA o AJUSTE.` |
 | Motivo inválido | `El motivo debe ser COMPRA, VENTA, MERMA, AJUSTE, DEVOLUCION, TRANSFERENCIA, INVENTARIO, IMPORTACION u OTRO.` |
 | `OTRO` sin observación | `Con motivo OTRO tenés que indicar una observación.` |
+| `AJUSTE` sin observación | `Un ajuste requiere una justificación: indicá la observación.` |
 | Observación larga | `La observación no puede superar los 500 caracteres.` |
 | Línea vacía o exceso | `El movimiento debe tener al menos una línea.` / `El movimiento no puede superar las 200 líneas.` |
 | Delta cero o signo incorrecto | `La cantidad de cada línea debe ser distinta de cero.` / `En una ENTRADA la cantidad debe ser mayor que cero.` / `En una {tipo} la cantidad debe ser negativa.` |

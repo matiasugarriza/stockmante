@@ -168,6 +168,7 @@ Módulo 2 y de todo lo que viene después (transferencias, conteos, compras y ve
   entre 1 y 200 líneas (producto, ubicación opcional, `cantidad_delta` entera distinta de cero). El
   motivo DEBE pertenecer al catálogo `COMPRA`, `VENTA`, `MERMA`, `AJUSTE`, `DEVOLUCION`,
   `TRANSFERENCIA`, `INVENTARIO`, `IMPORTACION` u `OTRO`; con `OTRO` la observación es obligatoria.
+  Todo `AJUSTE` exige además una justificación en la observación (aunque el motivo sea `AJUSTE`).
   La observación admite hasta 500 caracteres (422 si los supera).
   En el alta manual el motivo DEBE ser coherente con el tipo (`ENTRADA`: `COMPRA`, `DEVOLUCION`,
   `OTRO`; `SALIDA`: `VENTA`, `DEVOLUCION`, `OTRO`; `MERMA`: `MERMA`, `OTRO`; `AJUSTE`: `AJUSTE`,

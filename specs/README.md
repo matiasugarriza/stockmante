@@ -27,10 +27,12 @@ conservan **verbatim**; solo se distribuyeron por caso de uso.
 | [012-proveedores-compras](./012-proveedores-compras/spec.md) | Proveedores, compras y recepción con entrada de stock | FR-044 … FR-048 | SC-020, SC-021 | Implementado y verificado (2026-11-07): fase 6 (anulación concurrente, `ResultadoCompra`, códigos nuevos), W-003 | 007, 003, 005 |
 | [013-ventas-caja](./013-ventas-caja/spec.md) | Ventas de caja, clientes y descuento de stock | FR-049 … FR-055 | SC-021 | Implementado y verificado (2026-11-07): POS en `/caja`, `/admin/ventas`, `/admin/clientes` | 003, 004, 005, 007 |
 | [014-reportes-kardex](./014-reportes-kardex/spec.md) | Kardex, valorización, rotación, ventas y CSV | FR-056 … FR-059 | SC-022, SC-031 | Implementado y verificado (2026-11-07): cuatro reportes GESTION, días locales, CSV RFC 4180 y `/admin/reportes` | 007, 008, 012, 013 |
-| [015-auditoria-consultable](./015-auditoria-consultable/spec.md) | Consulta de auditoría y cobertura ampliada | FR-060 … FR-062 | SC-023 | Especificado | 006, 007, 012, 013 |
+| [015-auditoria-consultable](./015-auditoria-consultable/spec.md) | Consulta de auditoría y cobertura ampliada | FR-060 … FR-062 | SC-023 | Implementado y verificado (2026-11-07): `GET /api/auditoria` + `/admin/auditoria`, solo GESTION | 006, 007, 012, 013 |
 | [016-importacion-masiva](./016-importacion-masiva/spec.md) | Importación CSV de productos y stock inicial | FR-063 … FR-065 | SC-024 | Implementado y verificado (2026-11-07): importación atómica, `importacion_invalida` con detalles, SC-024 en 10 s; quickstart manual pendiente (T018) | 003, 007 |
 | [017-asistente-inventario](./017-asistente-inventario/spec.md) | Asistente con tools de lectura y escrituras vía API | FR-066 … FR-069, FR-076 … FR-078 | SC-025 | Implementado y verificado (2026-11-07) | 007, 010, 013, 014 |
 | [018-rediseno-visual-desktop](./018-rediseno-visual-desktop/spec.md) | Rediseño visual del escritorio (17 capturas) y tema claro/oscuro | FR-079 … FR-099 | SC-032 … SC-038 | Implementado en frontend (2026-11-07) con tipografía Outfit autoalojada; test/check/build en verde y evidencia 1440×900 claro/oscuro + 320 px; pendiente la captura del cambio de contraseña y la revisión manual de escenarios | 001 |
+| [019-rediseno-visual-mobile](./019-rediseno-visual-mobile/spec.md) | Rediseño visual móvil cyberpunk dark (21 pantallas), navegación táctil y tarjetas de inventario | FR-102 … FR-133 | SC-039 … SC-049 | Implementación parcial (2026-11-07): 58/87 tareas; MVP móvil, tablero, tarjetas de Stock/Caja/Movimientos y guard de contraste en verde; 29 tareas pendientes | 018 |
+| [020-escaneo-codigos-barra](./020-escaneo-codigos-barra/spec.md) | Generar y escanear códigos de barras/SKU con cámara, lector físico y etiquetas | FR-134 … FR-156 | SC-050 … SC-059 | Especificado (2026-11-07); pendiente de plan/tasks (implementación delegada) | 003, 004 |
 
 ## Partición de requisitos funcionales
 
@@ -137,6 +139,39 @@ Cada FR tiene **un solo dueño**. Los demás specs lo referencian, no lo repiten
 | FR-095 | 018 | Selector de tema y menú de usuario en el marco |
 | FR-096 | 018 | Evidencia visual por página en ambos temas y 320 px |
 | FR-097 | 018 | Cero cambios de comportamiento, API, esquema o permisos |
+| FR-102 | 019 | Identidad cyberpunk oscura en móvil (fondos, neones, glow) |
+| FR-103 | 019 | Contraste AA y tipografía clara sobre fondo oscuro |
+| FR-104 | 019 | Modo oscuro cyberpunk obligatorio en el layout móvil (hasta 1023 px) |
+| FR-105 | 019 | Efectos sutiles y respeto por `prefers-reduced-motion` |
+| FR-106 | 019 | Áreas de toque de 44×44 px, teclado numérico y área segura |
+| FR-107 | 019 | Marco móvil compacto con cabecera y sin pie de escritorio |
+| FR-108 | 019 | Navegación móvil híbrida: barra inferior y panel «Más» |
+| FR-109 | 019 | Barra de navegación inferior fija con destino activo |
+| FR-110 | 019 | Panel lateral retráctil con navegación completa y foco atrapado |
+| FR-111 | 019 | Búsqueda rápida en la cabecera con resultados en tarjetas |
+| FR-112 | 019 | Reorganización por orientación (vertical y horizontal) |
+| FR-113 | 019 | Continuidad con escritorio y densidad intermedia en tablet |
+| FR-114 | 019 | Métricas clave en carrusel o cuadrícula colapsable |
+| FR-115 | 019 | Prioridad y orden del tablero móvil |
+| FR-116 | 019 | Carga, vacío y error independientes por widget |
+| FR-117 | 019 | Tablas de datos como tarjetas en móvil |
+| FR-118 | 019 | Contenido de la tarjeta de inventario con badge de stock |
+| FR-119 | 019 | Acciones rápidas por tarjeta con confirmación de destructivas |
+| FR-120 | 019 | Filtros colapsables y paginación móvil |
+| FR-121 | 019 | Estados de lista sin salto de layout |
+| FR-122 | 019 | Botón flotante de acción rápida por pantalla y rol |
+| FR-123 | 019 | Hoja de acción a pantalla completa con bloqueo de fondo |
+| FR-124 | 019 | Validación de cantidades y mensajes junto al campo |
+| FR-125 | 019 | Aviso neón con el resultado concreto de la operación |
+| FR-126 | 019 | Confirmación deshabilitada en curso, sin doble envío |
+| FR-127 | 019 | Cobertura de las 21 pantallas y el cambio obligatorio de contraseña |
+| FR-128 | 019 | Cero cambios de comportamiento, API, esquema o permisos |
+| FR-129 | 019 | Accesibilidad móvil: etiquetas, foco, teclado y toque |
+| FR-130 | 019 | Lista filtrada pintada en menos de 300 ms |
+| FR-131 | 019 | Evidencia en tres tamaños, auditoría de toque y contraste |
+| FR-132 | 019 | Pruebas de lógica pura de la capa móvil |
+| FR-133 | 019 | Preferencias de accesibilidad del sistema (contraste alto y colores forzados) |
+| FR-134 … FR-156 | 020 | Escaneo y generación de códigos de barras/SKU, etiquetas y permisos |
 
 ## Partición de criterios de éxito
 
@@ -179,6 +214,19 @@ Cada FR tiene **un solo dueño**. Los demás specs lo referencian, no lo repiten
 | SC-035 | 018 | Comparación visual contra la referencia en 1440×900 claro y oscuro |
 | SC-036 | 018 | Cada página posterior llega con capturas en ambos temas y cero regresiones |
 | SC-037 | 018 | Las 17 capturas rediseñadas y cubiertas por navegación (14 privadas + 3 públicas) |
+| SC-038 | 018 | Las 17 rutas renderizan con Outfit autoalojada y sin fuentes externas |
+| SC-039 | 019 | El 100 % de los controles móviles mide al menos 44×44 px |
+| SC-040 | 019 | Cero desborde horizontal entre 320–430 px y 640–1023 px |
+| SC-041 | 019 | Lista filtrada pintada en menos de 300 ms p95 con 10.000 productos |
+| SC-042 | 019 | Contraste AA de todos los pares de la paleta cyberpunk |
+| SC-043 | 019 | Tablas como tarjetas en teléfono y dos columnas en horizontal |
+| SC-044 | 019 | Cero regresiones funcionales y suites en verde |
+| SC-045 | 019 | Evidencia móvil en 390×844, 844×390 y 320×568 por pantalla |
+| SC-046 | 019 | Movimiento registrado en 4 toques o menos y menos de 30 s |
+| SC-047 | 019 | Fondo bloqueado con hoja abierta y cero envíos sobre el máximo |
+| SC-048 | 019 | Sin destellos claros en 10 recargas y área segura respetada |
+| SC-049 | 019 | Pares AAA con `prefers-contrast` y sin glow con `forced-colors` |
+| SC-050 … SC-059 | 020 | Escaneo, generación, etiquetas, permisos y auditoría de códigos |
 
 ## Ledger de migraciones
 
