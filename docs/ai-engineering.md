@@ -172,7 +172,7 @@ Ejemplos concretos de autocorrección:
 | Artefactos de spec | 155 archivos `.md` (spec, plan, tasks, research, contracts, quickstarts, checklists) |
 | Planes / tareas | 20 `plan.md` + 20 `tasks.md` |
 | Commits | 94 |
-| Tests de backend | 294 funciones de test; 3 pruebas de carga ignoradas a propósito |
+| Tests de backend | 296 funciones de test; 3 pruebas de carga ignoradas a propósito |
 | Tests de frontend | 388 |
 | Tests del asistente | 54 |
 | Gates | `cargo test`, `cargo sqlx prepare --check`, `npm test`, `npm run check`, `npm run build` en verde |

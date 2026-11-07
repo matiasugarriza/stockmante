@@ -265,7 +265,7 @@ Resultado de la última corrida (2026-11-07):
 
 | Suite | Resultado |
 |---|---|
-| `cargo test` | **verde**; 294 funciones de test, 3 pruebas de carga ignoradas a propósito |
+| `cargo test` | **verde**; 296 funciones de test, 3 pruebas de carga ignoradas a propósito |
 | `cargo sqlx prepare --check` | exit 0 |
 | `npm test` (frontend) | **388/388** |
 | `npm run check` (frontend) | 0 errores, 0 warnings |
