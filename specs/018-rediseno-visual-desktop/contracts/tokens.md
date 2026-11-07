@@ -8,52 +8,56 @@ páginas y componentes consumen tokens semánticos; no declaran colores de marca
 ## 1. Contrato CSS
 
 ```css
-/* frontend/src/lib/diseno/tokens.css */
+/* frontend/src/lib/diseno/tokens.css — paleta derivada del logo (FR-101) */
 :root {
-  --fuente-sans: 'Outfit Variable', 'Outfit', ui-sans-serif, system-ui, -apple-system,
-    'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-  --fuente-mono: ui-monospace, 'SFMono-Regular', 'Cascadia Mono', Menlo, Consolas, monospace;
+  --fuente-sans:
+    'Outfit Variable', 'Outfit', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto,
+    'Helvetica Neue', Arial, sans-serif;
+  --fuente-mono:
+    ui-monospace, 'SFMono-Regular', 'Cascadia Mono', Menlo, Consolas, monospace;
 
-  --fondo: #f1f4f9;
-  --fondo-elevado: #f7f9fc;
+  --fondo: #f1f6f7;
+  --fondo-elevado: #f6fafa;
   --superficie: #ffffff;
-  --superficie-2: #f5f7fb;
-  --superficie-3: #eaeff7;
+  --superficie-2: #f3f8f9;
+  --superficie-3: #e4eef0;
   --sidebar: #ffffff;
-  --topbar: #1f2a44;          /* barra superior azul marino de light-2 (FR-099) */
+  --topbar: #0d1518;
 
-  --borde: #e3e8f0;
-  --borde-fuerte: #c9d3e0;
+  --borde: #dce7ea;
+  --borde-fuerte: #c2d3d8;
 
-  --texto: #1b2432;
-  --texto-suave: #5f6f86;
-  --texto-tenue: #5a6b83;
+  --texto: #10212a;
+  --texto-suave: #4c626c;
+  --texto-tenue: #526872;
   --texto-inverso: #ffffff;
 
-  --primario: #1f3bb3;        /* azul real de light-2 (FR-099) */
-  --primario-hover: #182f94;
-  --primario-suave: #e8ecfb;
-  --primario-texto: #1f3bb3;
+  /* Marca: petróleo/cian del logo (FR-101). */
+  --primario: #0b7a91;
+  --primario-hover: #09667a;
+  --primario-suave: #ddf3f6;
+  --primario-texto: #086a7e;
   --primario-contraste: #ffffff;
 
-  --teal: #14b8bd;
-  --teal-suave: #e3f8f8;
-  --teal-texto: #0f7f84;
   --ambar: #f0a63a;
   --ambar-suave: #fdf3e2;
   --ambar-texto: #8a5a12;
   --exito: #22a45d;
   --exito-suave: #e7f7ee;
   --exito-texto: #167a45;
-  --peligro: #dc3d43;
+  --peligro: #cc3238;
   --peligro-suave: #fdecec;
   --peligro-texto: #b42318;
-  --info: #2f6bed;
-  --info-suave: #e9f0ff;
+  --info: #0b7a91;
+  --info-suave: #ddf3f6;
 
-  --foco: #2f6bed;
-  --sombra-tarjeta: 0 1px 2px rgba(16, 24, 40, 0.05), 0 8px 24px -18px rgba(16, 24, 40, 0.25);
-  --sombra-elevada: 0 12px 32px -12px rgba(16, 24, 40, 0.28);
+  --foco: #0b7a91;
+  --logo-inicio: #16b3cc;
+  --logo-fin: #0b7a91;
+  --logo-acento: #0b7a91;
+  --sombra-tarjeta:
+    0 1px 2px rgba(13, 33, 40, 0.05), 0 8px 24px -18px rgba(13, 33, 40, 0.25);
+  --sombra-elevada: 0 12px 32px -12px rgba(13, 33, 40, 0.28);
 
   --radio-tarjeta: 10px;
   --radio-control: 6px;
@@ -69,36 +73,34 @@ páginas y componentes consumen tokens semánticos; no declaran colores de marca
 
   --sidebar-ancho: 248px;
   --sidebar-ancho-colapsado: 76px;
-  --topbar-alto: 64px;
+  --topbar-alto: 72px;
   --contenido-max: 1440px;
 }
 
 html[data-tema='dark'] {
-  --fondo: #121722;
-  --fondo-elevado: #161c28;
-  --superficie: #1b2230;
-  --superficie-2: #222b3b;
-  --superficie-3: #2a3447;
-  --sidebar: #151b26;
-  --topbar: #1a212d;
+  --fondo: #0d1518;
+  --fondo-elevado: #111b1f;
+  --superficie: #141f23;
+  --superficie-2: #19282d;
+  --superficie-3: #1f2f35;
+  --sidebar: #10191c;
+  --topbar: var(--fondo);
 
-  --borde: #2b3648;
-  --borde-fuerte: #3b4a63;
+  --borde: #22343a;
+  --borde-fuerte: #31484f;
 
-  --texto: #e8edf6;
-  --texto-suave: #9aa9bf;
-  --texto-tenue: #8f9db1;
-  --texto-inverso: #0d1320;
+  --texto: #e7f2f4;
+  --texto-suave: #9fb5bb;
+  --texto-tenue: #8ea5ac;
+  --texto-inverso: #06262b;
 
-  --primario: #3f5efb;        /* azul eléctrico de dark-2 (FR-099) */
-  --primario-hover: #5872ff;
-  --primario-suave: #1f2752;
-  --primario-texto: #93a5ff;
-  --primario-contraste: #ffffff;
+  /* Marca: cian del logo (FR-101); el texto sobre el primario es oscuro. */
+  --primario: #2fd0dc;
+  --primario-hover: #5becef;
+  --primario-suave: #123940;
+  --primario-texto: #5becef;
+  --primario-contraste: #06262b;
 
-  --teal: #2fd0d6;
-  --teal-suave: #123639;
-  --teal-texto: #2fd0d6;
   --ambar: #f3b45c;
   --ambar-suave: #3a2c17;
   --ambar-texto: #f3b45c;
@@ -108,12 +110,32 @@ html[data-tema='dark'] {
   --peligro: #ff6b6e;
   --peligro-suave: #3a1a1d;
   --peligro-texto: #ff8a8c;
-  --info: #4c8dff;
-  --info-suave: #1c2b48;
+  --info: #2fd0dc;
+  --info-suave: #123940;
 
-  --foco: #6ba1ff;
-  --sombra-tarjeta: 0 1px 0 rgba(0, 0, 0, 0.35), 0 18px 40px -24px rgba(0, 0, 0, 0.85);
+  --foco: #5becef;
+  --logo-inicio: #5becef;
+  --logo-fin: #1fa3c4;
+  --logo-acento: #5becef;
+  --sombra-tarjeta:
+    0 1px 0 rgba(0, 0, 0, 0.35), 0 18px 40px -24px rgba(0, 0, 0, 0.85);
   --sombra-elevada: 0 20px 48px -18px rgba(0, 0, 0, 0.9);
+}
+
+html:not([data-tema='dark']) .zona-oscura {
+  color-scheme: dark;
+  --texto: #eef7f8;
+  --texto-suave: #a9bec4;
+  --texto-tenue: #93aab1;
+  --superficie: #16242a;
+  --superficie-2: #1c2e34;
+  --superficie-3: #23383f;
+  --borde: #26393f;
+  --borde-fuerte: #364f57;
+  --primario-suave: #143a42;
+  --primario-texto: #7fe8f0;
+  --foco: #7fe8f0;
+  --sombra-elevada: 0 18px 40px -16px rgba(0, 0, 0, 0.7);
 }
 ```
 
@@ -153,15 +175,27 @@ tablas usan `tabular-nums`. La monoespaciada se reserva para SKU, IDs y valores 
 
 | Par | Claro | Oscuro | Mínimo |
 |---|---|---|---|
-| `--texto` sobre `--superficie` | `#1b2432` / `#ffffff` | `#e8edf6` / `#1b2230` | 4.5:1 |
-| `--texto-suave` sobre `--superficie` | `#5f6f86` / `#ffffff` | `#9aa9bf` / `#1b2230` | 4.5:1 |
-| `--texto-tenue` sobre `--superficie-3` | `#5a6b83` / `#eaeff7` | `#8f9db1` / `#2a3447` | 4.5:1 |
-| `--primario-contraste` sobre `--primario` | `#ffffff` / `#1f3bb3` (8.99) | `#ffffff` / `#3f5efb` (4.99) | 4.5:1 |
-| `--primario-texto` sobre `--superficie` | `#1f3bb3` / `#ffffff` (8.99) | `#93a5ff` / `#1b2230` (6.88) | 4.5:1 |
-| Texto de `.zona-oscura` sobre `--topbar` (solo claro) | `#f1f4fb` / `#1f2a44` (12.95); suave `#b7c1d6` (7.88) | — (topbar = fondo) | 4.5:1 |
+| `--texto` sobre `--superficie` | `#10212a` / `#ffffff` (16.5) | `#e7f2f4` / `#141f23` (14.72) | 4.5:1 |
+| `--texto-suave` sobre `--superficie` | `#4c626c` / `#ffffff` (6.42) | `#9fb5bb` / `#141f23` (7.84) | 4.5:1 |
+| `--texto-tenue` sobre `--superficie-3` | `#526872` / `#e4eef0` (4.97) | `#8ea5ac` / `#1f2f35` (5.36) | 4.5:1 |
+| `--primario-contraste` sobre `--primario` | `#ffffff` / `#0b7a91` (4.99) | `#06262b` / `#2fd0dc` (8.47) | 4.5:1 |
+| `--primario-contraste` sobre `--primario-hover` | `#ffffff` / `#09667a` (6.58) | `#06262b` / `#5becef` (11.13) | 4.5:1 |
+| `--primario-texto` sobre `--superficie` | `#086a7e` / `#ffffff` (6.23) | `#5becef` / `#141f23` (11.75) | 4.5:1 |
+| `--primario-texto` sobre `--primario-suave` | `#086a7e` / `#ddf3f6` (5.40) | `#5becef` / `#123940` (8.72) | 4.5:1 |
+| Texto de `.zona-oscura` sobre `--topbar` (solo claro) | `#eef7f8` / `#0d1518` (16.96); suave `#a9bec4` (9.54); tenue `#93aab1` (7.58) | — (topbar = fondo) | 4.5:1 |
+| `--texto-inverso` sobre `--peligro` (contador, botón peligro) | `#ffffff` / `#cc3238` (5.15) | `#06262b` / `#ff6b6e` (5.74) | 4.5:1 |
 | `--peligro` sobre `--peligro-suave` | `#b42318` / `#fdecec` | `#ff8a8c` / `#3a1a1d` | 4.5:1 |
 | `--exito` sobre `--exito-suave` | `#167a45` / `#e7f7ee` | `#3ecf7a` / `#12301f` | 4.5:1 |
 | `--ambar` sobre `--ambar-suave` | `#8a5a12` / `#fdf3e2` | `#f3b45c` / `#3a2c17` | 4.5:1 |
+
+**Logo (FR-100)**: `--logo-inicio`/`--logo-fin` definen el degradé vertical del símbolo
+(claro `#16b3cc → #0b7a91`; oscuro `#5becef → #1fa3c4`, los colores del logo original) y
+`--logo-acento` colorea "ST" del logotipo (claro `#0b7a91`, 4.53:1 sobre `--fondo`; oscuro
+`#5becef`, 12.07:1 sobre `--sidebar`).
+
+**Paleta (FR-101)**: el primario es el petróleo/cian del logo; el fondo oscuro y la barra superior
+clara usan su negro petróleo `#0d1518`. Se retiraron `--teal*` y `--cian` (coincidían con el
+primario); ámbar, verde y rojo quedan como colores de estado.
 
 **Zona oscura (FR-099)**: en tema claro la barra superior lleva la clase `.zona-oscura`, que
 redefine localmente `--texto`, `--texto-suave`, `--texto-tenue`, `--superficie*`, `--borde` y

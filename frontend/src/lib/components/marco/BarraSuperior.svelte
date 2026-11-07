@@ -163,10 +163,5 @@
 		.acciones {
 			display: none;
 		}
-
-		/* En angosto el selector de tema vive en el panel lateral superpuesto. */
-		.tema {
-			display: none;
-		}
 	}
 </style>

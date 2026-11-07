@@ -91,3 +91,21 @@ describe('aplicarTema', () => {
 		expect(raiz.style.colorScheme).toBe('dark');
 	});
 });
+
+describe('resolverTema en layout móvil', () => {
+	it('fuerza dark en móvil aunque la preferencia sea light o system', () => {
+		expect(resolverTema('light', false, true)).toBe('dark');
+		expect(resolverTema('system', false, true)).toBe('dark');
+		expect(resolverTema('light', true, true)).toBe('dark');
+	});
+
+	it('respeta la preferencia en escritorio', () => {
+		expect(resolverTema('light', false, false)).toBe('light');
+		expect(resolverTema('dark', false, false)).toBe('dark');
+		expect(resolverTema('system', true, false)).toBe('dark');
+	});
+
+	it('sin el tercer argumento se comporta como escritorio', () => {
+		expect(resolverTema('light', false)).toBe('light');
+	});
+});

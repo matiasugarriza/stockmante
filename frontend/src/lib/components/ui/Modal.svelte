@@ -1,6 +1,7 @@
 <script lang="ts">
 	import type { Snippet } from 'svelte';
 	import { tick } from 'svelte';
+	import { dispositivo } from '#lib/dispositivo/dispositivo';
 	import Icono from './Icono.svelte';
 
 	interface Props {
@@ -8,12 +9,24 @@
 		titulo: string;
 		descripcion?: string;
 		tamano?: 'md' | 'lg';
+		variante?: 'dialogo' | 'hoja';
 		oncerrar: () => void;
 		children: Snippet;
 		acciones?: Snippet;
 	}
 
-	let { abierto, titulo, descripcion, tamano = 'md', oncerrar, children, acciones }: Props = $props();
+	let {
+		abierto,
+		titulo,
+		descripcion,
+		tamano = 'md',
+		variante = 'dialogo',
+		oncerrar,
+		children,
+		acciones
+	}: Props = $props();
+
+	const hoja = $derived(variante === 'hoja' || $dispositivo.esMovil);
 
 	let dialogo: HTMLDivElement | undefined = $state();
 	let disparador: HTMLElement | null = null;
@@ -24,6 +37,7 @@
 		if (!abierto) return;
 		disparador = document.activeElement instanceof HTMLElement ? document.activeElement : null;
 		const overflowPrevio = document.body.style.overflow;
+		const scrollPrevio = typeof window === 'undefined' ? 0 : window.scrollY;
 		document.body.style.overflow = 'hidden';
 		void tick().then(() => {
 			const primero = dialogo?.querySelector<HTMLElement>(
@@ -33,6 +47,7 @@
 		});
 		return () => {
 			document.body.style.overflow = overflowPrevio;
+			if (typeof window !== 'undefined') window.scrollTo(0, scrollPrevio);
 			disparador?.focus();
 		};
 	});
@@ -67,11 +82,12 @@
 </script>
 
 {#if abierto}
-	<div class="capa">
+	<div class="capa" class:hoja>
 		<button type="button" class="fondo" aria-label="Cerrar diálogo" onclick={oncerrar}></button>
 		<div
 			class="dialogo"
 			class:lg={tamano === 'lg'}
+			class:hoja
 			role="dialog"
 			aria-modal="true"
 			aria-labelledby={idTitulo}
@@ -110,7 +126,7 @@
 		position: absolute;
 		inset: 0;
 		border: 0;
-		background: rgba(9, 14, 24, 0.55);
+		background: rgba(6, 14, 17, 0.6);
 		cursor: pointer;
 	}
 
@@ -180,5 +196,47 @@
 		border-top: 1px solid var(--borde);
 		padding: 12px 20px;
 		background: var(--superficie-2);
+	}
+
+	/* Hoja móvil a pantalla completa (spec 019, FR-123). */
+	.capa.hoja {
+		align-items: stretch;
+		justify-content: stretch;
+		padding: 0;
+	}
+
+	.dialogo.hoja {
+		display: flex;
+		flex-direction: column;
+		width: 100%;
+		max-width: none;
+		height: 100dvh;
+		max-height: 100dvh;
+		border: 0;
+		border-radius: 0;
+		overflow: hidden;
+	}
+
+	.dialogo.hoja .cabecera {
+		padding-top: calc(18px + var(--zona-segura-superior));
+	}
+
+	.dialogo.hoja .cuerpo {
+		flex: 1;
+		overflow-y: auto;
+		overscroll-behavior: contain;
+	}
+
+	.dialogo.hoja .acciones {
+		position: sticky;
+		bottom: 0;
+		padding-bottom: calc(12px + var(--zona-segura-inferior));
+	}
+
+	@media (max-width: 1023px) {
+		.cerrar {
+			width: var(--toque-min);
+			height: var(--toque-min);
+		}
 	}
 </style>

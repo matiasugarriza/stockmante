@@ -1,10 +1,13 @@
 <script lang="ts">
 	import type { Compra } from '#lib/schemas/compras';
 	import { formatearFechaCorta, formatearMoneda } from '#lib/utils/formato';
+	import { dispositivo } from '#lib/dispositivo/dispositivo';
 	import Boton from '../ui/Boton.svelte';
 	import EstadoVacio from '../ui/EstadoVacio.svelte';
 	import EtiquetaEstado from '../ui/EtiquetaEstado.svelte';
 	import TablaDatos from '../ui/TablaDatos.svelte';
+	import ListaTarjetas from '../movil/ListaTarjetas.svelte';
+	import TarjetaRegistro from '../movil/TarjetaRegistro.svelte';
 	import type { Columna } from '../ui/tabla';
 
 	interface Props {
@@ -43,7 +46,54 @@
 	};
 </script>
 
-<TablaDatos columnas={COLUMNAS} filas={compras} etiqueta="Compras" {cargando}>
+{#if $dispositivo.esMovil}
+	<ListaTarjetas items={compras} etiqueta="Compras" {cargando}>
+		{#snippet tarjeta(compra)}
+			<TarjetaRegistro
+				titulo={`Compra #${compra.id}`}
+				subtitulo={compra.proveedor_nombre}
+				badge={{
+					texto: compra.estado.charAt(0) + compra.estado.slice(1).toLowerCase(),
+					variante: VARIANTES_ESTADO[compra.estado] ?? 'neutro'
+				}}
+				campos={[
+					{ etiqueta: 'Fecha', valor: formatearFechaCorta(compra.creado_en) },
+					{ etiqueta: 'Depósito', valor: compra.deposito_nombre },
+					{ etiqueta: 'Factura', valor: compra.numero ?? '—' },
+					{ etiqueta: 'Total', valor: formatearMoneda(compra.total_costo) }
+				]}
+			>
+				{#snippet acciones()}
+					{#if compra.estado === 'BORRADOR'}
+						<Boton variante="secundario" tamano="sm" onclick={() => onEditar(compra)}>
+							Editar
+						</Boton>
+						<Boton variante="secundario" tamano="sm" onclick={() => onConfirmar(compra)}>
+							Confirmar
+						</Boton>
+						<Boton variante="fantasma" tamano="sm" onclick={() => onEliminar(compra)}>
+							Eliminar
+						</Boton>
+					{:else if compra.estado === 'CONFIRMADA'}
+						<Boton variante="fantasma" tamano="sm" onclick={() => onAnular(compra)}>
+							Anular
+						</Boton>
+					{:else}
+						<span class="sin-acciones">Sin acciones</span>
+					{/if}
+				{/snippet}
+			</TarjetaRegistro>
+		{/snippet}
+		{#snippet vacio()}
+			<EstadoVacio
+				icono="compras"
+				titulo="No hay compras en este filtro"
+				descripcion="Creá una compra en borrador y confirmá la recepción cuando llegue la mercadería."
+			/>
+		{/snippet}
+	</ListaTarjetas>
+{:else}
+	<TablaDatos columnas={COLUMNAS} filas={compras} etiqueta="Compras" {cargando}>
 	{#snippet fila(compra)}
 		<td class="id">Compra #{compra.id}</td>
 		<td class="fecha">{formatearFechaCorta(compra.creado_en)}</td>
@@ -86,6 +136,7 @@
 		/>
 	{/snippet}
 </TablaDatos>
+{/if}
 
 <style>
 	.id {

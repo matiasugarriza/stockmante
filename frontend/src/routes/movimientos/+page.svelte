@@ -1,5 +1,9 @@
 <script lang="ts">
 	import { ApiError } from '#lib/api/client';
+	import { dispositivo } from '#lib/dispositivo/dispositivo';
+	import ListaTarjetas from '#lib/components/movil/ListaTarjetas.svelte';
+	import TarjetaRegistro from '#lib/components/movil/TarjetaRegistro.svelte';
+	import BotonFlotante from '#lib/components/movil/BotonFlotante.svelte';
 	import { crearMovimiento, listarMovimientos } from '#lib/api/movimientos';
 	import { listarDepositosActivos, listarUbicaciones, type DepositoActivo } from '#lib/api/depositos';
 	import { buscarProductos } from '#lib/api/productos';
@@ -97,7 +101,7 @@
 
 	// El signo de la cantidad depende del tipo; el input lo pide en positivo.
 	const restoPositivo = $derived(tipo === 'ENTRADA' || tipo === 'AJUSTE');
-	const pideObservacion = $derived(motivo === 'OTRO');
+	const pideObservacion = $derived(motivo === 'OTRO' || tipo === 'AJUSTE');
 
 	const opcionesTipo = $derived(TIPOS.filter((opcion) => opcion.valor !== 'AJUSTE' || esGestion));
 	const opcionesDepositos = $derived([
@@ -251,7 +255,9 @@
 	function validar(): string | null {
 		if (!depositoId) return 'Elegí un depósito.';
 		if (pideObservacion && !observacion.trim())
-			return 'Con motivo OTRO hace falta una observación.';
+			return tipo === 'AJUSTE'
+				? 'Un ajuste requiere una justificación en la observación.'
+				: 'Con motivo OTRO hace falta una observación.';
 		for (const [i, linea] of lineas.entries()) {
 			if (!linea.producto) return `Elegí un producto en la línea ${i + 1}.`;
 			if (deltaDe(linea) === null)
@@ -347,7 +353,7 @@
 				<Campo
 					etiqueta="Observación"
 					nombre="observacion"
-					marcador={pideObservacion ? 'Obligatoria con OTRO' : 'Opcional'}
+					marcador={pideObservacion ? 'Obligatoria para AJUSTE u OTRO' : 'Opcional'}
 					maxlength={500}
 					bind:valor={observacion}
 				/>
@@ -469,6 +475,30 @@
 			<Boton variante="secundario" tamano="sm" onclick={aplicarFiltros}>Filtrar</Boton>
 		</div>
 
+		{#if $dispositivo.esMovil}
+			<ListaTarjetas items={movimientos} etiqueta="Historial de movimientos" {cargando}>
+				{#snippet tarjeta(movimiento)}
+					<TarjetaRegistro
+						titulo={`${movimiento.tipo} #${movimiento.id}`}
+						subtitulo={formatoFecha.format(new Date(movimiento.creado_en))}
+						badge={{ texto: movimiento.tipo, variante: VARIANTES_TIPO[movimiento.tipo] }}
+						campos={[
+							{ etiqueta: 'Motivo', valor: movimiento.motivo },
+							{ etiqueta: 'Depósito', valor: movimiento.deposito.nombre },
+							{ etiqueta: 'Autor', valor: movimiento.usuario.nombre },
+							{ etiqueta: 'Líneas', valor: String(movimiento.lineas.length) }
+						]}
+					/>
+				{/snippet}
+				{#snippet vacio()}
+					<EstadoVacio
+						icono="movimientos"
+						titulo="No hay movimientos registrados"
+						descripcion="Registrá el primero con el formulario de arriba."
+					/>
+				{/snippet}
+			</ListaTarjetas>
+		{:else}
 		<TablaDatos
 			columnas={COLUMNAS}
 			filas={movimientos}
@@ -514,6 +544,7 @@
 				/>
 			{/snippet}
 		</TablaDatos>
+		{/if}
 
 		{#if totalPaginas > 1}
 			<div class="pie-tabla">
@@ -527,6 +558,9 @@
 			{depositoActual.nombre} no tiene ubicaciones cargadas: los movimientos se imputan al depósito
 			hasta que se asignen ubicaciones al producto.
 		</Aviso>
+	{/if}
+	{#if $dispositivo.esMovil}
+		<BotonFlotante etiqueta="Nuevo movimiento" icono="movimientos" onclick={() => window.scrollTo({ top: 0, behavior: 'smooth' })} />
 	{/if}
 </div>
 

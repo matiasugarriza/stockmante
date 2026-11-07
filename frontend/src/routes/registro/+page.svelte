@@ -1,11 +1,11 @@
 <script lang="ts">
+	import LogoSimbolo from '#lib/components/marco/LogoSimbolo.svelte';
 	import { ApiError } from '#lib/api/client';
 	import { registro } from '#lib/api/auth';
 	import { RegistroSchema } from '#lib/schemas/auth';
 	import Aviso from '#lib/components/ui/Aviso.svelte';
 	import Boton from '#lib/components/ui/Boton.svelte';
 	import Campo from '#lib/components/ui/Campo.svelte';
-	import Icono from '#lib/components/ui/Icono.svelte';
 	import Tarjeta from '#lib/components/ui/Tarjeta.svelte';
 
 	let nombre = $state('');
@@ -43,9 +43,7 @@
 	<Tarjeta>
 		<div class="acceso-contenido">
 			<div class="acceso-encabezado">
-				<span class="acceso-marca" aria-hidden="true">
-					<Icono nombre="usuarios" tamano={20} />
-				</span>
+				<span class="acceso-marca"><LogoSimbolo alto={48} /></span>
 				<div>
 					<p class="acceso-kicker">Sistema de inventario</p>
 					<h1 class="acceso-titulo">Creá tu cuenta</h1>

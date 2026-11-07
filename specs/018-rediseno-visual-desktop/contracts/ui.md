@@ -16,17 +16,17 @@ clientes de `frontend/src/lib/api/*.ts` y sus schemas siguen siendo la única v�
 │                 ├── BarraLateral
 │                 │   ├── Marca
 │                 │   ├── GrupoNavegacion × 2
-│                 │   ├── BotonTema (pie)
 │                 │   └── VersionSistema
 │                 ├── BarraSuperior
 │                 │   ├── BotonMenu (solo < 1024)
 │                 │   ├── ContextoPagina (título + migaja)
 │                 │   ├── AccionesRapidas (opcional por página)
+│                 │   ├── BotonTema (único selector de tema del marco, T100)
 │                 │   └── MenuUsuario (nombre, rol, cerrar sesión)
 │                 └── <main id="contenido"> children </main>
 ```
 
-**Medidas**: sidebar 248 px (76 px colapsada), topbar 64 px, contenido con padding 24 px y ancho
+**Medidas**: sidebar 248 px (76 px colapsada), topbar 72 px, contenido con padding 24 px y ancho
 máximo 1440 px centrado. En < 1024 px la sidebar pasa a panel superpuesto con backdrop y `Escape`.
 
 **Regla**: las rutas públicas existentes (`/login`, `/registro`, `/verificar-correo`) no muestran

@@ -1,11 +1,16 @@
 /**
- * Preferencia de tema de la interfaz (spec 018, FR-079/FR-080).
+ * Preferencia de tema de la interfaz (spec 018 FR-079/FR-080; spec 019 FR-104).
  *
  * La lógica vive en funciones puras con sus dependencias inyectadas (almacén y raíz del
  * documento) para poder probarla en entorno `node` sin DOM. El script inline de `app.html`
  * aplica el tema antes del primer pintado; este módulo lo mantiene sincronizado al hidratar.
+ *
+ * En el layout móvil (menos de 1024 px) la identidad oscura cyberpunk es obligatoria: la
+ * preferencia claro/oscuro no se aplica y se conserva para cuando el usuario vuelve al
+ * escritorio.
  */
 import { get, writable } from 'svelte/store';
+import { dispositivo } from '../dispositivo/dispositivo';
 
 export type Tema = 'light' | 'dark';
 export type PreferenciaTema = Tema | 'system';
@@ -32,8 +37,16 @@ export function esTema(valor: unknown): valor is PreferenciaTema {
 	return typeof valor === 'string' && (PREFERENCIAS as readonly string[]).includes(valor);
 }
 
-/** `system` delega en la preferencia del sistema; una elección explícita manda. */
-export function resolverTema(preferencia: PreferenciaTema, prefiereOscuro: boolean): Tema {
+/**
+ * `system` delega en la preferencia del sistema; una elección explícita manda.
+ * En layout móvil siempre gana `dark` (FR-104).
+ */
+export function resolverTema(
+	preferencia: PreferenciaTema,
+	prefiereOscuro: boolean,
+	esLayoutMovil = false
+): Tema {
+	if (esLayoutMovil) return 'dark';
 	if (preferencia === 'system') return prefiereOscuro ? 'dark' : 'light';
 	return preferencia;
 }
@@ -83,12 +96,13 @@ function prefiereOscuro(): boolean {
 
 function aplicarPreferencia(valor: PreferenciaTema, oscuro: boolean): void {
 	if (typeof document === 'undefined') return;
-	aplicarTema(document.documentElement, resolverTema(valor, oscuro));
+	aplicarTema(document.documentElement, resolverTema(valor, oscuro, get(dispositivo).esMovil));
 }
 
 /**
  * Arranca el tema al montar la pantalla y devuelve la limpieza para `onMount`.
- * Con preferencia `system` escucha cambios del sistema operativo en vivo.
+ * Con preferencia `system` escucha cambios del sistema operativo en vivo y, además,
+ * re-aplica el tema cuando el layout cruza el corte móvil/escritorio.
  */
 export function iniciarTema(): () => void {
 	if (typeof window === 'undefined') return () => {};
@@ -104,7 +118,14 @@ export function iniciarTema(): () => void {
 	};
 	consulta.addEventListener('change', alCambiarSistema);
 
-	return () => consulta.removeEventListener('change', alCambiarSistema);
+	const dejarDeSeguirLayout = dispositivo.subscribe(() => {
+		aplicarPreferencia(get(preferencia), prefiereOscuro());
+	});
+
+	return () => {
+		consulta.removeEventListener('change', alCambiarSistema);
+		dejarDeSeguirLayout();
+	};
 }
 
 export function elegirPreferencia(valor: PreferenciaTema): void {

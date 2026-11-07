@@ -160,4 +160,19 @@
 			transform: rotate(360deg);
 		}
 	}
+
+	/* Área de toque mínima y estado destructivo legible (spec 019, FR-106 y FR-103). */
+	@media (max-width: 1023px) {
+		.boton,
+		.boton.sm {
+			min-height: var(--toque-min);
+			padding: 0 14px;
+		}
+
+		.peligro {
+			border-color: var(--peligro);
+			background: var(--peligro-suave);
+			color: var(--peligro-texto);
+		}
+	}
 </style>

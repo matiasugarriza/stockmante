@@ -28,9 +28,11 @@ export type NombreIcono =
 	| 'alerta'
 	| 'check'
 	| 'mas'
+	| 'puntos'
 	| 'editar'
 	| 'basura'
-	| 'salir';
+	| 'salir'
+	| 'subir';
 
 export type ElementoIcono =
 	| { tag: 'path'; d: string }
@@ -128,6 +130,7 @@ export const ICONOS: Record<NombreIcono, ElementoIcono[]> = {
 	],
 	check: [{ tag: 'path', d: 'M5 12l5 5L20 7' }],
 	mas: [{ tag: 'path', d: 'M12 5v14M5 12h14' }],
+	puntos: [{ tag: 'path', d: 'M6 12h.01M12 12h.01M18 12h.01' }],
 	editar: [
 		{ tag: 'path', d: 'M4 20h4L20 8l-4-4L4 16v4Z' },
 		{ tag: 'path', d: 'M14 6l4 4' }
@@ -139,6 +142,10 @@ export const ICONOS: Record<NombreIcono, ElementoIcono[]> = {
 	salir: [
 		{ tag: 'path', d: 'M9 21H5V3h4' },
 		{ tag: 'path', d: 'M16 17l5-5-5-5M21 12H9' }
+	],
+	subir: [
+		{ tag: 'path', d: 'M4 15v4a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-4' },
+		{ tag: 'path', d: 'M12 15V4M7 9l5-5 5 5' }
 	]
 };
 

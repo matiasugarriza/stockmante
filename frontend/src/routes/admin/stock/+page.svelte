@@ -1,5 +1,12 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
+	import { dispositivo } from '#lib/dispositivo/dispositivo';
+	import ListaTarjetas from '#lib/components/movil/ListaTarjetas.svelte';
+	import TarjetaInventario from '#lib/components/movil/TarjetaInventario.svelte';
+	import FiltrosMovil from '#lib/components/movil/FiltrosMovil.svelte';
+	import BotonFlotante from '#lib/components/movil/BotonFlotante.svelte';
+	import HojaMovimiento from '#lib/components/movimientos/HojaMovimiento.svelte';
+	import { page } from '$app/state';
 	import { ApiError } from '#lib/api/client';
 	import { listarDepositos } from '#lib/api/depositos';
 	import { listarCategorias } from '#lib/api/categorias';
@@ -67,11 +74,23 @@
 	let depositoId = $state('');
 	let categoriaId = $state('');
 	let activo = $state('true');
-	let q = $state('');
+	let q = $state(page.url.searchParams.get('q') ?? '');
 	let bajoMinimo = $state(false);
 	let errorFiltros = $state('');
 	let detalle = $state<StockProducto | null>(null);
 	let errorDetalle = $state('');
+	let itemMovil = $state<StockItem | null>(null);
+	let hojaAbierta = $state(false);
+
+	function abrirHoja(item: StockItem) {
+		itemMovil = item;
+		hojaAbierta = true;
+	}
+
+	function recargarTrasMovimiento() {
+		void cargar();
+		void cargarAlertasBajoMinimo();
+	}
 
 	// 010: stock global, en depósito (si hay uno elegido), mínimo, faltante y valorizado.
 	const COLUMNAS: Columna<StockItem>[] = $derived([
@@ -85,7 +104,7 @@
 		{ clave: 'faltante', encabezado: 'Faltante', alineacion: 'derecha' },
 		{ clave: 'costo', encabezado: 'Costo', alineacion: 'derecha' },
 		{ clave: 'valorizado', encabezado: 'Valorizado', alineacion: 'derecha' },
-		{ clave: 'bajo_minimo', encabezado: 'Bajo mínimo' }
+		{ clave: 'bajo_minimo', encabezado: 'Bajo mínimo', alineacion: 'centro' }
 	]);
 	let items = $state<StockItem[]>([]);
 	let total = $state(0);
@@ -102,6 +121,26 @@
 	const opcionesCategorias = $derived([
 		{ valor: '', etiqueta: 'Todas' },
 		...categorias.map((categoria) => ({ valor: String(categoria.id), etiqueta: categoria.nombre }))
+	]);
+
+	const chipsStock = $derived([
+		{ etiqueta: 'Buscar', valor: q.trim() },
+		{
+			etiqueta: 'Depósito',
+			valor: opcionesDepositos.find((opcion) => opcion.valor === depositoId)?.etiqueta ?? ''
+		},
+		{
+			etiqueta: 'Categoría',
+			valor: opcionesCategorias.find((opcion) => opcion.valor === categoriaId)?.etiqueta ?? ''
+		},
+		{
+			etiqueta: 'Estado',
+			valor:
+				activo === 'true'
+					? ''
+					: (OPCIONES_ACTIVO.find((opcion) => opcion.valor === activo)?.etiqueta ?? '')
+		},
+		{ etiqueta: 'Bajo mínimo', valor: bajoMinimo ? 'Sí' : '' }
 	]);
 
 	function motivo(e: unknown, generico: string): string {
@@ -160,6 +199,16 @@
 
 	function cambiarPagina(nueva: number) {
 		pagina = nueva;
+		void cargar();
+	}
+
+	function limpiarFiltros() {
+		q = '';
+		depositoId = '';
+		categoriaId = '';
+		activo = 'true';
+		bajoMinimo = false;
+		pagina = 1;
 		void cargar();
 	}
 
@@ -224,8 +273,9 @@
 		</Aviso>
 	{/if}
 
-	<Tarjeta>
-		<div class="filtros">
+	{#snippet tarjetaFiltros()}
+		<Tarjeta>
+			<div class="filtros">
 			<Campo
 				etiqueta="Buscar"
 				nombre="q"
@@ -267,9 +317,50 @@
 			<div class="accion-filtro">
 				<Boton onclick={aplicarFiltros}>Buscar</Boton>
 			</div>
-		</div>
-	</Tarjeta>
+			</div>
+		</Tarjeta>
+	{/snippet}
 
+	<div id="filtros-stock">
+	{#if $dispositivo.esMovil}
+		<FiltrosMovil chips={chipsStock} onlimpiar={limpiarFiltros}>
+			{@render tarjetaFiltros()}
+		</FiltrosMovil>
+	{:else}
+		{@render tarjetaFiltros()}
+	{/if}
+	</div>
+
+	{#if $dispositivo.esMovil}
+		<ListaTarjetas items={items} etiqueta="Stock por producto y depósito" {cargando}>
+			{#snippet tarjeta(item)}
+				<TarjetaInventario
+					nombre={item.nombre}
+					sku={item.sku}
+					stockActual={item.stock_actual}
+					bajoMinimo={item.bajo_minimo}
+					contexto={`${item.categoria_nombre}${depositoId ? ` · en depósito: ${formatearNumero(item.stock_deposito ?? 0)}` : ''}`}
+					onabrir={() => void verDesglose(item)}
+				>
+					{#snippet acciones()}
+						<Boton variante="secundario" tamano="sm" onclick={() => void verDesglose(item)}>
+							Ver desglose
+						</Boton>
+						<Boton variante="primario" tamano="sm" onclick={() => abrirHoja(item)}>
+							Ajustar
+						</Boton>
+					{/snippet}
+				</TarjetaInventario>
+			{/snippet}
+			{#snippet vacio()}
+				<EstadoVacio
+					icono="stock"
+					titulo="Sin resultados de stock"
+					descripcion="Probá con otro producto, depósito o quitá el filtro de bajo mínimo."
+				/>
+			{/snippet}
+		</ListaTarjetas>
+	{:else}
 	<Tarjeta densa={true}>
 		<TablaDatos
 			columnas={COLUMNAS}
@@ -299,7 +390,7 @@
 				<td class="numero" class:alerta={item.faltante > 0}>{formatearNumero(item.faltante)}</td>
 				<td class="numero">{item.costo === null ? '—' : textoValorizado({ valorizado: item.costo })}</td>
 				<td class="numero">{textoValorizado(item)}</td>
-				<td>
+				<td class="centro">
 					<EtiquetaEstado variante={item.bajo_minimo ? 'aviso' : 'exito'}>
 						{item.bajo_minimo ? 'Sí' : 'No'}
 					</EtiquetaEstado>
@@ -314,6 +405,7 @@
 			{/snippet}
 		</TablaDatos>
 	</Tarjeta>
+	{/if}
 
 	<div class="pie">
 		<Paginacion {pagina} {total} {porPagina} onCambiar={cambiarPagina} />
@@ -344,6 +436,22 @@
 			{/if}
 		</Tarjeta>
 	{/if}
+
+	{#if $dispositivo.esMovil}
+		<BotonFlotante
+			etiqueta="Buscar producto para ajustar"
+			icono="buscar"
+			onclick={() =>
+				document.getElementById('filtros-stock')?.scrollIntoView({ behavior: 'smooth' })}
+		/>
+	{/if}
+
+	<HojaMovimiento
+		abierta={hojaAbierta}
+		item={itemMovil}
+		oncerrar={() => (hojaAbierta = false)}
+		onregistrado={recargarTrasMovimiento}
+	/>
 </div>
 
 <style>
@@ -396,6 +504,16 @@
 
 	.numero {
 		font-variant-numeric: tabular-nums;
+	}
+
+	/* Las celdas del snippet no heredan .alinear-* de TablaDatos (CSS con alcance). */
+	td.numero {
+		text-align: right;
+		white-space: nowrap;
+	}
+
+	td.centro {
+		text-align: center;
 	}
 
 	strong.alerta,

@@ -175,4 +175,11 @@
 			display: none;
 		}
 	}
+
+	@media (max-width: 640px) {
+		/* Libera ancho para el selector de tema en la barra superior a 320 px. */
+		.flecha {
+			display: none;
+		}
+	}
 </style>

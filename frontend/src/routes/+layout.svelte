@@ -6,9 +6,12 @@
 	import { listarAlertas } from '#lib/api/alertas';
 	import { esRutaPublica } from '#lib/utils/rutas';
 	import { iniciarTema } from '#lib/tema/tema';
+	import { iniciarDispositivo } from '#lib/dispositivo/dispositivo';
 	import { tituloDeRuta } from '#lib/navegacion/navegacion';
 	import MarcoApp from '#lib/components/marco/MarcoApp.svelte';
 	import LienzoAcceso from '#lib/components/marco/LienzoAcceso.svelte';
+	import LogoSimbolo from '#lib/components/marco/LogoSimbolo.svelte';
+	import AvisoFlotante from '#lib/components/ui/AvisoFlotante.svelte';
 	import './layout.css';
 	import favicon from '#lib/assets/favicon.svg';
 	import type { LayoutProps } from './$types';
@@ -21,9 +24,13 @@
 	const titulo = $derived(tituloDeRuta(page.url.pathname));
 
 	onMount(() => {
+		const limpiarDispositivo = iniciarDispositivo();
 		const limpiarTema = iniciarTema();
 		void refrescarSesion();
-		return limpiarTema;
+		return () => {
+			limpiarTema();
+			limpiarDispositivo();
+		};
 	});
 
 	// 011: el contador sale de /api/alertas (solo GESTION) y se refresca al montar y al
@@ -72,7 +79,7 @@
 	</MarcoApp>
 {:else if $sesion.estado === 'cargando'}
 	<div class="cargando">
-		<span class="simbolo" aria-hidden="true">S</span>
+		<LogoSimbolo alto={64} />
 		<p>Cargando…</p>
 	</div>
 {:else}
@@ -80,6 +87,8 @@
 		<p>Redirigiendo al inicio de sesión…</p>
 	</div>
 {/if}
+
+<AvisoFlotante />
 
 <style>
 	.cargando {
@@ -94,16 +103,4 @@
 		font-size: 13px;
 	}
 
-	.simbolo {
-		display: inline-flex;
-		align-items: center;
-		justify-content: center;
-		width: 40px;
-		height: 40px;
-		border-radius: 10px;
-		background: var(--primario);
-		color: var(--primario-contraste);
-		font-size: 17px;
-		font-weight: 700;
-	}
 </style>

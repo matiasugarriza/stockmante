@@ -1,19 +1,21 @@
 <!doctype html>
-<html lang="en">
+<html lang="es">
 	<head>
 		<meta charset="utf-8" />
 		<meta name="viewport" content="width=device-width, initial-scale=1" />
 		<meta name="text-scale" content="scale" />
 		%sveltekit.head%
 		<script>
-			// Aplica el tema antes del primer pintado (spec 018, FR-080): evita el destello claro.
-			// Mantiene la misma clave y semántica que $lib/tema/tema.ts.
+			// Aplica el tema antes del primer pintado (spec 018, FR-080; spec 019, FR-104):
+			// en el layout móvil el oscuro cyberpunk es obligatorio y no se lee la preferencia.
 			(function () {
 				try {
+					var movil = window.matchMedia('(max-width: 1023px)').matches;
 					var guardado = window.localStorage.getItem('stockmante:tema');
 					var oscuro = window.matchMedia('(prefers-color-scheme: dark)').matches;
-					var tema =
-						guardado === 'light' || guardado === 'dark'
+					var tema = movil
+						? 'dark'
+						: guardado === 'light' || guardado === 'dark'
 							? guardado
 							: oscuro
 								? 'dark'
@@ -21,7 +23,7 @@
 					document.documentElement.setAttribute('data-tema', tema);
 					document.documentElement.style.colorScheme = tema;
 				} catch (error) {
-					document.documentElement.setAttribute('data-tema', 'light');
+					document.documentElement.setAttribute('data-tema', 'dark');
 				}
 			})();
 		</script>

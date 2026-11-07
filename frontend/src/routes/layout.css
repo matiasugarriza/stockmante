@@ -1,6 +1,7 @@
 @import '@fontsource-variable/outfit';
 @import 'tailwindcss';
 @import '../lib/diseno/tokens.css';
+@import '../lib/diseno/movil.css';
 @import '../lib/diseno/acceso.css';
 
 /* Base global de la aplicación. Los estilos de cada pantalla y componente viven

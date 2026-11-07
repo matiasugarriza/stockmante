@@ -107,6 +107,41 @@ este frente.
   010 (`/api/stock` no devuelve `faltante`, `costo` ni `valorizado`); el código de `backend/src` sí
   los incluye. Se resuelve recompilando/reiniciando el backend, no es un defecto del frontend.
 
+## Selector de tema solo en la barra superior (T100)
+
+- Se retiró `BotonTema` de `BarraLateral.svelte`; el pie lateral conserva solo "Stockmante v0.1".
+- La barra superior muestra el selector en todos los anchos; a ≤640 px se oculta la flecha del menú
+  de usuario para ganar espacio.
+- Verificado con Playwright en `/`, `/movimientos`, `/transferencias`, `/admin/categorias`,
+  `/admin/proveedores` y `/caja`: a 1440 y 320 px `scrollWidth = innerWidth`, selector presente en
+  `header` y ausente en `aside`. `npm run test` 327/327 y `npm run check` 0 errores.
+
+## Logo vectorizado (T101–T104, FR-100)
+
+- Fuente: `captures/samples/logo.jpg` (373×423, con resplandor). Se vectorizó solo el símbolo:
+  recorte sin texto, escalado ×8 con Lanczos, normalización por brillo local (el original tiene un
+  degradé vertical que hacía perder la caja inferior con umbral fijo), umbral, `findContours`,
+  `approxPolyDP` (ε = 3 px a ×8) y curvas cuadráticas en vértices con giro < 28°. Resultado: 13
+  contornos con `fill-rule="evenodd"`, viewBox 138×281,5, ~3,6 KB.
+- El texto "STOCKMANTE" no se vectorizó: se compone en Outfit (ST en `--logo-acento`, OCK 700,
+  MANTE 400) para que escale nítido y siga los tokens.
+- Verificado en claro y oscuro (barra lateral, lienzo y tarjeta de acceso), barra colapsada (solo
+  símbolo) y favicon a 64 y 16 px sobre fondo oscuro redondeado. `npm run test` 327/327,
+  `npm run check` 0/0, `npm run build` correcto.
+
+## Paleta derivada del logo (T105–T108, FR-101)
+
+- Colores muestreados del logo: fondo `#0d1518`, cian `#20c0d0`–`#30e0f0` (extremos del degradé
+  `#5becef` → `#1fa3c4`).
+- Claro: primario `#0b7a91`, neutros con matiz petróleo, barra superior `#0d1518`. Oscuro: fondo
+  `#0d1518`, superficies `#141f23`/`#19282d`/`#1f2f35`, primario `#2fd0dc` con texto oscuro
+  `#06262b`. Todos los pares de `contracts/tokens.md` §5 validados ≥ 4.5:1.
+- Se retiraron `--teal*` y `--cian`; en los gráficos las entradas pasan a `--exito`. Se corrigió el
+  token inexistente `--rojo-texto` de Caja y el rojo de peligro claro (`#dc3d43` → `#cc3238`, el
+  contador blanco quedaba en 4.38:1).
+- `npm run test` 327/327, `npm run check` 0/0, `npm run build` correcto; evidencia regenerada (17
+  claras, 17 oscuras, 12 angostas).
+
 ## Pendiente
 
 - Captura del modo de cambio obligatorio de contraseña (requiere `CAPTURE_EMAIL_TEMP`/

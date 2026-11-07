@@ -10,6 +10,9 @@
 	import EstadoVacio from '#lib/components/ui/EstadoVacio.svelte';
 	import PanelActividad from '#lib/components/inicio/PanelActividad.svelte';
 	import AccesosRapidos from '#lib/components/inicio/AccesosRapidos.svelte';
+	import CarruselMetricas from '#lib/components/movil/CarruselMetricas.svelte';
+	import type { MetricaTablero } from '#lib/components/movil/metricas';
+	import { dispositivo } from '#lib/dispositivo/dispositivo';
 	import { listarStock } from '#lib/api/stock';
 	import { listarMovimientos } from '#lib/api/movimientos';
 	import { listarProductos } from '#lib/api/productos';
@@ -25,7 +28,7 @@
 	import type { MovimientoDetalle, StockItem, TipoMovimiento } from '#lib/schemas/movimientos';
 
 	const TIPOS: Array<{ tipo: TipoMovimiento; etiqueta: string; color: string }> = [
-		{ tipo: 'ENTRADA', etiqueta: 'Entradas', color: 'var(--teal)' },
+		{ tipo: 'ENTRADA', etiqueta: 'Entradas', color: 'var(--exito)' },
 		{ tipo: 'SALIDA', etiqueta: 'Salidas', color: 'var(--ambar)' },
 		{ tipo: 'MERMA', etiqueta: 'Mermas', color: 'var(--peligro)' },
 		{ tipo: 'AJUSTE', etiqueta: 'Ajustes', color: 'var(--primario)' }
@@ -72,6 +75,54 @@
 	const hayBajos = $derived(bajos !== null && bajos > 0);
 	const erroresKpi = $derived(
 		[errorBajos, errorMovHoy, errorActivos, errorValor].filter(Boolean).join(' ')
+	);
+
+	// Indicadores en formato deslizable para el tablero móvil (FR-114).
+	const metricas = $derived(
+		[
+			{
+				id: 'bajos',
+				etiqueta: 'Stock bajo mínimo',
+				valor: bajos === null ? '—' : formatearNumero(bajos),
+				contexto: hayBajos
+					? 'Productos que necesitan reposición'
+					: 'Todo el stock sobre el mínimo',
+				icono: 'alerta' as const,
+				variante: hayBajos ? ('aviso' as const) : ('exito' as const),
+				cargando: cargandoBajos
+			},
+			{
+				id: 'movimientos',
+				etiqueta: 'Movimientos de hoy',
+				valor: movHoy === null ? '—' : formatearNumero(movHoy),
+				contexto: 'Entradas, salidas, mermas y ajustes',
+				icono: 'movimientos' as const,
+				variante: 'info' as const,
+				cargando: cargandoMovHoy
+			},
+			...(esGestion
+				? [
+						{
+							id: 'activos',
+							etiqueta: 'Productos activos',
+							valor: activos === null ? '—' : formatearNumero(activos),
+							contexto: 'Catálogo disponible para operar',
+							icono: 'productos' as const,
+							variante: 'neutro' as const,
+							cargando: cargandoActivos
+						},
+						{
+							id: 'valor',
+							etiqueta: 'Valor del stock',
+							valor: valor === null ? '—' : formatearMoneda(valor),
+							contexto: 'Costo del inventario activo',
+							icono: 'stock' as const,
+							variante: 'exito' as const,
+							cargando: cargandoValor
+						}
+					]
+				: [])
+		] satisfies MetricaTablero[]
 	);
 
 	function desdeHoy(): string {
@@ -231,12 +282,14 @@
 </svelte:head>
 
 <div class="pagina">
-	<EncabezadoPagina
-		titulo="Inicio"
-		descripcion={`Resumen del inventario al ${fecha}.`}
-	>
-		<Boton href="/caja" icono="caja">Ir a Caja</Boton>
-	</EncabezadoPagina>
+	{#if !$dispositivo.esMovil}
+		<EncabezadoPagina
+			titulo="Inicio"
+			descripcion={`Resumen del inventario al ${fecha}.`}
+		>
+			<Boton href="/caja" icono="caja">Ir a Caja</Boton>
+		</EncabezadoPagina>
+	{/if}
 
 	{#if erroresKpi}
 		<Aviso variante="error" titulo="Algunos indicadores no se pudieron cargar">
@@ -244,7 +297,10 @@
 		</Aviso>
 	{/if}
 
-	<div class="grid-kpis" role="group" aria-label="Indicadores del inventario">
+	{#if $dispositivo.esMovil}
+		<CarruselMetricas {metricas} />
+	{:else}
+		<div class="grid-kpis" role="group" aria-label="Indicadores del inventario">
 		<TarjetaKpi
 			etiqueta="Stock bajo mínimo"
 			valor={bajos === null ? '—' : formatearNumero(bajos)}
@@ -283,7 +339,8 @@
 				plano
 			/>
 		{/if}
-	</div>
+		</div>
+	{/if}
 
 	<div class="grid-graficos">
 		<Tarjeta titulo="Movimientos por tipo" descripcion="Desde el inicio del día">
@@ -461,6 +518,18 @@
 	@media (max-width: 560px) {
 		.grid-kpis {
 			grid-template-columns: minmax(0, 1fr);
+		}
+	}
+
+	@media (max-width: 1023px) {
+		.pagina {
+			gap: 12px;
+		}
+
+		.grid-graficos,
+		.grid-inferior {
+			grid-template-columns: minmax(0, 1fr);
+			gap: 12px;
 		}
 	}
 </style>

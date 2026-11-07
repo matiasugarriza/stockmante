@@ -1,11 +1,11 @@
 <script lang="ts">
+	import LogoSimbolo from '#lib/components/marco/LogoSimbolo.svelte';
 	import { page } from '$app/state';
 	import { ApiError } from '#lib/api/client';
 	import { verificarCorreo } from '#lib/api/auth';
 	import Aviso from '#lib/components/ui/Aviso.svelte';
 	import Boton from '#lib/components/ui/Boton.svelte';
 	import Esqueleto from '#lib/components/ui/Esqueleto.svelte';
-	import Icono from '#lib/components/ui/Icono.svelte';
 	import Tarjeta from '#lib/components/ui/Tarjeta.svelte';
 
 	let estado = $state<'verificando' | 'ok' | 'error' | 'sin_token'>('verificando');
@@ -42,9 +42,7 @@
 	<Tarjeta>
 		<div class="acceso-contenido">
 			<div class="acceso-encabezado">
-				<span class="acceso-marca" aria-hidden="true">
-					<Icono nombre={estado === 'ok' ? 'check' : 'usuarios'} tamano={20} />
-				</span>
+				<span class="acceso-marca"><LogoSimbolo alto={48} /></span>
 				<div>
 					<p class="acceso-kicker">Cuenta</p>
 					<h1 class="acceso-titulo">Verificación de correo</h1>

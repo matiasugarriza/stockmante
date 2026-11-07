@@ -76,7 +76,7 @@ ninguna página.
 - [X] T025 Crear `frontend/src/lib/components/marco/ItemNavegacion.svelte` con icono, etiqueta, `aria-current` y contador opcional
 - [X] T026 [P] Crear `frontend/src/lib/components/marco/MenuUsuario.svelte` con nombre, rol, tema y cierre de sesión
 - [X] T027 [P] Crear `frontend/src/lib/components/marco/BarraSuperior.svelte` con botón de menú, contexto de página y menú de usuario
-- [X] T028 [P] Crear `frontend/src/lib/components/marco/BarraLateral.svelte` que renderice `gruposVisibles` y el selector de tema
+- [X] T028 [P] Crear `frontend/src/lib/components/marco/BarraLateral.svelte` que renderice `gruposVisibles` (el selector de tema se retiró de la barra lateral en T100)
 - [X] T029 Crear `frontend/src/lib/components/marco/MarcoApp.svelte` con sidebar, topbar, `<main id="contenido">` y estado colapsado/superpuesto
 - [X] T030 Crear `frontend/src/lib/diseno/acceso.css` con el lienzo y la tarjeta de acceso usando los tokens nuevos, e importarlo desde `frontend/src/routes/layout.css`
 - [X] T031 Crear `frontend/src/lib/components/marco/LienzoAcceso.svelte` con marca, panel, selector de tema y contenido
@@ -243,6 +243,16 @@ cambios de comportamiento.
 - [X] T097 Ejecutar `npm run test`, `npm run check` y `npm run build` en `frontend/`
 - [X] T098 Verificar SC-038 en el navegador (fuente calculada, `document.fonts.check`, sin peticiones a dominios externos) y regenerar la evidencia de `evidencia/{claro,oscuro}/`
 - [X] T099 Registrar el resultado en `specs/018-rediseno-visual-desktop/evidencia/validacion.md`
+- [X] T100 Retirar el selector de tema de `frontend/src/lib/components/marco/BarraLateral.svelte` y mantenerlo solo en `BarraSuperior.svelte` en todos los anchos (pedido del usuario, FR-095); a ≤640 px se oculta la flecha de `MenuUsuario.svelte` para que entre a 320 px
+- [X] T101 Vectorizar `captures/samples/logo.jpg` a SVG (contornos con OpenCV sobre el símbolo normalizado por brillo local, simplificación de polígonos y curvas cuadráticas en los vértices suaves; 13 contornos, ~3,6 KB) y guardarlo en `frontend/src/lib/assets/logo-stockmante.svg`
+- [X] T102 Crear `frontend/src/lib/components/marco/LogoSimbolo.svelte` (SVG inline, degradé por tokens, id único con `$props.id()`, decorativo o con `titulo`) y `LogoMarca.svelte` (símbolo + "STOCKMANTE" en Outfit); agregar `--logo-inicio`, `--logo-fin` y `--logo-acento` en `frontend/src/lib/diseno/tokens.css`
+- [X] T103 Reemplazar el icono provisorio por el logo en `BarraLateral.svelte` (solo símbolo si está colapsada), `LienzoAcceso.svelte`, `/login`, `/registro`, `/verificar-correo` y la pantalla de carga de `routes/+layout.svelte`; reemplazar el favicon de Svelte por el símbolo en `frontend/src/lib/assets/favicon.svg`
+- [X] T104 Verificar render en claro/oscuro, barra colapsada y favicon a 16 px; `npm run test`, `npm run check` y `npm run build`
+- [X] T105 Registrar la decisión de paleta en `spec.md` (Clarifications, FR-101) y en `contracts/tokens.md` §1 y §5
+- [X] T106 Reemplazar los tokens de marca y neutros claro/oscuro y la `.zona-oscura` en `frontend/src/lib/diseno/tokens.css` según FR-101, validando cada par de §5
+- [X] T107 Retirar `--teal*`/`--cian` (colisionan con el primario): entradas en verde en `frontend/src/routes/+page.svelte`, colores por defecto de `GraficoBarras.svelte` y `GraficoDona.svelte`; reemplazar el token inexistente `--rojo-texto` de `frontend/src/routes/caja/+page.svelte` por `--peligro-texto`
+- [X] T108 Verificar en claro/oscuro, `npm run test`, `npm run check`, `npm run build` y regenerar la evidencia
+- [X] T109 Textos del acceso (pedido del usuario): en `frontend/src/routes/login/+page.svelte` el título pasa a "Iniciar sesión" ("Cambiar contraseña" en el modo de cambio obligatorio) y el subtítulo a "Ingresá tus credenciales para continuar"; el pie de `frontend/src/lib/components/marco/LienzoAcceso.svelte` (login, registro y verificación) pasa a "Desarrollado por Matias Ugarriza" con enlace a https://github.com/matiasugarriza (nueva pestaña, `rel="noopener noreferrer"`)
 
 ---
 
@@ -377,6 +387,9 @@ Con varias personas:
 | SC-037 | T001, T034, T071–T078 |
 | FR-098 | T090, T091 |
 | FR-099 | T092–T096 |
+| FR-095 (ajuste) | T100 |
+| FR-100 | T101–T104 |
+| FR-101 | T105–T108 |
 | SC-038 | T098 |
 
 ---

@@ -1,0 +1,22 @@
+nombre;sku;categoria;unidad_medida;costo;precio_venta;stock_minimo;codigo_barras;stock_inicial;deposito
+Producto válido de control;ERR-OK-001;Cosos;UNIDAD;100,00;150,00;1;;5;
+;ERR-SIN-NOMBRE;Cosos;UNIDAD;100,00;150,00;1;;0;
+Producto sin SKU;;Cosos;UNIDAD;100,00;150,00;1;;0;
+Producto SKU inválido;err minúsculas;Cosos;UNIDAD;100,00;150,00;1;;0;
+Producto SKU ya existente en BD;151654156;Cosos;UNIDAD;100,00;150,00;1;;0;
+Repetido A;ERR-REPETIDO;Cosos;UNIDAD;100,00;150,00;1;;0;
+Repetido B;ERR-REPETIDO;Cosos;UNIDAD;100,00;150,00;1;;0;
+Producto categoría inexistente;ERR-CATEG;Almacén;UNIDAD;100,00;150,00;1;;0;
+Producto unidad inválida;ERR-UNIDAD;Cosos;LITRO;100,00;150,00;1;;0;
+Producto costo negativo;ERR-COSTO-NEG;Cosos;UNIDAD;-10,00;150,00;1;;0;
+Producto costo no numérico;ERR-COSTO-TXT;Cosos;UNIDAD;abc;150,00;1;;0;
+Producto costo 3 decimales;ERR-COSTO-DEC;Cosos;UNIDAD;100,123;150,00;1;;0;
+Producto sin precio;ERR-SIN-PRECIO;Cosos;UNIDAD;100,00;;1;;0;
+Producto stock mínimo decimal;ERR-STKMIN;Cosos;UNIDAD;100,00;150,00;2,5;;0;
+Producto stock inicial negativo;ERR-STKINI;Cosos;UNIDAD;100,00;150,00;1;;-3;
+Producto código barras corto;ERR-EAN-CORTO;Cosos;UNIDAD;100,00;150,00;1;123;0;
+Producto EAN existente en BD;ERR-EAN-BD;Cosos;UNIDAD;100,00;150,00;1;115516516515s;0;
+Producto EAN repetido A;ERR-EAN-REP-A;Cosos;UNIDAD;100,00;150,00;1;7799999999999;0;
+Producto EAN repetido B;ERR-EAN-REP-B;Cosos;UNIDAD;100,00;150,00;1;7799999999999;0;
+Producto depósito inexistente;ERR-DEPOSITO;Cosos;UNIDAD;100,00;150,00;1;;10;Depósito Norte
+Producto depósito inexistente sin stock;ERR-DEP-SIN-STK;Cosos;UNIDAD;100,00;150,00;1;;0;Depósito Norte

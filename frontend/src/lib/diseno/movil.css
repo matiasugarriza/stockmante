@@ -1,0 +1,175 @@
+/**
+ * Capa visual móvil cyberpunk (spec 019, FR-102/FR-103/FR-133).
+ *
+ * Solo se activa en el layout móvil (hasta 1023 px) y con el tema oscuro forzado. Los
+ * valores y la matriz de contraste están en
+ * `specs/019-rediseno-visual-mobile/contracts/tokens-movil.md`; el guard automático
+ * (`utils/contraste.test.ts`) verifica que cada par aprobado siga cumpliendo su mínimo.
+ */
+
+@media (max-width: 1023px) {
+	html[data-tema='dark'] {
+		--fondo: #05070a;
+		--fondo-elevado: #080b0f;
+		--superficie: #0d1117;
+		--superficie-2: #11161d;
+		--superficie-3: #171f28;
+		--sidebar: #080b0f;
+		--topbar: #080b0f;
+
+		--borde: #1e2936;
+		--borde-fuerte: #2c3b4d;
+		--borde-control: #526581;
+
+		--texto: #eaf2ff;
+		--texto-suave: #a8b8cc;
+		--texto-tenue: #94a3b8;
+		--texto-inverso: #041014;
+
+		--primario: #2de2e6;
+		--primario-hover: #6ff0f2;
+		--primario-suave: #0a2b2f;
+		--primario-texto: #6ff0f2;
+		--primario-contraste: #041014;
+
+		--acento-secundario: #c77dff;
+		--violeta-texto: #d9a7ff;
+
+		--exito: #3ddc84;
+		--exito-suave: #0d2a1d;
+		--exito-texto: #5cf2a0;
+		--ambar: #ff9e2c;
+		--ambar-suave: #2e2110;
+		--ambar-texto: #ffc46b;
+		--peligro: #ff4d5e;
+		--peligro-suave: #331318;
+		--peligro-texto: #ff8f9b;
+		--info: #2de2e6;
+		--info-suave: #0a2b2f;
+
+		--foco: #6ff0f2;
+
+		--brillo-cian: 0 0 0 1px #2de2e6, 0 0 18px -6px #2de2e6;
+		--brillo-alerta: 0 0 0 1px #ff4d5e, 0 0 18px -6px #ff4d5e;
+		--sombra-tarjeta: 0 1px 0 rgba(0, 0, 0, 0.55), 0 14px 28px -22px rgba(0, 0, 0, 0.9);
+		--sombra-elevada: 0 22px 48px -18px rgba(0, 0, 0, 0.95);
+	}
+
+	html[data-tema='dark'] body {
+		background: var(--fondo);
+	}
+
+	/* Cian de estado activo con un resplandor sutil, sin degradar el texto. */
+	html[data-tema='dark'] :where(a, button) {
+		-webkit-tap-highlight-color: transparent;
+	}
+}
+
+/*
+ * Tablas analíticas (reportes e importación) como filas-tarjeta: cada celda antepone su
+ * etiqueta desde `data-etiqueta` (spec 019, FR-117 y research D5).
+ */
+@media (max-width: 1023px) {
+	.tabla-tarjeta {
+		display: block;
+		width: 100%;
+	}
+
+	.tabla-tarjeta thead {
+		position: absolute;
+		width: 1px;
+		height: 1px;
+		overflow: hidden;
+		clip-path: inset(50%);
+		white-space: nowrap;
+	}
+
+	.tabla-tarjeta tbody,
+	.tabla-tarjeta tr,
+	.tabla-tarjeta td {
+		display: block;
+		width: 100%;
+	}
+
+	.tabla-tarjeta tr {
+		margin-bottom: 12px;
+		padding: 10px 14px;
+		border: 1px solid var(--borde);
+		border-radius: var(--radio-tarjeta-movil);
+		background: var(--superficie);
+	}
+
+	.tabla-tarjeta tr:last-child {
+		margin-bottom: 0;
+	}
+
+	.tabla-tarjeta td {
+		display: flex;
+		justify-content: space-between;
+		gap: 14px;
+		padding: 5px 0;
+		border: 0;
+		font-size: 13px;
+		text-align: right;
+	}
+
+	.tabla-tarjeta td::before {
+		content: attr(data-etiqueta);
+		flex: none;
+		color: var(--texto-tenue);
+		font-size: 11px;
+		font-weight: 600;
+		letter-spacing: 0.04em;
+		text-align: left;
+		text-transform: uppercase;
+	}
+
+	.tabla-tarjeta td:not([data-etiqueta])::before {
+		content: none;
+	}
+
+	.tabla-tarjeta td[colspan] {
+		justify-content: flex-start;
+		text-align: left;
+	}
+}
+
+/*
+ * `prefers-contrast: more` sube el contraste sin abandonar la identidad oscura
+ * (FR-133, SC-049). Los ratios de esta tabla están en el contrato §4.
+ */
+@media (max-width: 1023px) and (prefers-contrast: more) {
+	html[data-tema='dark'] {
+		--texto: #ffffff;
+		--texto-suave: #d7e3f2;
+		--texto-tenue: #c2d2e6;
+		--borde: #8aa0b8;
+		--borde-fuerte: #8aa0b8;
+		--borde-control: #a8b8cc;
+		--foco: #a8b8cc;
+		--primario-texto: #8ff6f8;
+		--violeta-texto: #e6c8ff;
+		--ambar-texto: #ffd79a;
+		--peligro-texto: #ffb3ba;
+		--exito-texto: #9bf7c1;
+		--brillo-cian: 0 0 0 1px #8aa0b8;
+		--brillo-alerta: 0 0 0 1px #ffb3ba;
+		--sombra-tarjeta: none;
+	}
+}
+
+/* En colores forzados manda el sistema: sin resplandores ni sombras decorativas. */
+@media (forced-colors: active) {
+	*,
+	*::before,
+	*::after {
+		box-shadow: none !important;
+		text-shadow: none !important;
+		filter: none !important;
+		forced-color-adjust: auto;
+	}
+
+	.tabla-tarjeta tr {
+		border: 1px solid CanvasText;
+	}
+}

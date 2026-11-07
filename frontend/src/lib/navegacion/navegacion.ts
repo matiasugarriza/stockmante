@@ -186,3 +186,40 @@ export function tituloDeRuta(rutaActual: string): string {
 	const item = ITEMS_NAVEGACION.find((item) => esRutaActiva(rutaActual, item.ruta));
 	return item?.etiqueta ?? 'Stockmante';
 }
+
+/**
+ * Destinos de la barra inferior móvil (spec 019, FR-108/FR-109).
+ *
+ * Inicio, Caja y Movimientos siempre; el cuarto según el rol (Stock o Transferencias) y
+ * "Más" al final, activo cuando la ruta vigente no está en la barra.
+ */
+export function destinosBarraInferior(
+	rutaActual: string,
+	contexto: ContextoNavegacion
+): ItemNavegacionVisible[] {
+	const visibles = gruposVisibles(rutaActual, contexto).flatMap((grupo) => grupo.items);
+	const buscar = (ruta: string) => visibles.find((item) => item.ruta === ruta);
+	const destinos: ItemNavegacionVisible[] = [];
+
+	for (const ruta of ['/', '/caja', '/movimientos']) {
+		const item = buscar(ruta);
+		if (item) destinos.push(item);
+	}
+
+	const cuarto = buscar(
+		contexto.familiaRol === 'GESTION' ? '/admin/stock' : '/transferencias'
+	);
+	if (cuarto) destinos.push(cuarto);
+
+	destinos.push({
+		etiqueta: 'Más',
+		ruta: '#panel',
+		icono: 'mas',
+		grupo: 'operacion',
+		roles: ['GESTION', 'OPERACION'],
+		activo: !destinos.some((item) => item.activo),
+		contadorVisible: null
+	});
+
+	return destinos;
+}

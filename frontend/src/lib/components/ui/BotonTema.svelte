@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { elegirPreferencia, preferencia, type PreferenciaTema } from '#lib/tema/tema';
+	import { dispositivo } from '#lib/dispositivo/dispositivo';
 	import Icono from './Icono.svelte';
 	import type { NombreIcono } from './iconos';
 
@@ -16,7 +17,8 @@
 	];
 </script>
 
-<div class="tema" role="group" aria-label="Tema de la interfaz">
+{#if !$dispositivo.esMovil}
+	<div class="tema" role="group" aria-label="Tema de la interfaz">
 	{#each opciones as opcion (opcion.valor)}
 		<button
 			type="button"
@@ -30,7 +32,8 @@
 			{#if !compacto}<span>{opcion.etiqueta}</span>{/if}
 		</button>
 	{/each}
-</div>
+	</div>
+{/if}
 
 <style>
 	.tema {

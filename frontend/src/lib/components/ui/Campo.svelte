@@ -239,4 +239,22 @@
 	.ayuda {
 		color: var(--texto-tenue);
 	}
+
+	/* Teclado táctil: 16 px evita el zoom automático y 44 px el toque perdido (FR-106). */
+	@media (max-width: 1023px) {
+		input,
+		select,
+		textarea {
+			min-height: var(--toque-min);
+			font-size: 16px;
+		}
+
+		textarea {
+			min-height: 96px;
+		}
+
+		label {
+			font-size: 13.5px;
+		}
+	}
 </style>

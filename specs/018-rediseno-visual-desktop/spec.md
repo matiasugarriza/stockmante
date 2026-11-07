@@ -54,6 +54,18 @@ Pedido del usuario al retomar la spec: cambiar la tipografía del sitio por **Ou
   la barra lateral en forma de píldora apoyada en el borde; (3) marca bicolor "Stock**mante**";
   (4) acento primario azul real (`#1F3BB3`) de la muestra clara y azul eléctrico en la oscura;
   (5) pie de página del marco; (6) indicadores de Inicio como franja de métricas.
+- Q: ¿Dónde vive el selector de tema? → A: Solo en la barra superior, en todos los anchos; se
+  retira de la barra lateral (que conserva solo la versión en su pie).
+- Q: ¿Qué logo usa la aplicación? → A: El provisto por el usuario (`captures/samples/logo.jpg`:
+  tres cajas isométricas que forman una S y el texto "STOCKMANTE"), vectorizado a SVG. El símbolo
+  reemplaza al icono provisorio en barra lateral, lienzo y tarjetas de acceso, pantalla de carga y
+  favicon; el texto se compone en Outfit (ST en acento, OCK fuerte, MANTE liviano).
+- Q: ¿La paleta sigue a las muestras o al logo? → A: Al logo. Se conserva la **estructura** de
+  `light-2`/`dark-2` (marco, tarjetas, jerarquía), pero el color de marca pasa a ser el cian del
+  logo: primario petróleo `#0B7A91` en claro y cian `#2FD0DC` en oscuro; la barra superior clara y
+  el tema oscuro toman el negro petróleo del fondo del logo (`#0D1518`) en lugar del azul marino /
+  azul noche. Ámbar, verde y rojo quedan como colores de estado. El acento teal secundario se retira
+  porque coincidiría con el primario; en los gráficos las entradas pasan a verde.
 
 ## Escenarios de Usuario y Pruebas *(obligatorio)*
 
@@ -299,7 +311,7 @@ y los mensajes son los de antes, con la nueva presentación.
 - **FR-086 Identidad de referencia.** La identidad visual DEBE seguir las muestras `light-2` y
   `dark-2`: marco de administración con barra lateral blanca (clara) o azul noche (oscura), barra
   superior, fondo gris azulado o azul noche, tarjetas de superficie con borde y radio moderado,
-  acento primario azul, acentos secundarios teal y ámbar, tipografía sans compacta y jerarquía
+  acento primario cian del logo (FR-101), ámbar y verde como acentos de estado, tipografía sans compacta y jerarquía
   título/subtítulo/etiqueta en Outfit (FR-098). La paleta crema/naranja de la iteración anterior queda retirada.
 - **FR-087 Entrega incremental por página.** El rediseño DEBE completarse página por página, y cada
   página se considera terminada solo cuando tiene su evidencia visual en ambos temas, sus estados
@@ -313,6 +325,15 @@ y los mensajes son los de antes, con la nueva presentación.
   `light-2`/`dark-2`: barra superior azul marino en tema claro (y del color del fondo en oscuro),
   saludo con el nombre del usuario en Inicio, ítem activo en píldora apoyada en el borde de la barra
   lateral, marca bicolor, acento primario azul real y pie de página; todo con contraste AA.
+
+- **FR-101 Paleta derivada del logo.** Los tokens de marca DEBEN derivar del logo: primario
+  petróleo/cian con sus variantes `-hover`, `-suave` y `-texto`; fondo oscuro y barra superior clara
+  en el negro petróleo del logo; neutros con matiz petróleo. Todos los pares de
+  `contracts/tokens.md` §5 DEBEN seguir cumpliendo AA. Reemplaza al azul de FR-099.
+- **FR-100 Logo de marca.** La interfaz DEBE usar el logo de Stockmante como vector (sin
+  rasterizar): símbolo SVG con degradé tomado de tokens (`--logo-inicio`, `--logo-fin`) para que se
+  adapte al tema, logotipo "STOCKMANTE" en Outfit con `--logo-acento` (AA sobre la superficie) y el
+  mismo símbolo como favicon. Con la barra lateral colapsada se muestra solo el símbolo.
 
 ### Marco y navegación
 
@@ -340,7 +361,7 @@ y los mensajes son los de antes, con la nueva presentación.
   vacío, esqueleto, KPI, gráficos e iconos) y NO DEBE duplicar primitivas equivalentes por página.
 - **FR-094 Acceso secundario.** `/registro` y `/verificar-correo` DEBEN adoptar el mismo lienzo,
   tarjeta y tipografía que `/login`, conservando sus mensajes y navegación actuales.
-- **FR-095 Controles de sesión y tema.** La barra superior DEBE exponer el selector Light/Dark/System
+- **FR-095 Controles de sesión y tema.** La barra superior DEBE ser el único lugar del marco que expone el selector Light/Dark/System (la barra lateral no lo repite)
   y el menú de usuario con nombre, rol y cierre de sesión, reutilizando el store de sesión y el
   comportamiento de 001.
 - **FR-096 Evidencia visual.** Cada página rediseñada DEBE entregarse con capturas a 1440×900 en

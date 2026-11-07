@@ -6,6 +6,7 @@
 	import Aviso from '#lib/components/ui/Aviso.svelte';
 	import Boton from '#lib/components/ui/Boton.svelte';
 	import EncabezadoPagina from '#lib/components/ui/EncabezadoPagina.svelte';
+	import Icono from '#lib/components/ui/Icono.svelte';
 	import Tarjeta from '#lib/components/ui/Tarjeta.svelte';
 
 	let archivo = $state<File | null>(null);
@@ -19,9 +20,28 @@
 		archivo !== null && resumen !== null && !resumen.aplicado && resumen.con_error === 0
 	);
 
+	let arrastrando = $state(false);
+
+	function formatearTamano(bytes: number): string {
+		if (bytes < 1024) return `${bytes} B`;
+		if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1).replace('.', ',')} KB`;
+		return `${(bytes / (1024 * 1024)).toFixed(1).replace('.', ',')} MB`;
+	}
+
 	function elegir(event: Event) {
 		const entrada = event.currentTarget as HTMLInputElement;
-		archivo = entrada.files?.[0] ?? null;
+		tomar(entrada.files?.[0] ?? null);
+	}
+
+	function soltar(event: DragEvent) {
+		event.preventDefault();
+		arrastrando = false;
+		const elegido = event.dataTransfer?.files?.[0];
+		if (elegido) tomar(elegido);
+	}
+
+	function tomar(nuevo: File | null) {
+		archivo = nuevo;
 		resumen = null;
 		errores = [];
 		mensaje = null;
@@ -61,8 +81,40 @@
 	/>
 
 	<Tarjeta>
-		<label class="archivo" for="archivo-csv">Archivo CSV</label>
-		<input id="archivo-csv" type="file" accept=".csv,text/csv" onchange={elegir} />
+		<span class="archivo" id="archivo-csv-titulo">Archivo CSV</span>
+		<label
+			class="zona"
+			class:arrastrando
+			class:elegido={archivo !== null}
+			for="archivo-csv"
+			ondragover={(e) => {
+				e.preventDefault();
+				arrastrando = true;
+			}}
+			ondragleave={() => (arrastrando = false)}
+			ondrop={soltar}
+		>
+			<input
+				id="archivo-csv"
+				class="oculto"
+				type="file"
+				accept=".csv,text/csv"
+				aria-labelledby="archivo-csv-titulo"
+				onchange={elegir}
+			/>
+			<span class="zona-icono"><Icono nombre={archivo ? 'check' : 'subir'} tamano={22} /></span>
+			{#if archivo}
+				<span class="zona-titulo">{archivo.name}</span>
+				<span class="zona-detalle">
+					{formatearTamano(archivo.size)} · <span class="zona-enlace">Elegir otro archivo</span>
+				</span>
+			{:else}
+				<span class="zona-titulo">
+					<span class="zona-enlace">Hacé clic para elegir un archivo</span> o arrastralo acá
+				</span>
+				<span class="zona-detalle">CSV · hasta 5.000 filas y 5 MB</span>
+			{/if}
+		</label>
 		<p class="ayuda">
 			Columnas: <code>nombre, sku, categoria, unidad_medida, costo, precio_venta, stock_minimo</code>
 			y opcionales <code>codigo_barras, stock_inicial, deposito</code> (vacío = «Principal»).
@@ -133,6 +185,78 @@
 		margin-bottom: 6px;
 		font-weight: 600;
 		font-size: 13px;
+	}
+
+	.zona {
+		position: relative;
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		gap: 6px;
+		padding: 28px 16px;
+		border: 2px dashed var(--borde-fuerte);
+		border-radius: var(--radio-tarjeta);
+		background: var(--superficie-2);
+		text-align: center;
+		cursor: pointer;
+		transition:
+			border-color 120ms ease,
+			background-color 120ms ease;
+	}
+
+	.zona:hover,
+	.zona.arrastrando {
+		border-color: var(--primario);
+		background: var(--primario-suave);
+	}
+
+	.zona:focus-within {
+		outline: 2px solid var(--foco);
+		outline-offset: 2px;
+	}
+
+	.zona.elegido {
+		border-style: solid;
+		border-color: var(--primario);
+	}
+
+	.zona-icono {
+		display: grid;
+		place-items: center;
+		width: 44px;
+		height: 44px;
+		border-radius: 50%;
+		background: var(--primario-suave);
+		color: var(--primario-texto);
+	}
+
+	.zona-titulo {
+		font-weight: 600;
+		font-size: 14px;
+		word-break: break-all;
+	}
+
+	.zona-enlace {
+		color: var(--primario-texto);
+		text-decoration: underline;
+		text-underline-offset: 2px;
+	}
+
+	.zona-detalle {
+		color: var(--texto-suave);
+		font-size: 12px;
+	}
+
+	.oculto {
+		position: absolute;
+		width: 1px;
+		height: 1px;
+		padding: 0;
+		margin: -1px;
+		overflow: hidden;
+		clip: rect(0, 0, 0, 0);
+		white-space: nowrap;
+		border: 0;
 	}
 
 	.ayuda {

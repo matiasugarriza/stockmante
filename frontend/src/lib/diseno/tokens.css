@@ -14,48 +14,48 @@
 	--fuente-mono:
 		ui-monospace, 'SFMono-Regular', 'Cascadia Mono', Menlo, Consolas, monospace;
 
-	--fondo: #f1f4f9;
-	--fondo-elevado: #f7f9fc;
+	--fondo: #f1f6f7;
+	--fondo-elevado: #f6fafa;
 	--superficie: #ffffff;
-	--superficie-2: #f5f7fb;
-	--superficie-3: #eaeff7;
+	--superficie-2: #f3f8f9;
+	--superficie-3: #e4eef0;
 	--sidebar: #ffffff;
-	--topbar: #1f2a44;
+	--topbar: #0d1518;
 
-	--borde: #e3e8f0;
-	--borde-fuerte: #c9d3e0;
+	--borde: #dce7ea;
+	--borde-fuerte: #c2d3d8;
 
-	--texto: #1b2432;
-	--texto-suave: #5f6f86;
-	--texto-tenue: #5a6b83;
+	--texto: #10212a;
+	--texto-suave: #4c626c;
+	--texto-tenue: #526872;
 	--texto-inverso: #ffffff;
 
-	--primario: #1f3bb3;
-	--primario-hover: #182f94;
-	--primario-suave: #e8ecfb;
-	--primario-texto: #1f3bb3;
+	/* Marca: petróleo/cian del logo (FR-101). */
+	--primario: #0b7a91;
+	--primario-hover: #09667a;
+	--primario-suave: #ddf3f6;
+	--primario-texto: #086a7e;
 	--primario-contraste: #ffffff;
 
-	--teal: #14b8bd;
-	--teal-suave: #e3f8f8;
-	--teal-texto: #0f7f84;
 	--ambar: #f0a63a;
 	--ambar-suave: #fdf3e2;
 	--ambar-texto: #8a5a12;
 	--exito: #22a45d;
 	--exito-suave: #e7f7ee;
 	--exito-texto: #167a45;
-	--peligro: #dc3d43;
+	--peligro: #cc3238;
 	--peligro-suave: #fdecec;
 	--peligro-texto: #b42318;
-	--info: #1f3bb3;
-	--info-suave: #e8ecfb;
+	--info: #0b7a91;
+	--info-suave: #ddf3f6;
 
-	--foco: #1f3bb3;
-	--cian: #52cdff;
+	--foco: #0b7a91;
+	--logo-inicio: #16b3cc;
+	--logo-fin: #0b7a91;
+	--logo-acento: #0b7a91;
 	--sombra-tarjeta:
-		0 1px 2px rgba(16, 24, 40, 0.05), 0 8px 24px -18px rgba(16, 24, 40, 0.25);
-	--sombra-elevada: 0 12px 32px -12px rgba(16, 24, 40, 0.28);
+		0 1px 2px rgba(13, 33, 40, 0.05), 0 8px 24px -18px rgba(13, 33, 40, 0.25);
+	--sombra-elevada: 0 12px 32px -12px rgba(13, 33, 40, 0.28);
 
 	--radio-tarjeta: 10px;
 	--radio-control: 6px;
@@ -73,34 +73,49 @@
 	--sidebar-ancho-colapsado: 76px;
 	--topbar-alto: 72px;
 	--contenido-max: 1440px;
+
+	/*
+	 * Geometría del layout móvil (spec 019). Solo se usa por debajo de 1024 px; el
+	 * escritorio conserva las medidas de 018.
+	 */
+	--toque-min: 44px;
+	--cabecera-alto-movil: 56px;
+	--barra-inferior-alto: 64px;
+	--fab-tamano: 56px;
+	--radio-tarjeta-movil: 12px;
+	--espacio-movil: 12px;
+	--contenido-max-movil: 720px;
+	--zona-segura-superior: env(safe-area-inset-top, 0px);
+	--zona-segura-inferior: env(safe-area-inset-bottom, 0px);
+	--scroll-padding-inferior: calc(
+		var(--barra-inferior-alto) + var(--zona-segura-inferior) + 16px
+	);
 }
 
 html[data-tema='dark'] {
-	--fondo: #121722;
-	--fondo-elevado: #161c28;
-	--superficie: #1b2230;
-	--superficie-2: #222b3b;
-	--superficie-3: #2a3447;
-	--sidebar: #151b26;
+	--fondo: #0d1518;
+	--fondo-elevado: #111b1f;
+	--superficie: #141f23;
+	--superficie-2: #19282d;
+	--superficie-3: #1f2f35;
+	--sidebar: #10191c;
 	--topbar: var(--fondo);
 
-	--borde: #2b3648;
-	--borde-fuerte: #3b4a63;
+	--borde: #22343a;
+	--borde-fuerte: #31484f;
 
-	--texto: #e8edf6;
-	--texto-suave: #9aa9bf;
-	--texto-tenue: #8f9db1;
-	--texto-inverso: #0d1320;
+	--texto: #e7f2f4;
+	--texto-suave: #9fb5bb;
+	--texto-tenue: #8ea5ac;
+	--texto-inverso: #06262b;
 
-	--primario: #3f5efb;
-	--primario-hover: #5872ff;
-	--primario-suave: #1f2752;
-	--primario-texto: #93a5ff;
-	--primario-contraste: #ffffff;
+	/* Marca: cian del logo (FR-101); el texto sobre el primario es oscuro. */
+	--primario: #2fd0dc;
+	--primario-hover: #5becef;
+	--primario-suave: #123940;
+	--primario-texto: #5becef;
+	--primario-contraste: #06262b;
 
-	--teal: #2fd0d6;
-	--teal-suave: #123639;
-	--teal-texto: #2fd0d6;
 	--ambar: #f3b45c;
 	--ambar-suave: #3a2c17;
 	--ambar-texto: #f3b45c;
@@ -110,11 +125,13 @@ html[data-tema='dark'] {
 	--peligro: #ff6b6e;
 	--peligro-suave: #3a1a1d;
 	--peligro-texto: #ff8a8c;
-	--info: #5872ff;
-	--info-suave: #1f2752;
+	--info: #2fd0dc;
+	--info-suave: #123940;
 
-	--foco: #93a5ff;
-	--cian: #52cdff;
+	--foco: #5becef;
+	--logo-inicio: #5becef;
+	--logo-fin: #1fa3c4;
+	--logo-acento: #5becef;
 	--sombra-tarjeta:
 		0 1px 0 rgba(0, 0, 0, 0.35), 0 18px 40px -24px rgba(0, 0, 0, 0.85);
 	--sombra-elevada: 0 20px 48px -18px rgba(0, 0, 0, 0.9);
@@ -167,16 +184,16 @@ html[data-tema='dark'] {
  */
 html:not([data-tema='dark']) .zona-oscura {
 	color-scheme: dark;
-	--texto: #f1f4fb;
-	--texto-suave: #b7c1d6;
-	--texto-tenue: #9fabc2;
-	--superficie: #26324f;
-	--superficie-2: #2c3a5a;
-	--superficie-3: #34446a;
-	--borde: #34415f;
-	--borde-fuerte: #46557a;
-	--primario-suave: #2a3a66;
-	--primario-texto: #c5d0ff;
-	--foco: #c5d0ff;
-	--sombra-elevada: 0 18px 40px -16px rgba(8, 12, 24, 0.7);
+	--texto: #eef7f8;
+	--texto-suave: #a9bec4;
+	--texto-tenue: #93aab1;
+	--superficie: #16242a;
+	--superficie-2: #1c2e34;
+	--superficie-3: #23383f;
+	--borde: #26393f;
+	--borde-fuerte: #364f57;
+	--primario-suave: #143a42;
+	--primario-texto: #7fe8f0;
+	--foco: #7fe8f0;
+	--sombra-elevada: 0 18px 40px -16px rgba(0, 0, 0, 0.7);
 }

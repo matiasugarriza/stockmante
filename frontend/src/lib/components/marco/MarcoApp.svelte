@@ -1,8 +1,10 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import type { Snippet } from 'svelte';
+	import { dispositivo } from '#lib/dispositivo/dispositivo';
 	import BarraLateral from './BarraLateral.svelte';
 	import BarraSuperior from './BarraSuperior.svelte';
+	import MarcoMovil from '../movil/MarcoMovil.svelte';
 
 	interface Props {
 		titulo: string;
@@ -51,38 +53,44 @@
 	}
 </script>
 
-<a class="saltar" href="#contenido">Saltar al contenido</a>
+{#if $dispositivo.esMovil}
+	<MarcoMovil {titulo} {alertasStock}>
+		{@render children()}
+	</MarcoMovil>
+{:else}
+	<a class="saltar" href="#contenido">Saltar al contenido</a>
 
-<div class="marco">
-	<BarraLateral
-		colapsada={colapsada && !esMovil}
-		{movilAbierta}
-		{alertasStock}
-		oncerrar={() => (movilAbierta = false)}
-	/>
+	<div class="marco">
+		<BarraLateral
+			colapsada={colapsada && !esMovil}
+			{movilAbierta}
+			{alertasStock}
+			oncerrar={() => (movilAbierta = false)}
+		/>
 
-	{#if movilAbierta}
-		<button
-			type="button"
-			class="fondo"
-			aria-label="Cerrar navegación"
-			onclick={() => (movilAbierta = false)}
-		></button>
-	{/if}
+		{#if movilAbierta}
+			<button
+				type="button"
+				class="fondo"
+				aria-label="Cerrar navegación"
+				onclick={() => (movilAbierta = false)}
+			></button>
+		{/if}
 
-	<div class="columna">
-		<BarraSuperior {titulo} onabrirMenu={alternarMenu}>
-			{#if acciones}{@render acciones()}{/if}
-		</BarraSuperior>
-		<main id="contenido" class="contenido" tabindex="-1">
-			{@render children()}
-		</main>
-		<footer class="pie">
-			<span>Stockmante · Sistema de gestión de inventario</span>
-			<span>© {anio} Todos los derechos reservados.</span>
-		</footer>
+		<div class="columna">
+			<BarraSuperior {titulo} onabrirMenu={alternarMenu}>
+				{#if acciones}{@render acciones()}{/if}
+			</BarraSuperior>
+			<main id="contenido" class="contenido" tabindex="-1">
+				{@render children()}
+			</main>
+			<footer class="pie">
+				<span>Stockmante · Sistema de gestión de inventario</span>
+				<span>© {anio} Todos los derechos reservados.</span>
+			</footer>
+		</div>
 	</div>
-</div>
+{/if}
 
 <style>
 	.marco {
@@ -125,7 +133,7 @@
 		inset: 0;
 		z-index: 25;
 		border: 0;
-		background: rgba(9, 14, 24, 0.45);
+		background: rgba(6, 14, 17, 0.5);
 	}
 
 	.saltar {

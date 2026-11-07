@@ -1,9 +1,12 @@
 <script lang="ts">
 	import type { Usuario } from '#lib/schemas/usuarios';
+	import { dispositivo } from '#lib/dispositivo/dispositivo';
 	import Boton from '../ui/Boton.svelte';
 	import EstadoVacio from '../ui/EstadoVacio.svelte';
 	import EtiquetaEstado from '../ui/EtiquetaEstado.svelte';
 	import TablaDatos from '../ui/TablaDatos.svelte';
+	import ListaTarjetas from '../movil/ListaTarjetas.svelte';
+	import TarjetaRegistro from '../movil/TarjetaRegistro.svelte';
 	import type { Columna } from '../ui/tabla';
 
 	interface Props {
@@ -25,7 +28,44 @@
 	];
 </script>
 
-<TablaDatos columnas={COLUMNAS} filas={usuarios} etiqueta="Usuarios" {cargando}>
+{#if $dispositivo.esMovil}
+	<ListaTarjetas items={usuarios} etiqueta="Usuarios" {cargando}>
+		{#snippet tarjeta(usuario)}
+			<TarjetaRegistro
+				titulo={usuario.nombre}
+				subtitulo={usuario.email}
+				badge={{
+					texto: usuario.activo ? 'Activo' : 'Inactivo',
+					variante: usuario.activo ? 'exito' : 'neutro'
+				}}
+				campos={[
+					{ etiqueta: 'Rol', valor: usuario.rol },
+					{ etiqueta: 'Clave temporal', valor: usuario.password_temporal ? 'Sí' : 'No' }
+				]}
+			>
+				{#snippet acciones()}
+					<Boton variante="secundario" tamano="sm" onclick={() => onEditar(usuario)}>
+						Editar
+					</Boton>
+					<Boton variante="fantasma" tamano="sm" onclick={() => onAlternarEstado(usuario)}>
+						{usuario.activo ? 'Desactivar' : 'Reactivar'}
+					</Boton>
+					<Boton variante="fantasma" tamano="sm" onclick={() => onRegenerar(usuario)}>
+						Nueva temporal
+					</Boton>
+				{/snippet}
+			</TarjetaRegistro>
+		{/snippet}
+		{#snippet vacio()}
+			<EstadoVacio
+				icono="usuarios"
+				titulo="No hay usuarios para este filtro"
+				descripcion="Cambiá el filtro o creá el primer usuario."
+			/>
+		{/snippet}
+	</ListaTarjetas>
+{:else}
+	<TablaDatos columnas={COLUMNAS} filas={usuarios} etiqueta="Usuarios" {cargando}>
 	{#snippet fila(usuario)}
 		<td class="principal">{usuario.nombre}</td>
 		<td class="email">{usuario.email}</td>
@@ -64,6 +104,7 @@
 		/>
 	{/snippet}
 </TablaDatos>
+{/if}
 
 <style>
 	.principal {

@@ -11,7 +11,7 @@
 
 	let { datos, etiqueta, centro }: Props = $props();
 
-	const colores = ['var(--ambar)', 'var(--exito)', 'var(--primario)', 'var(--teal)', 'var(--peligro)'];
+	const colores = ['var(--ambar)', 'var(--exito)', 'var(--primario)', 'var(--peligro)', 'var(--texto-tenue)'];
 	const coloreados = $derived(
 		datos.map((dato, indice) => ({
 			...dato,

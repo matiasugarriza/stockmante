@@ -1,0 +1,11 @@
+nombre;sku;categoria;unidad_medida;costo;precio_venta;stock_minimo;codigo_barras;stock_inicial;deposito
+Yerba mate 1 kg;YERBA-1K;Cosos;UNIDAD;1200,50;1800,00;10;7791234567890;25;Principal
+Azúcar 1 kg;AZUCAR-1K;Cosos;KG;900,00;1400,00;5;;0;
+Harina 000 1 kg;HARINA-000-1K;Cosos;KG;650,75;980,00;8;7790001112223;40;
+Aceite girasol 1,5 L;ACEITE-GIR-15;Cosos;UNIDAD;2100,00;3150,00;6;7790002223334;12;Principal
+"Fideos ""Spaghetti"" 500 g";FIDEOS-SPA-500;Cosos;UNIDAD;780,00;1190,00;12;7790003334445;;
+Cable unipolar 2,5 mm;CABLE-25MM;Cosos;METRO;350,00;520,00;100;;300;Principal
+Caja de tornillos x100;TORN-X100;Cosos;CAJA;1500,00;2250,00;3;TORN100CAJA;10;
+"Detergente; limón 750 ml";DETERG-750;Cosos;UNIDAD;890,40;1350,00;4;7790004445556;18;Principal
+Arroz largo fino 1 kg;ARROZ-LF-1K;Cosos;KG;1100,00;1650,00;10;7790005556667;0;Principal
+Sal fina 500 g;SAL-FINA-500;Cosos;UNIDAD;420,00;650,00;0;;5;

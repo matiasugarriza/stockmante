@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { esRutaActiva, gruposVisibles, ITEMS_NAVEGACION, tituloDeRuta } from './navegacion';
+import {
+	destinosBarraInferior,
+	esRutaActiva,
+	gruposVisibles,
+	ITEMS_NAVEGACION,
+	tituloDeRuta
+} from './navegacion';
 
 const GESTION = { familiaRol: 'GESTION' as const, alertasStock: 0 };
 const OPERACION = { familiaRol: 'OPERACION' as const, alertasStock: 0 };
@@ -85,5 +91,55 @@ describe('tituloDeRuta', () => {
 
 	it('cae a Stockmante en rutas fuera de la navegación', () => {
 		expect(tituloDeRuta('/no-existe')).toBe('Stockmante');
+	});
+});
+
+describe('destinosBarraInferior', () => {
+	it('GESTION ve 4 destinos + Más y el cuarto es Stock con contador', () => {
+		const destinos = destinosBarraInferior('/admin/auditoria', {
+			familiaRol: 'GESTION',
+			alertasStock: 3
+		});
+		expect(destinos.map((d) => d.etiqueta)).toEqual([
+			'Inicio',
+			'Caja',
+			'Movimientos',
+			'Stock',
+			'Más'
+		]);
+		expect(destinos[3]?.contadorVisible).toBe(3);
+		expect(destinos[4]?.activo).toBe(true);
+		expect(destinos[0]?.activo).toBe(false);
+	});
+
+	it('OPERACION usa Transferencias como cuarto destino y no ve Stock', () => {
+		const destinos = destinosBarraInferior('/caja', OPERACION);
+		expect(destinos.map((d) => d.etiqueta)).toEqual([
+			'Inicio',
+			'Caja',
+			'Movimientos',
+			'Transferencias',
+			'Más'
+		]);
+		expect(destinos.some((d) => d.etiqueta === 'Stock')).toBe(false);
+	});
+
+	it('marca el destino de la barra y no Más cuando la ruta está en la barra', () => {
+		const destinos = destinosBarraInferior('/caja', OPERACION);
+		expect(destinos[1]?.activo).toBe(true);
+		expect(destinos[4]?.activo).toBe(false);
+	});
+
+	it('marca el cuarto destino cuando la ruta es Stock', () => {
+		const destinos = destinosBarraInferior('/admin/stock', GESTION);
+		expect(destinos[3]?.activo).toBe(true);
+		expect(destinos[4]?.activo).toBe(false);
+	});
+
+	it('siempre devuelve cinco destinos con etiqueta y ruta', () => {
+		const destinos = destinosBarraInferior('/', GESTION);
+		expect(destinos).toHaveLength(5);
+		expect(destinos.every((d) => d.etiqueta && d.ruta && d.icono)).toBe(true);
+		expect(destinos[4]?.ruta).toBe('#panel');
 	});
 });

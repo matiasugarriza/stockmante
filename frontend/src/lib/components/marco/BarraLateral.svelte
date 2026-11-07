@@ -1,13 +1,15 @@
 <script lang="ts">
 	import { page } from '$app/state';
+	import { tick } from 'svelte';
 	import { sesion } from '#lib/stores/sesion';
+	import { dispositivo } from '#lib/dispositivo/dispositivo';
 	import {
 		gruposVisibles,
 		type FamiliaRol
 	} from '#lib/navegacion/navegacion';
 	import Icono from '../ui/Icono.svelte';
-	import BotonTema from '../ui/BotonTema.svelte';
 	import ItemNavegacion from './ItemNavegacion.svelte';
+	import LogoMarca from './LogoMarca.svelte';
 
 	interface Props {
 		colapsada?: boolean;
@@ -22,13 +24,67 @@
 		$sesion.estado === 'activa' ? $sesion.usuario.familia_rol : 'OPERACION'
 	);
 	const grupos = $derived(gruposVisibles(page.url.pathname, { familiaRol, alertasStock }));
+	const ocultoEnMovil = $derived($dispositivo.esMovil && !movilAbierta);
+
+	let panel: HTMLElement | undefined = $state();
+	let disparador: HTMLElement | null = null;
+
+	// Foco atrapado, Escape y bloqueo de scroll del panel móvil (FR-110).
+	$effect(() => {
+		if (!movilAbierta) return;
+		disparador = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+		const overflowPrevio = document.body.style.overflow;
+		document.body.style.overflow = 'hidden';
+		void tick().then(() => {
+			panel?.querySelector<HTMLElement>('.cerrar')?.focus();
+		});
+		return () => {
+			document.body.style.overflow = overflowPrevio;
+			disparador?.focus();
+		};
+	});
+
+	function alTeclear(event: KeyboardEvent) {
+		if (event.key === 'Escape' && movilAbierta) {
+			event.preventDefault();
+			oncerrar?.();
+			return;
+		}
+		if (event.key !== 'Tab' || !movilAbierta || !panel) return;
+		const enfocables = Array.from(
+			panel.querySelectorAll<HTMLElement>('a[href], button:not([disabled])')
+		).filter((elemento) => elemento.offsetParent !== null);
+		if (enfocables.length === 0) {
+			event.preventDefault();
+			return;
+		}
+		const primero = enfocables[0];
+		const ultimo = enfocables[enfocables.length - 1];
+		if (event.shiftKey && document.activeElement === primero) {
+			event.preventDefault();
+			ultimo?.focus();
+		} else if (!event.shiftKey && document.activeElement === ultimo) {
+			event.preventDefault();
+			primero?.focus();
+		}
+	}
 </script>
 
-<aside class="lateral" class:colapsada class:abierta={movilAbierta}>
+<aside
+	class="lateral"
+	class:colapsada
+	class:abierta={movilAbierta}
+	bind:this={panel}
+	role={movilAbierta ? 'dialog' : undefined}
+	aria-modal={movilAbierta ? 'true' : undefined}
+	aria-label={movilAbierta ? 'Navegación completa' : undefined}
+	inert={ocultoEnMovil}
+	aria-hidden={ocultoEnMovil ? 'true' : undefined}
+	onkeydown={alTeclear}
+>
 	<div class="marca">
 		<a href="/" class="logo" aria-label="Stockmante, ir al inicio" onclick={oncerrar}>
-			<span class="simbolo" aria-hidden="true"><Icono nombre="stock" tamano={19} /></span>
-			<span class="nombre">Stock<span class="acento">mante</span></span>
+			<LogoMarca alto={36} soloSimbolo={colapsada} />
 		</a>
 		<button type="button" class="cerrar" aria-label="Cerrar navegación" onclick={oncerrar}>
 			<Icono nombre="cerrar" tamano={18} />
@@ -45,9 +101,8 @@
 	</nav>
 
 	{#if !colapsada}
-		<!-- Colapsada, el selector de tema queda solo en la barra superior (no entra en 76 px). -->
+		<!-- El selector de tema vive solo en la barra superior. -->
 		<div class="pie">
-			<BotonTema />
 			<span class="version">Stockmante v0.1</span>
 		</div>
 	{/if}
@@ -89,29 +144,6 @@
 		text-decoration: none;
 	}
 
-	.simbolo {
-		display: inline-flex;
-		flex: none;
-		align-items: center;
-		justify-content: center;
-		width: 32px;
-		height: 32px;
-		border-radius: 8px;
-		background: var(--primario);
-		color: var(--primario-contraste);
-	}
-
-	.nombre {
-		font-size: 21px;
-		font-weight: 600;
-		letter-spacing: -0.02em;
-		white-space: nowrap;
-	}
-
-	.acento {
-		color: var(--primario-texto);
-	}
-
 	.cerrar {
 		display: none;
 		flex: none;
@@ -151,9 +183,7 @@
 
 	.pie {
 		display: flex;
-		flex-direction: column;
-		align-items: stretch;
-		gap: 8px;
+		justify-content: center;
 		padding: 12px 14px;
 		border-top: 1px solid var(--borde);
 	}
@@ -165,7 +195,6 @@
 		font-size: 11px;
 	}
 
-	.colapsada .nombre,
 	.colapsada .grupo,
 	.colapsada .version,
 	.colapsada .cerrar {
@@ -186,7 +215,9 @@
 		.lateral.colapsada {
 			position: fixed;
 			inset: 0 auto 0 0;
-			width: var(--sidebar-ancho);
+			width: min(var(--sidebar-ancho), 86vw);
+			padding-top: var(--zona-segura-superior);
+			padding-bottom: var(--zona-segura-inferior);
 			transform: translateX(-102%);
 			transition: transform 180ms ease;
 			box-shadow: var(--sombra-elevada);
@@ -205,7 +236,6 @@
 			padding: 8px 14px 20px 0;
 		}
 
-		.lateral.colapsada .nombre,
 		.lateral.colapsada .grupo,
 		.lateral.colapsada .version {
 			display: initial;

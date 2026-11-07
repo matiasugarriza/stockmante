@@ -1,5 +1,10 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
+	import { dispositivo } from '#lib/dispositivo/dispositivo';
+	import ListaTarjetas from '#lib/components/movil/ListaTarjetas.svelte';
+	import TarjetaInventario from '#lib/components/movil/TarjetaInventario.svelte';
+	import BotonFlotante from '#lib/components/movil/BotonFlotante.svelte';
+	import { page } from '$app/state';
 	import { listarCategorias } from '#lib/api/categorias';
 	import { ApiError } from '#lib/api/client';
 	import { listarDepositosActivos, type DepositoActivo } from '#lib/api/depositos';
@@ -140,7 +145,7 @@
 		{ clave: 'acciones', encabezado: '' }
 	]);
 
-	let q = $state('');
+	let q = $state(page.url.searchParams.get('q') ?? '');
 	let campo = $state<CampoBusqueda>('todos');
 	let categoriaId = $state('');
 	let incluirInactivos = $state(false);
@@ -338,7 +343,7 @@
 				etiqueta="Buscar"
 				nombre="q"
 				tipo="search"
-				marcador="SKU, código, nombre o categoría"
+				marcador="Escaneá el código, o escribí SKU, nombre o categoría"
 				bind:valor={q}
 			/>
 			<Campo
@@ -421,7 +426,32 @@
 			/>
 		</Tarjeta>
 	{:else if items.length > 0}
-		<Tarjeta densa={true}>
+		{#if $dispositivo.esMovil}
+			<ListaTarjetas items={items} etiqueta="Resultados de búsqueda de caja">
+				{#snippet tarjeta(producto)}
+					{@const stock = stockPorProducto.get(producto.id) ?? null}
+					<TarjetaInventario
+						nombre={producto.nombre}
+						sku={producto.sku}
+						stockActual={stock ?? 0}
+						bajoMinimo={stock !== null && stock <= producto.stock_minimo}
+						contexto={`${producto.categoria.nombre} · ${formatearMoneda(producto.precio_venta)}`}
+					>
+						{#snippet acciones()}
+							<Boton
+								tamano="sm"
+								variante="secundario"
+								deshabilitado={!producto.activo}
+								onclick={() => agregar(producto)}
+							>
+								Agregar
+							</Boton>
+						{/snippet}
+					</TarjetaInventario>
+				{/snippet}
+			</ListaTarjetas>
+		{:else}
+			<Tarjeta densa={true}>
 			<TablaDatos columnas={COLUMNAS} filas={items} etiqueta="Resultados de búsqueda de caja">
 				{#snippet fila(producto)}
 					<td class="principal">{producto.nombre}</td>
@@ -452,6 +482,7 @@
 				{/snippet}
 			</TablaDatos>
 		</Tarjeta>
+		{/if}
 	{/if}
 
 	<Tarjeta>
@@ -519,6 +550,9 @@
 			{/if}
 		{/if}
 	</Tarjeta>
+	{#if $dispositivo.esMovil}
+		<BotonFlotante etiqueta="Nueva venta" icono="caja" onclick={() => window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' })} />
+	{/if}
 </div>
 
 <style>
@@ -560,7 +594,7 @@
 
 	.error-campo {
 		margin: 6px 0 0;
-		color: var(--rojo-texto, #b42318);
+		color: var(--peligro-texto);
 		font-size: 13px;
 	}
 

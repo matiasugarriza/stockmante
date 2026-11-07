@@ -58,7 +58,7 @@
 					<span
 						class="punto"
 						style:background={dato.color ??
-							['var(--teal)', 'var(--ambar)', 'var(--peligro)', 'var(--primario)'][indice % 4]}
+							['var(--primario)', 'var(--ambar)', 'var(--exito)', 'var(--peligro)'][indice % 4]}
 					></span>
 					{dato.etiqueta}
 					<strong>{formatearNumero(dato.valor)}</strong>
