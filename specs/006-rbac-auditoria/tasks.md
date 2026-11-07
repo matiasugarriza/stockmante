@@ -5,15 +5,15 @@
 
 **Tests**: sí. Matriz HTTP transversal + verificación SQL de auditoría + guard estructural.
 
-**Ampliación 2026-11-07**: T001–T011 son la base implementada; **T012–T027 quedan pendientes**
-(auditoría de categorías/depósitos/ubicaciones/asignaciones y cierre de hallazgos).
+**Ampliación 2026-11-07**: T001–T011 son la base implementada; T001a y T012–T026 implementados
+el 2026-11-07; T027 cierra con los gates registrados en `progress.md`.
 
 ## Fase 1 — Auditoría
 
 - [X] T001 Crear `migrations/0008_auditoria.sql` con `auditoria(id, tabla_ref, registro_id,
   accion, usuario_id, cuando)` e índices; aplicar en `stockmante` y `stockmante_test`.
   **Aceptación**: migración 8 aplicada en ambas bases.
-- [ ] T001a Registrar en `progress.md` la verificación de esquema previa a `0008` (tipo de
+- [X] T001a Registrar en `progress.md` la verificación de esquema previa a `0008` (tipo de
   `usuarios.id`, FK y columnas) o un waiver acotado. **Aceptación**: evidencia o waiver.
 - [X] T002 Crear `services/auditoria.rs` con constantes de tabla/acción y
   `registrar(&mut Transaction, ...)`.
@@ -53,23 +53,23 @@
 
 **Goal**: auditar todas las escrituras de gestión de 001–005, además de usuarios y productos.
 
-- [ ] T012 RED: extender `tests/integration/test_rbac_matriz.rs` con auditoría de categorías
+- [X] T012 RED: extender `tests/integration/test_rbac_matriz.rs` con auditoría de categorías
   (alta, edición, baja, reactivación) y un 403 que no audita. **Aceptación**: falla antes de
   instrumentar.
-- [ ] T013 Instrumentar `backend/src/services/categorias.rs`: `CREAR`, `ACTUALIZAR`, `DESACTIVAR`,
+- [X] T013 Instrumentar `backend/src/services/categorias.rs`: `CREAR`, `ACTUALIZAR`, `DESACTIVAR`,
   `REACTIVAR` en la misma transacción; el handler pasa el actor de `RequiereGestion`.
-- [ ] T014 Instrumentar `backend/src/services/depositos.rs` (depósitos): `CREAR`, `ACTUALIZAR`,
+- [X] T014 Instrumentar `backend/src/services/depositos.rs` (depósitos): `CREAR`, `ACTUALIZAR`,
   `ELIMINAR`, `DESACTIVAR`, `REACTIVAR`; el handler pasa el actor. El `DELETE` con dependencias
   (409) no audita.
-- [ ] T015 Instrumentar `backend/src/services/depositos.rs` (ubicaciones): `CREAR`, `ACTUALIZAR`,
+- [X] T015 Instrumentar `backend/src/services/depositos.rs` (ubicaciones): `CREAR`, `ACTUALIZAR`,
   `ELIMINAR`, `DESACTIVAR`, `REACTIVAR`; el handler pasa el actor. El `DELETE` con hijos/asignaciones
   (409) no audita.
-- [ ] T016 Instrumentar la asignación producto–ubicación en `backend/src/services/depositos.rs`:
+- [X] T016 Instrumentar la asignación producto–ubicación en `backend/src/services/depositos.rs`:
   `ASIGNAR_UBICACIONES` sobre `productos` (`registro_id = producto_id`), incluso con `[]`; el
   handler de productos pasa el actor.
-- [ ] T017 Extender `tests/integration/test_rbac_matriz.rs`: consultas SQL por entidad, autor y
+- [X] T017 Extender `tests/integration/test_rbac_matriz.rs`: consultas SQL por entidad, autor y
   timestamp, y 403 sin filas para las nuevas acciones. **Aceptación**: suite en verde.
-- [ ] T018 Actualizar `data-model.md`, `contracts/api.md`, `quickstart.md`, `progress.md` y
+- [X] T018 Actualizar `data-model.md`, `contracts/api.md`, `quickstart.md`, `progress.md` y
   `specs/README.md` (FR-019/SC-030) con el alcance ampliado.
 
 ## Fase 6 — Cierre de hallazgos del análisis (2026-11-07)
@@ -80,25 +80,25 @@ degradación de rol, SC-007 directo y la evidencia de gates.
 **Independent Test**: ejecutar `test_rbac_matriz` ampliado y comprobar 403/200 según la matriz, el
 caso de degradación, el 409 de SC-007 y las filas de auditoría por entidad.
 
-- [ ] T019 Agregar `GET /api/productos/ubicaciones` a la matriz de `contracts/api.md`, a
+- [X] T019 Agregar `GET /api/productos/ubicaciones` a la matriz de `contracts/api.md`, a
   `test_rbac_matriz.rs` y al conteo de `progress.md`.
-- [ ] T020 Agregar aserciones de lecturas permitidas a OPERACION en
+- [X] T020 Agregar aserciones de lecturas permitidas a OPERACION en
   `backend/tests/integration/test_rbac_matriz.rs`: `GET /productos/{id}`, `/productos/buscar`,
   `GET /categorias` y `GET /categorias/{id}` → 200.
-- [ ] T021 Agregar test de degradación de rol en `backend/tests/integration/test_rbac_matriz.rs`:
+- [X] T021 Agregar test de degradación de rol en `backend/tests/integration/test_rbac_matriz.rs`:
   sesión GESTION degradada a OPERARIO → siguiente request a `/api/usuarios` responde 403.
-- [ ] T022 Agregar caso directo de SC-007 en `backend/tests/integration/test_rbac_matriz.rs`:
+- [X] T022 Agregar caso directo de SC-007 en `backend/tests/integration/test_rbac_matriz.rs`:
   `DELETE` de depósito con ubicaciones y de ubicación con hijos → 409; `desactivar` → 204.
-- [ ] T023 Dejar un único guard en `frontend/src/routes/admin/+layout.svelte` (OPERACION → `/caja`)
+- [X] T023 Dejar un único guard en `frontend/src/routes/admin/+layout.svelte` (OPERACION → `/caja`)
   y eliminar los redirects a `/` de `frontend/src/routes/admin/{productos,categorias,depositos,usuarios}/+page.svelte`.
-- [ ] T024 Registrar evidencia de RED (o waiver) y documentar el alcance real de
+- [X] T024 Registrar evidencia de RED (o waiver) y documentar el alcance real de
   `cargo sqlx prepare --check` para el `INSERT` de auditoría (runtime) en
   `specs/006-rbac-auditoria/progress.md` y `plan.md`.
-- [ ] T025 Corregir `contracts/api.md` (matriz `POST/PUT` de usuarios sin `DELETE`), `plan.md`
+- [X] T025 Corregir `contracts/api.md` (matriz `POST/PUT` de usuarios sin `DELETE`), `plan.md`
   (`GET /ubicaciones/{id}` y nota de migración) y el conteo de combinaciones en `progress.md`.
-- [ ] T026 Alinear la nullabilidad de `usuario_id`: `Option<i32>` + `LEFT JOIN` en el consumidor o
+- [X] T026 Alinear la nullabilidad de `usuario_id`: `Option<i32>` + `LEFT JOIN` en el consumidor o
   `NOT NULL` con autor definido para acciones de sistema.
-- [ ] T027 Correr gates completos (`cargo test`, `cargo sqlx prepare --check`, `npm test`,
+- [X] T027 Correr gates completos (`cargo test`, `cargo sqlx prepare --check`, `npm test`,
   `npm run check`, `npm run build`) y actualizar la evidencia.
 
 ## Trazabilidad

@@ -79,11 +79,11 @@ pub struct CrearCategoriaDto {
 )]
 pub async fn crear(
     State(estado): State<AppEstado>,
-    _gestion: RequiereGestion,
+    RequiereGestion(actor): RequiereGestion,
     JsonValido(dto): JsonValido<CrearCategoriaDto>,
 ) -> Result<(StatusCode, Json<Categoria>), AppError> {
     let categoria =
-        categorias::crear(&estado.pool, &dto.nombre, dto.descripcion.as_deref()).await?;
+        categorias::crear(&estado.pool, &dto.nombre, dto.descripcion.as_deref(), actor.id).await?;
     Ok((StatusCode::CREATED, Json(categoria)))
 }
 
@@ -141,7 +141,7 @@ pub struct ActualizarCategoriaDto {
 )]
 pub async fn actualizar(
     State(estado): State<AppEstado>,
-    _gestion: RequiereGestion,
+    RequiereGestion(actor): RequiereGestion,
     PathValido(id): PathValido<i32>,
     JsonValido(dto): JsonValido<ActualizarCategoriaDto>,
 ) -> Result<Json<Categoria>, AppError> {
@@ -154,7 +154,7 @@ pub async fn actualizar(
         nombre: dto.nombre,
         descripcion: dto.descripcion,
     };
-    Ok(Json(categorias::actualizar(&estado.pool, id, cambios).await?))
+    Ok(Json(categorias::actualizar(&estado.pool, id, cambios, actor.id).await?))
 }
 
 /// POST /api/categorias/{id}/desactivar → 204 (idempotente).
@@ -173,10 +173,10 @@ pub async fn actualizar(
 )]
 pub async fn desactivar(
     State(estado): State<AppEstado>,
-    _gestion: RequiereGestion,
+    RequiereGestion(actor): RequiereGestion,
     PathValido(id): PathValido<i32>,
 ) -> Result<StatusCode, AppError> {
-    categorias::desactivar(&estado.pool, id).await?;
+    categorias::desactivar(&estado.pool, id, actor.id).await?;
     Ok(StatusCode::NO_CONTENT)
 }
 
@@ -196,9 +196,9 @@ pub async fn desactivar(
 )]
 pub async fn reactivar(
     State(estado): State<AppEstado>,
-    _gestion: RequiereGestion,
+    RequiereGestion(actor): RequiereGestion,
     PathValido(id): PathValido<i32>,
 ) -> Result<StatusCode, AppError> {
-    categorias::reactivar(&estado.pool, id).await?;
+    categorias::reactivar(&estado.pool, id, actor.id).await?;
     Ok(StatusCode::NO_CONTENT)
 }

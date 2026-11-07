@@ -79,6 +79,10 @@ async fn matriz_rbac_de_escritura_y_listados_restringidos() {
             format!("/api/categorias/{ID_INEXISTENTE}/reactivar"),
         ),
         ("GET", "/api/productos".into()),
+        (
+            "GET",
+            format!("/api/productos/ubicaciones?producto_ids={ID_INEXISTENTE}"),
+        ),
         ("POST", "/api/productos".into()),
         ("PUT", format!("/api/productos/{ID_INEXISTENTE}")),
         (
@@ -148,6 +152,21 @@ async fn matriz_rbac_de_escritura_y_listados_restringidos() {
             format!("/api/compras/{ID_INEXISTENTE}/confirmar"),
         ),
         ("POST", format!("/api/compras/{ID_INEXISTENTE}/anular")),
+        // 013 (T010) — anular ventas y escribir clientes es GESTION.
+        ("POST", format!("/api/ventas/{ID_INEXISTENTE}/anular")),
+        ("POST", "/api/clientes".into()),
+        ("PUT", format!("/api/clientes/{ID_INEXISTENTE}")),
+        ("POST", format!("/api/clientes/{ID_INEXISTENTE}/activar")),
+        ("POST", format!("/api/clientes/{ID_INEXISTENTE}/desactivar")),
+        // 014 (T006) — los cuatro reportes, en JSON y CSV, son GESTION (SC-031).
+        ("GET", format!("/api/reportes/kardex?producto_id={ID_INEXISTENTE}")),
+        ("GET", format!("/api/reportes/kardex?producto_id={ID_INEXISTENTE}&formato=csv")),
+        ("GET", "/api/reportes/stock-valorizado".into()),
+        ("GET", "/api/reportes/stock-valorizado?formato=csv".into()),
+        ("GET", "/api/reportes/rotacion?desde=2026-10-01&hasta=2026-10-31".into()),
+        ("GET", "/api/reportes/rotacion?desde=2026-10-01&hasta=2026-10-31&formato=csv".into()),
+        ("GET", "/api/reportes/ventas?desde=2026-10-01&hasta=2026-10-31".into()),
+        ("GET", "/api/reportes/ventas?desde=2026-10-01&hasta=2026-10-31&formato=csv".into()),
     ];
 
     for (metodo, ruta) in rutas {
@@ -412,4 +431,271 @@ async fn un_403_no_registra_auditoria() {
             .await
             .expect("conteo de auditoría del operario");
     assert_eq!(auditadas, 0, "un 403 no debe dejar acciones auditadas");
+}
+
+/// T020: la lectura de caja sigue disponible para OPERACION (US6 escenario 2).
+#[tokio::test]
+async fn operacion_conserva_las_lecturas_de_caja() {
+    let (app, pool, _correo) = app_de_test().await;
+    let cookie_gestion = common::sesion_gestion(&pool).await;
+    let cookie_operacion = common::sesion_operacion(&pool).await;
+    let categoria_id = crear_categoria(&app, &cookie_gestion).await;
+    let (status, producto) = pedir(
+        &app,
+        &cookie_gestion,
+        "POST",
+        "/api/productos",
+        Some(json!({
+            "nombre": "Producto lectura caja",
+            "sku": sku_unico("caja"),
+            "categoria_id": categoria_id,
+            "unidad_medida": "UNIDAD",
+            "costo": 10,
+            "precio_venta": 20,
+        })),
+    )
+    .await;
+    assert_eq!(status, StatusCode::CREATED, "{producto}");
+    let id = producto["id"].as_i64().expect("id de producto");
+
+    for ruta in [
+        format!("/api/productos/{id}"),
+        "/api/productos/buscar?q=lectura".to_string(),
+        "/api/categorias".to_string(),
+        format!("/api/categorias/{categoria_id}"),
+    ] {
+        let (status, body) = pedir(&app, &cookie_operacion, "GET", &ruta, None).await;
+        assert_eq!(status, StatusCode::OK, "OPERACION debe leer {ruta}: {body}");
+    }
+}
+
+/// T021: degradar el rol con la sesión viva corta el acceso en el siguiente request.
+#[tokio::test]
+async fn degradar_el_rol_corta_el_acceso_en_el_siguiente_request() {
+    let (app, pool, _correo) = app_de_test().await;
+    let (email, cookie) = sesion_con_familia(&pool, "ADMIN", "GESTION").await;
+    let (status, body) = pedir(&app, &cookie, "GET", "/api/usuarios", None).await;
+    assert_eq!(status, StatusCode::OK, "{body}");
+
+    sqlx::query(
+        "UPDATE usuarios SET rol = 'OPERARIO', familia_rol = 'OPERACION' WHERE email = $1",
+    )
+    .bind(&email)
+    .execute(&pool)
+    .await
+    .expect("degradar el rol");
+
+    let (status, body) = pedir(&app, &cookie, "GET", "/api/usuarios", None).await;
+    assert_eq!(status, StatusCode::FORBIDDEN, "{body}");
+    assert_eq!(body["error"]["codigo"], "sin_permisos");
+}
+
+async fn crear_deposito(app: &Router, cookie: &str) -> i32 {
+    let (status, body) = pedir(
+        app,
+        cookie,
+        "POST",
+        "/api/depositos",
+        Some(json!({
+            "nombre": sku_unico("Deposito"),
+            "identificador": sku_unico("DEP"),
+        })),
+    )
+    .await;
+    assert_eq!(status, StatusCode::CREATED, "depósito: {body}");
+    body["id"].as_i64().expect("id de depósito") as i32
+}
+
+async fn crear_ubicacion(app: &Router, cookie: &str, deposito_id: i32, padre: Option<i32>) -> i32 {
+    let (status, body) = pedir(
+        app,
+        cookie,
+        "POST",
+        "/api/ubicaciones",
+        Some(json!({
+            "deposito_id": deposito_id,
+            "padre_id": padre,
+            "nombre": sku_unico("U"),
+            "tipo": "PASILLO",
+        })),
+    )
+    .await;
+    assert_eq!(status, StatusCode::CREATED, "ubicación: {body}");
+    body["id"].as_i64().expect("id de ubicación") as i32
+}
+
+async fn accion_ok(app: &Router, cookie: &str, metodo: &str, uri: &str, body: Option<Value>) {
+    let (status, respuesta) = pedir(app, cookie, metodo, uri, body).await;
+    assert!(
+        status.is_success(),
+        "{metodo} {uri} debía ser 2xx y fue {status}: {respuesta}"
+    );
+}
+
+fn assert_acciones(filas: &[(String, Option<i32>)], esperadas: &[&str], actor: i32) {
+    let obtenidas: Vec<&str> = filas.iter().map(|f| f.0.as_str()).collect();
+    assert_eq!(obtenidas, esperadas, "{filas:?}");
+    assert!(
+        filas.iter().all(|f| f.1 == Some(actor)),
+        "el autor debe ser el gestor de la sesión: {filas:?}"
+    );
+}
+
+/// T012/T017: categorías auditadas con autor y timestamp.
+#[tokio::test]
+async fn audita_altas_cambios_y_bajas_de_categorias() {
+    let (app, pool, _correo) = app_de_test().await;
+    let (email, cookie) = sesion_con_familia(&pool, "ADMIN", "GESTION").await;
+    let actor = id_de(&pool, &email).await;
+    let id = crear_categoria(&app, &cookie).await;
+    accion_ok(
+        &app,
+        &cookie,
+        "PUT",
+        &format!("/api/categorias/{id}"),
+        Some(json!({ "descripcion": "editada" })),
+    )
+    .await;
+    accion_ok(&app, &cookie, "POST", &format!("/api/categorias/{id}/desactivar"), None).await;
+    accion_ok(&app, &cookie, "POST", &format!("/api/categorias/{id}/reactivar"), None).await;
+
+    let filas = acciones(&pool, "categorias", id).await;
+    assert_acciones(&filas, &["CREAR", "ACTUALIZAR", "DESACTIVAR", "REACTIVAR"], actor);
+    let sin_timestamp: i64 = sqlx::query_scalar(
+        "SELECT count(*) FROM auditoria \
+         WHERE tabla_ref = 'categorias' AND registro_id = $1 AND cuando IS NULL",
+    )
+    .bind(id)
+    .fetch_one(&pool)
+    .await
+    .expect("timestamps");
+    assert_eq!(sin_timestamp, 0);
+}
+
+/// T014/T015/T017: depósitos y ubicaciones, incluido el borrado físico permitido.
+#[tokio::test]
+async fn audita_depositos_y_ubicaciones() {
+    let (app, pool, _correo) = app_de_test().await;
+    let (email, cookie) = sesion_con_familia(&pool, "ADMIN", "GESTION").await;
+    let actor = id_de(&pool, &email).await;
+
+    let deposito = crear_deposito(&app, &cookie).await;
+    let dep_uri = format!("/api/depositos/{deposito}");
+    accion_ok(&app, &cookie, "PUT", &dep_uri, Some(json!({ "direccion": "Calle 1" }))).await;
+    accion_ok(&app, &cookie, "POST", &format!("{dep_uri}/desactivar"), None).await;
+    accion_ok(&app, &cookie, "POST", &format!("{dep_uri}/reactivar"), None).await;
+
+    let ubicacion = crear_ubicacion(&app, &cookie, deposito, None).await;
+    let ubi_uri = format!("/api/ubicaciones/{ubicacion}");
+    accion_ok(&app, &cookie, "PUT", &ubi_uri, Some(json!({ "tipo": "ESTANTERIA" }))).await;
+    accion_ok(&app, &cookie, "POST", &format!("{ubi_uri}/desactivar"), None).await;
+    accion_ok(&app, &cookie, "POST", &format!("{ubi_uri}/reactivar"), None).await;
+    accion_ok(&app, &cookie, "DELETE", &ubi_uri, None).await;
+    accion_ok(&app, &cookie, "DELETE", &dep_uri, None).await;
+
+    let esperadas = ["CREAR", "ACTUALIZAR", "DESACTIVAR", "REACTIVAR", "ELIMINAR"];
+    assert_acciones(&acciones(&pool, "ubicaciones", ubicacion).await, &esperadas, actor);
+    assert_acciones(&acciones(&pool, "depositos", deposito).await, &esperadas, actor);
+}
+
+/// T016/T017: la asignación se audita sobre el producto, también al limpiar.
+#[tokio::test]
+async fn audita_la_asignacion_de_ubicaciones_incluso_vacia() {
+    let (app, pool, _correo) = app_de_test().await;
+    let (email, cookie) = sesion_con_familia(&pool, "ADMIN", "GESTION").await;
+    let actor = id_de(&pool, &email).await;
+    let categoria_id = crear_categoria(&app, &cookie).await;
+    let (status, producto) = pedir(
+        &app,
+        &cookie,
+        "POST",
+        "/api/productos",
+        Some(json!({
+            "nombre": "Producto con ubicaciones",
+            "sku": sku_unico("asig"),
+            "categoria_id": categoria_id,
+            "unidad_medida": "UNIDAD",
+            "costo": 1,
+            "precio_venta": 2,
+        })),
+    )
+    .await;
+    assert_eq!(status, StatusCode::CREATED, "{producto}");
+    let id = producto["id"].as_i64().expect("id") as i32;
+    let deposito = crear_deposito(&app, &cookie).await;
+    let ubicacion = crear_ubicacion(&app, &cookie, deposito, None).await;
+
+    let uri = format!("/api/productos/{id}/ubicaciones");
+    accion_ok(&app, &cookie, "PUT", &uri, Some(json!({ "ubicacion_ids": [ubicacion] }))).await;
+    accion_ok(&app, &cookie, "PUT", &uri, Some(json!({ "ubicacion_ids": [] }))).await;
+
+    let filas = acciones(&pool, "productos", id).await;
+    assert_acciones(
+        &filas,
+        &["CREAR", "ASIGNAR_UBICACIONES", "ASIGNAR_UBICACIONES"],
+        actor,
+    );
+}
+
+/// T022 (SC-007): borrar con dependencias es 409 y no audita; la baja lógica es 204.
+#[tokio::test]
+async fn borrar_con_dependencias_es_409_y_desactivar_es_la_alternativa() {
+    let (app, pool, _correo) = app_de_test().await;
+    let (email, cookie) = sesion_con_familia(&pool, "ADMIN", "GESTION").await;
+    let actor = id_de(&pool, &email).await;
+    let deposito = crear_deposito(&app, &cookie).await;
+    let padre = crear_ubicacion(&app, &cookie, deposito, None).await;
+    let _hija = crear_ubicacion(&app, &cookie, deposito, Some(padre)).await;
+    let dep_uri = format!("/api/depositos/{deposito}");
+    let padre_uri = format!("/api/ubicaciones/{padre}");
+
+    let (status, body) = pedir(&app, &cookie, "DELETE", &dep_uri, None).await;
+    assert_eq!(status, StatusCode::CONFLICT, "depósito con ubicaciones: {body}");
+    let (status, body) = pedir(&app, &cookie, "DELETE", &padre_uri, None).await;
+    assert_eq!(status, StatusCode::CONFLICT, "ubicación con hijos: {body}");
+
+    let (status, _) = pedir(&app, &cookie, "POST", &format!("{padre_uri}/desactivar"), None).await;
+    assert_eq!(status, StatusCode::NO_CONTENT);
+    let (status, _) = pedir(&app, &cookie, "POST", &format!("{dep_uri}/desactivar"), None).await;
+    assert_eq!(status, StatusCode::NO_CONTENT);
+
+    let eliminadas: i64 = sqlx::query_scalar(
+        "SELECT count(*) FROM auditoria WHERE usuario_id = $1 AND accion = 'ELIMINAR'",
+    )
+    .bind(actor)
+    .fetch_one(&pool)
+    .await
+    .expect("conteo de ELIMINAR");
+    assert_eq!(eliminadas, 0, "un 409 no debe auditar");
+}
+
+/// T017: un 403 sobre las nuevas superficies no deja filas.
+#[tokio::test]
+async fn un_403_en_depositos_ubicaciones_y_asignaciones_no_audita() {
+    let (app, pool, _correo) = app_de_test().await;
+    let (email, cookie) = sesion_con_familia(&pool, "CAJERO", "OPERACION").await;
+    let actor = id_de(&pool, &email).await;
+    let casos: Vec<(&str, &str, Option<Value>)> = vec![
+        ("POST", "/api/depositos", Some(json!({ "nombre": "x", "identificador": "x" }))),
+        (
+            "POST",
+            "/api/ubicaciones",
+            Some(json!({ "deposito_id": 1, "nombre": "x", "tipo": "PASILLO" })),
+        ),
+        ("DELETE", "/api/depositos/1", None),
+        ("DELETE", "/api/ubicaciones/1", None),
+        ("PUT", "/api/productos/1/ubicaciones", Some(json!({ "ubicacion_ids": [] }))),
+        ("PUT", "/api/categorias/1", Some(json!({ "nombre": "x" }))),
+    ];
+    for (metodo, uri, body) in casos {
+        let (status, respuesta) = pedir(&app, &cookie, metodo, uri, body).await;
+        assert_eq!(status, StatusCode::FORBIDDEN, "{metodo} {uri}: {respuesta}");
+    }
+    let auditadas: i64 =
+        sqlx::query_scalar("SELECT count(*) FROM auditoria WHERE usuario_id = $1")
+            .bind(actor)
+            .fetch_one(&pool)
+            .await
+            .expect("conteo");
+    assert_eq!(auditadas, 0);
 }

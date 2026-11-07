@@ -12,6 +12,9 @@ use sqlx::PgPool;
 /// Tabla de referencia de las acciones auditadas.
 pub const TABLA_USUARIOS: &str = "usuarios";
 pub const TABLA_PRODUCTOS: &str = "productos";
+pub const TABLA_CATEGORIAS: &str = "categorias";
+pub const TABLA_DEPOSITOS: &str = "depositos";
+pub const TABLA_UBICACIONES: &str = "ubicaciones";
 pub const TABLA_MOVIMIENTOS: &str = "movimientos";
 pub const TABLA_TRANSFERENCIAS: &str = "transferencias";
 pub const TABLA_CONTEOS: &str = "conteos";
@@ -22,6 +25,8 @@ pub const ACCION_ACTUALIZAR: &str = "ACTUALIZAR";
 pub const ACCION_DESACTIVAR: &str = "DESACTIVAR";
 pub const ACCION_REACTIVAR: &str = "REACTIVAR";
 pub const ACCION_PASSWORD_TEMPORAL: &str = "PASSWORD_TEMPORAL";
+pub const ACCION_ELIMINAR: &str = "ELIMINAR";
+pub const ACCION_ASIGNAR_UBICACIONES: &str = "ASIGNAR_UBICACIONES";
 
 /// Inserta la fila de auditoría usando la transacción del cambio auditado.
 pub async fn registrar(
@@ -46,12 +51,13 @@ pub async fn registrar(
 
 #[derive(Debug, sqlx::FromRow)]
 pub struct AuditoriaFila {
-    pub id: i32,
+    pub id: i64,
     pub tabla_ref: String,
     pub registro_id: i32,
     pub accion: String,
-    pub usuario_id: i32,
-    pub usuario_nombre: String,
+    /// `None` si la cuenta autora se borró físicamente (`ON DELETE SET NULL`).
+    pub usuario_id: Option<i32>,
+    pub usuario_nombre: Option<String>,
     pub cuando: chrono::DateTime<chrono::Utc>,
 }
 
@@ -80,7 +86,7 @@ pub async fn listar(
     .await?;
     let filas = sqlx::query_as::<_, AuditoriaFila>(
         r#"SELECT a.id, a.tabla_ref, a.registro_id, a.accion, a.usuario_id, u.nombre AS usuario_nombre, a.cuando
-           FROM auditoria a JOIN usuarios u ON u.id = a.usuario_id
+           FROM auditoria a LEFT JOIN usuarios u ON u.id = a.usuario_id
            WHERE ($1::text IS NULL OR a.tabla_ref = $1)
              AND ($2::int IS NULL OR a.usuario_id = $2)
              AND ($3::timestamptz IS NULL OR a.cuando >= $3)

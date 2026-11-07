@@ -12,6 +12,7 @@
 //! - Toda escritura corre en `pool.begin()`; no hay `unwrap`/`expect`/`panic!`.
 
 use crate::error::AppError;
+use crate::services::auditoria;
 use crate::models::deposito::{
     validar_direccion, validar_identificador, validar_nombre_deposito, validar_nombre_ubicacion,
     validar_tipo_ubicacion, Deposito, Ubicacion, UbicacionesDeProducto,
@@ -191,7 +192,11 @@ pub async fn obtener(pool: &PgPool, id: i32) -> Result<Deposito, AppError> {
     fila_deposito(pool, id).await
 }
 
-pub async fn crear(pool: &PgPool, datos: NuevoDeposito) -> Result<Deposito, AppError> {
+pub async fn crear(
+    pool: &PgPool,
+    datos: NuevoDeposito,
+    actor_id: i32,
+) -> Result<Deposito, AppError> {
     let nombre = validar_nombre_deposito(&datos.nombre)?;
     let identificador = validar_identificador(&datos.identificador)?;
     let direccion = validar_direccion(datos.direccion.as_deref())?;
@@ -209,6 +214,7 @@ pub async fn crear(pool: &PgPool, datos: NuevoDeposito) -> Result<Deposito, AppE
     .await
     .map_err(mapear_unicidad_deposito)?;
     let deposito = fila_deposito(&mut *tx, id).await?;
+    auditoria::registrar(&mut tx, auditoria::TABLA_DEPOSITOS, id, auditoria::ACCION_CREAR, actor_id).await?;
     tx.commit().await?;
     Ok(deposito)
 }
@@ -217,6 +223,7 @@ pub async fn actualizar(
     pool: &PgPool,
     id: i32,
     cambios: CambiosDeposito,
+    actor_id: i32,
 ) -> Result<Deposito, AppError> {
     let nombre = match cambios.nombre {
         Some(valor) => Some(validar_nombre_deposito(&valor)?),
@@ -255,34 +262,47 @@ pub async fn actualizar(
         return Err(deposito_no_encontrado());
     }
     let deposito = fila_deposito(&mut *tx, id).await?;
+    auditoria::registrar(&mut tx, auditoria::TABLA_DEPOSITOS, id, auditoria::ACCION_ACTUALIZAR, actor_id).await?;
     tx.commit().await?;
     Ok(deposito)
 }
 
-pub async fn desactivar(pool: &PgPool, id: i32) -> Result<(), AppError> {
-    cambiar_estado(pool, id, false).await
+pub async fn desactivar(pool: &PgPool, id: i32, actor_id: i32) -> Result<(), AppError> {
+    cambiar_estado(pool, id, false, actor_id).await
 }
 
-pub async fn reactivar(pool: &PgPool, id: i32) -> Result<(), AppError> {
-    cambiar_estado(pool, id, true).await
+pub async fn reactivar(pool: &PgPool, id: i32, actor_id: i32) -> Result<(), AppError> {
+    cambiar_estado(pool, id, true, actor_id).await
 }
 
-async fn cambiar_estado(pool: &PgPool, id: i32, activo: bool) -> Result<(), AppError> {
+async fn cambiar_estado(
+    pool: &PgPool,
+    id: i32,
+    activo: bool,
+    actor_id: i32,
+) -> Result<(), AppError> {
+    let mut tx = pool.begin().await?;
     let filas = sqlx::query("UPDATE depositos SET activo = $2 WHERE id = $1")
         .bind(id)
         .bind(activo)
-        .execute(pool)
+        .execute(&mut *tx)
         .await?
         .rows_affected();
     if filas == 0 {
-        Err(deposito_no_encontrado())
-    } else {
-        Ok(())
+        return Err(deposito_no_encontrado());
     }
+    let accion = if activo {
+        auditoria::ACCION_REACTIVAR
+    } else {
+        auditoria::ACCION_DESACTIVAR
+    };
+    auditoria::registrar(&mut tx, auditoria::TABLA_DEPOSITOS, id, accion, actor_id).await?;
+    tx.commit().await?;
+    Ok(())
 }
 
 /// FR-018: borrado físico solo sin ubicaciones ni asignaciones.
-pub async fn eliminar(pool: &PgPool, id: i32) -> Result<(), AppError> {
+pub async fn eliminar(pool: &PgPool, id: i32, actor_id: i32) -> Result<(), AppError> {
     let mut tx = pool.begin().await?;
     let existe: Option<i32> = sqlx::query_scalar("SELECT id FROM depositos WHERE id = $1 FOR UPDATE")
         .bind(id)
@@ -318,6 +338,7 @@ pub async fn eliminar(pool: &PgPool, id: i32) -> Result<(), AppError> {
             Some(codigo) if codigo.as_ref() == "23503" => AppError::DepositoConDependencias,
             _ => e.into(),
         })?;
+    auditoria::registrar(&mut tx, auditoria::TABLA_DEPOSITOS, id, auditoria::ACCION_ELIMINAR, actor_id).await?;
     tx.commit().await?;
     Ok(())
 }
@@ -352,6 +373,7 @@ pub async fn obtener_ubicacion(pool: &PgPool, id: i32) -> Result<Ubicacion, AppE
 pub async fn crear_ubicacion(
     pool: &PgPool,
     datos: NuevaUbicacion,
+    actor_id: i32,
 ) -> Result<Ubicacion, AppError> {
     let nombre = validar_nombre_ubicacion(&datos.nombre)?;
     let tipo = validar_tipo_ubicacion(&datos.tipo)?;
@@ -375,6 +397,7 @@ pub async fn crear_ubicacion(
     .await
     .map_err(mapear_unicidad_ubicacion)?;
     let ubicacion = fila_ubicacion(&mut *tx, id).await?;
+    auditoria::registrar(&mut tx, auditoria::TABLA_UBICACIONES, id, auditoria::ACCION_CREAR, actor_id).await?;
     tx.commit().await?;
     Ok(ubicacion)
 }
@@ -383,6 +406,7 @@ pub async fn actualizar_ubicacion(
     pool: &PgPool,
     id: i32,
     cambios: CambiosUbicacion,
+    actor_id: i32,
 ) -> Result<Ubicacion, AppError> {
     let nombre = match cambios.nombre {
         Some(valor) => Some(validar_nombre_ubicacion(&valor)?),
@@ -467,34 +491,47 @@ pub async fn actualizar_ubicacion(
         return Err(ubicacion_no_encontrada());
     }
     let ubicacion = fila_ubicacion(&mut *tx, id).await?;
+    auditoria::registrar(&mut tx, auditoria::TABLA_UBICACIONES, id, auditoria::ACCION_ACTUALIZAR, actor_id).await?;
     tx.commit().await?;
     Ok(ubicacion)
 }
 
-pub async fn desactivar_ubicacion(pool: &PgPool, id: i32) -> Result<(), AppError> {
-    cambiar_estado_ubicacion(pool, id, false).await
+pub async fn desactivar_ubicacion(pool: &PgPool, id: i32, actor_id: i32) -> Result<(), AppError> {
+    cambiar_estado_ubicacion(pool, id, false, actor_id).await
 }
 
-pub async fn reactivar_ubicacion(pool: &PgPool, id: i32) -> Result<(), AppError> {
-    cambiar_estado_ubicacion(pool, id, true).await
+pub async fn reactivar_ubicacion(pool: &PgPool, id: i32, actor_id: i32) -> Result<(), AppError> {
+    cambiar_estado_ubicacion(pool, id, true, actor_id).await
 }
 
-async fn cambiar_estado_ubicacion(pool: &PgPool, id: i32, activo: bool) -> Result<(), AppError> {
+async fn cambiar_estado_ubicacion(
+    pool: &PgPool,
+    id: i32,
+    activo: bool,
+    actor_id: i32,
+) -> Result<(), AppError> {
+    let mut tx = pool.begin().await?;
     let filas = sqlx::query("UPDATE ubicaciones SET activo = $2 WHERE id = $1")
         .bind(id)
         .bind(activo)
-        .execute(pool)
+        .execute(&mut *tx)
         .await?
         .rows_affected();
     if filas == 0 {
-        Err(ubicacion_no_encontrada())
-    } else {
-        Ok(())
+        return Err(ubicacion_no_encontrada());
     }
+    let accion = if activo {
+        auditoria::ACCION_REACTIVAR
+    } else {
+        auditoria::ACCION_DESACTIVAR
+    };
+    auditoria::registrar(&mut tx, auditoria::TABLA_UBICACIONES, id, accion, actor_id).await?;
+    tx.commit().await?;
+    Ok(())
 }
 
 /// Borrado físico solo sin hijos ni productos asignados.
-pub async fn eliminar_ubicacion(pool: &PgPool, id: i32) -> Result<(), AppError> {
+pub async fn eliminar_ubicacion(pool: &PgPool, id: i32, actor_id: i32) -> Result<(), AppError> {
     let mut tx = pool.begin().await?;
     let existe: Option<i32> =
         sqlx::query_scalar("SELECT id FROM ubicaciones WHERE id = $1 FOR UPDATE")
@@ -526,6 +563,7 @@ pub async fn eliminar_ubicacion(pool: &PgPool, id: i32) -> Result<(), AppError> 
             Some(codigo) if codigo.as_ref() == "23503" => AppError::UbicacionConDependencias,
             _ => e.into(),
         })?;
+    auditoria::registrar(&mut tx, auditoria::TABLA_UBICACIONES, id, auditoria::ACCION_ELIMINAR, actor_id).await?;
     tx.commit().await?;
     Ok(())
 }
@@ -632,6 +670,7 @@ pub async fn reemplazar_ubicaciones_producto(
     pool: &PgPool,
     producto_id: i32,
     ubicacion_ids: Vec<i32>,
+    actor_id: i32,
 ) -> Result<(), AppError> {
     let mut ids = Vec::with_capacity(ubicacion_ids.len());
     for id in ubicacion_ids {
@@ -686,6 +725,7 @@ pub async fn reemplazar_ubicaciones_producto(
         .execute(&mut *tx)
         .await?;
     }
+    auditoria::registrar(&mut tx, auditoria::TABLA_PRODUCTOS, producto_id, auditoria::ACCION_ASIGNAR_UBICACIONES, actor_id).await?;
     tx.commit().await?;
     Ok(())
 }

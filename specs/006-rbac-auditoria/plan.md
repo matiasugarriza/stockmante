@@ -33,9 +33,12 @@ degradación de rol, SC-007 y evidencia de gates).
 | IV. Testabilidad primero | matriz HTTP (incluido el endpoint masivo), auditoría por SQL por entidad, lecturas permitidas, degradación de rol y guard estructural |
 | V. Integridad de datos | auditoría dentro de la misma transacción; un fallo de negocio no deja fila; verificación de esquema previa registrada en T001a |
 
-> **Evidencia pendiente**: T001a (verificación de esquema) y T024 (RED/gate SQLx) se ejecutan antes
-> del cierre; hasta entonces, la conformidad de P-V/P-IV es una obligación del plan, no evidencia
-> observada.
+> **Evidencia (2026-11-07)**: T001a (esquema real verificado con `psql` en `stockmante` y
+> `stockmante_test`) y T024 (RED observado: 3 tests de auditoría fallan sin instrumentación) están en
+> `progress.md`. **Alcance de `cargo sqlx prepare --check`**: el `INSERT` de `auditoria::registrar`
+> y la consulta de `auditoria::listar` usan `sqlx::query`/`query_as` en runtime (no macros), por lo
+> que no generan entradas en `.sqlx/`; el gate solo cubre las macros `query!` existentes, y la
+> corrección de esas consultas la prueban los tests de integración contra `stockmante_test`.
 
 ## Project Structure
 

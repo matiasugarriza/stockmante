@@ -430,10 +430,10 @@ pub async fn ubicaciones(
 )]
 pub async fn reemplazar_ubicaciones(
     State(estado): State<AppEstado>,
-    _gestion: RequiereGestion,
+    RequiereGestion(actor): RequiereGestion,
     PathValido(id): PathValido<i32>,
     JsonValido(dto): JsonValido<AsignarUbicacionesDto>,
 ) -> Result<StatusCode, AppError> {
-    depositos::reemplazar_ubicaciones_producto(&estado.pool, id, dto.ubicacion_ids).await?;
+    depositos::reemplazar_ubicaciones_producto(&estado.pool, id, dto.ubicacion_ids, actor.id).await?;
     Ok(StatusCode::NO_CONTENT)
 }

@@ -31,12 +31,13 @@ pub struct ListarAuditoriaQuery {
 
 #[derive(Debug, Serialize, ToSchema)]
 pub struct AuditoriaItem {
-    pub id: i32,
+    pub id: i64,
     pub tabla_ref: String,
     pub registro_id: i32,
     pub accion: String,
-    pub usuario_id: i32,
-    pub usuario_nombre: String,
+    /// `None` si la cuenta autora se borró físicamente (`ON DELETE SET NULL`).
+    pub usuario_id: Option<i32>,
+    pub usuario_nombre: Option<String>,
     pub cuando: DateTime<Utc>,
 }
 

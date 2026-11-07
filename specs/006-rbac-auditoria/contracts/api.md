@@ -11,10 +11,11 @@ Esta spec **no agrega endpoints públicos**. Su contrato es la matriz de acceso 
 |---|---|---|---|
 | `GET /api/productos/{id}` | 401 | 200/404 | 200/404 |
 | `GET /api/productos/buscar` | 401 | 200/422 | 200/422 |
-| `GET /api/categorias` | 401 | 200 | 200 |
+| `GET /api/categorias`, `/api/categorias/{id}` | 401 | 200/404 | 200/404 |
 | `GET /api/productos` | 401 | **403** | 200 |
 | `GET /api/productos/ubicaciones` (lote) | 401 | **403** | 200 |
 | `GET /api/usuarios`, `/api/usuarios/{id}` | 401 | **403** | 200/404 |
+| `GET /api/depositos/activos` (lista breve `id`, `nombre`; agregada en 010) | 401 | 200 | 200 |
 | `GET /api/depositos`, `/api/depositos/{id}`, `/{id}/ubicaciones` | 401 | **403** | 200/404 |
 | `GET /api/ubicaciones/{id}` | 401 | **403** | 200/404 |
 | `GET /api/productos/{id}/ubicaciones` | 401 | **403** | 200/404 |
@@ -77,4 +78,3 @@ Reglas:
 
 - Log rico, diffs, consultas y reportes.
 - Diferenciación entre ADMIN y GERENTE.
-- Auditoría de depósitos/ubicaciones.

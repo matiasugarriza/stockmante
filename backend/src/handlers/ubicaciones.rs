@@ -56,7 +56,7 @@ pub struct CrearUbicacionDto {
 )]
 pub async fn crear(
     State(estado): State<AppEstado>,
-    _gestion: RequiereGestion,
+    RequiereGestion(actor): RequiereGestion,
     JsonValido(dto): JsonValido<CrearUbicacionDto>,
 ) -> Result<(StatusCode, Json<Ubicacion>), AppError> {
     let nueva = NuevaUbicacion {
@@ -65,7 +65,7 @@ pub async fn crear(
         nombre: dto.nombre,
         tipo: dto.tipo,
     };
-    let ubicacion = depositos::crear_ubicacion(&estado.pool, nueva).await?;
+    let ubicacion = depositos::crear_ubicacion(&estado.pool, nueva, actor.id).await?;
     Ok((StatusCode::CREATED, Json(ubicacion)))
 }
 
@@ -128,7 +128,7 @@ pub struct ActualizarUbicacionDto {
 )]
 pub async fn actualizar(
     State(estado): State<AppEstado>,
-    _gestion: RequiereGestion,
+    RequiereGestion(actor): RequiereGestion,
     PathValido(id): PathValido<i32>,
     JsonValido(dto): JsonValido<ActualizarUbicacionDto>,
 ) -> Result<Json<Ubicacion>, AppError> {
@@ -144,7 +144,7 @@ pub async fn actualizar(
         deposito_id: dto.deposito_id,
     };
     Ok(Json(
-        depositos::actualizar_ubicacion(&estado.pool, id, cambios).await?,
+        depositos::actualizar_ubicacion(&estado.pool, id, cambios, actor.id).await?,
     ))
 }
 
@@ -165,10 +165,10 @@ pub async fn actualizar(
 )]
 pub async fn eliminar(
     State(estado): State<AppEstado>,
-    _gestion: RequiereGestion,
+    RequiereGestion(actor): RequiereGestion,
     PathValido(id): PathValido<i32>,
 ) -> Result<StatusCode, AppError> {
-    depositos::eliminar_ubicacion(&estado.pool, id).await?;
+    depositos::eliminar_ubicacion(&estado.pool, id, actor.id).await?;
     Ok(StatusCode::NO_CONTENT)
 }
 
@@ -188,10 +188,10 @@ pub async fn eliminar(
 )]
 pub async fn desactivar(
     State(estado): State<AppEstado>,
-    _gestion: RequiereGestion,
+    RequiereGestion(actor): RequiereGestion,
     PathValido(id): PathValido<i32>,
 ) -> Result<StatusCode, AppError> {
-    depositos::desactivar_ubicacion(&estado.pool, id).await?;
+    depositos::desactivar_ubicacion(&estado.pool, id, actor.id).await?;
     Ok(StatusCode::NO_CONTENT)
 }
 
@@ -211,9 +211,9 @@ pub async fn desactivar(
 )]
 pub async fn reactivar(
     State(estado): State<AppEstado>,
-    _gestion: RequiereGestion,
+    RequiereGestion(actor): RequiereGestion,
     PathValido(id): PathValido<i32>,
 ) -> Result<StatusCode, AppError> {
-    depositos::reactivar_ubicacion(&estado.pool, id).await?;
+    depositos::reactivar_ubicacion(&estado.pool, id, actor.id).await?;
     Ok(StatusCode::NO_CONTENT)
 }
