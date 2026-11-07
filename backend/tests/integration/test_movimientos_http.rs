@@ -327,6 +327,7 @@ async fn ajuste_reservado_a_gestion() {
             "tipo": "AJUSTE",
             "deposito_id": deposito,
             "motivo": "AJUSTE",
+            "observacion": "conteo físico con diferencia",
             "lineas": [{
                 "producto_id": producto,
                 "ubicacion_id": null,
@@ -348,6 +349,7 @@ async fn ajuste_reservado_a_gestion() {
             "tipo": "AJUSTE",
             "deposito_id": deposito,
             "motivo": "AJUSTE",
+            "observacion": "conteo físico con faltante",
             "lineas": [{
                 "producto_id": producto,
                 "ubicacion_id": null,
@@ -799,6 +801,7 @@ async fn movimiento(
             "tipo": tipo,
             "deposito_id": deposito_id,
             "motivo": motivo,
+            "observacion": "prueba de integración",
             "lineas": lineas,
         })),
     )

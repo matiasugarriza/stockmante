@@ -88,7 +88,8 @@ pub async fn crear(
     }
     let motivo = movimiento::validar_motivo(&nuevo.motivo)?;
     movimiento::validar_motivo_para_tipo(&tipo, &motivo)?;
-    let observacion = movimiento::validar_observacion(nuevo.observacion.as_deref(), &motivo)?;
+    let observacion =
+        movimiento::validar_observacion(nuevo.observacion.as_deref(), &tipo, &motivo)?;
     let lineas = nuevo
         .lineas
         .iter()

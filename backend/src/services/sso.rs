@@ -3,12 +3,8 @@
 use crate::config::AppConfig;
 use crate::error::AppError;
 use crate::models::usuario::Usuario;
-use crate::services::auditoria;
-use chrono::Utc;
 use serde::Deserialize;
-use serde::Serialize;
 use sqlx::PgPool;
-use std::env;
 
 /// Estado de disponibilidad de proveedores SSO para el frontend.
 #[derive(Debug, serde::Serialize, utoipa::ToSchema)]
@@ -172,8 +168,8 @@ pub async fn procesar_callback(
     client_id: &str,
     client_secret: &str,
     redirect_base: &str,
-    correo: &dyn crate::mail::envio::EnvioCorreo,
-    base_url: &str,
+    _correo: &dyn crate::mail::envio::EnvioCorreo,
+    _base_url: &str,
 ) -> Result<Usuario, AppError> {
     if !proveedor_valido(proveedor) {
         return Err(AppError::ProveedorNoSoportado);

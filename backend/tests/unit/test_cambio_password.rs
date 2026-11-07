@@ -103,7 +103,7 @@ async fn cambio_rechaza_password_que_no_cumple_politica() {
 }
 
 #[tokio::test]
-async fn cambio_con_password_actualIncorrecta_da_credenciales_invalidas() {
+async fn cambio_con_password_actual_incorrecta_da_credenciales_invalidas() {
     let pool = pool_de_test().await;
     let email = email_unico("cambio-actual-mal");
     let _id = crear_usuario(

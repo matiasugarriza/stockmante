@@ -6,7 +6,6 @@ use crate::docs::ErrorRespuesta;
 use crate::error::AppError;
 use crate::extractores::{JsonValido, PathValido, QueryValida};
 use crate::models::proveedor::{ListaProveedores, Proveedor};
-use crate::models::usuario::Usuario;
 use crate::services::proveedores::{self, FiltrosProveedores, NuevoProveedor};
 use axum::{extract::State, http::StatusCode, routing::get, Json, Router};
 use serde::Deserialize;

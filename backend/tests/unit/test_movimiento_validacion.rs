@@ -56,31 +56,41 @@ fn tipo_o_motivo_desconocido_es_422() {
 
 #[test]
 fn otro_exige_observacion_no_vacia() {
-    assert!(validar_observacion(None, "OTRO").is_err());
-    assert!(validar_observacion(Some("   "), "OTRO").is_err());
+    assert!(validar_observacion(None, "SALIDA", "OTRO").is_err());
+    assert!(validar_observacion(Some("   "), "SALIDA", "OTRO").is_err());
 
-    let observacion = validar_observacion(Some("  rotura de bulto  "), "OTRO")
+    let observacion = validar_observacion(Some("  rotura de bulto  "), "SALIDA", "OTRO")
         .expect("observación válida")
         .unwrap_or_default();
     assert_eq!(observacion, "rotura de bulto");
 
     // Sin OTRO la observación es opcional; vacía equivale a ausente.
     assert_eq!(
-        validar_observacion(Some("  "), "COMPRA").unwrap_or_default(),
+        validar_observacion(Some("  "), "ENTRADA", "COMPRA").unwrap_or_default(),
         None
     );
     assert_eq!(
-        validar_observacion(None, "COMPRA").unwrap_or_default(),
+        validar_observacion(None, "ENTRADA", "COMPRA").unwrap_or_default(),
         None
     );
 }
 
 #[test]
+fn ajuste_exige_justificacion() {
+    assert!(validar_observacion(None, "AJUSTE", "AJUSTE").is_err());
+    assert!(validar_observacion(Some("   "), "AJUSTE", "AJUSTE").is_err());
+    let observacion = validar_observacion(Some("  conteo físico  "), "AJUSTE", "AJUSTE")
+        .expect("justificación válida")
+        .unwrap_or_default();
+    assert_eq!(observacion, "conteo físico");
+}
+
+#[test]
 fn observacion_tiene_tope_de_caracteres() {
     let larga = "x".repeat(501);
-    assert!(validar_observacion(Some(&larga), "COMPRA").is_err());
+    assert!(validar_observacion(Some(&larga), "ENTRADA", "COMPRA").is_err());
     let justa = "x".repeat(500);
-    assert!(validar_observacion(Some(&justa), "COMPRA").is_ok());
+    assert!(validar_observacion(Some(&justa), "ENTRADA", "COMPRA").is_ok());
 }
 
 #[test]

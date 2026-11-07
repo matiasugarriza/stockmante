@@ -3,8 +3,6 @@
 use crate::auth::password::{hash_password, validar_politica_password};
 use crate::error::AppError;
 use crate::mail::envio::EnvioCorreo;
-use crate::models::usuario::Usuario;
-use crate::services::auditoria;
 use chrono::{Duration, Utc};
 use sha2::{Digest, Sha256};
 use sqlx::PgPool;

@@ -217,8 +217,24 @@ pub fn validar_fila(fila: &FilaCsv, decimal: char) -> (Option<FilaValida>, Vec<D
     let mut errores = Vec::new();
     let mut anotar = |columna: &str, error: AppError| errores.push(detalle(n, columna, error.to_string()));
 
-    let nombre = validar_nombre_producto(&fila.nombre).map_err(|e| anotar("nombre", e)).ok();
-    let sku = validar_sku(&fila.sku).map_err(|e| anotar("sku", e)).ok();
+    let mut obligatorio = |valor: &str, columna: &str, mensaje: &str| {
+        let vacio = valor.is_empty();
+        if vacio {
+            anotar(columna, AppError::Validacion(mensaje.into()));
+        }
+        !vacio
+    };
+    let hay_nombre = obligatorio(&fila.nombre, "nombre", "El nombre es obligatorio.");
+    let hay_sku = obligatorio(&fila.sku, "sku", "El SKU es obligatorio.");
+    let hay_costo = obligatorio(&fila.costo, "costo", "El costo es obligatorio.");
+    let hay_precio = obligatorio(&fila.precio_venta, "precio_venta", "El precio de venta es obligatorio.");
+
+    let nombre = if hay_nombre {
+        validar_nombre_producto(&fila.nombre).map_err(|e| anotar("nombre", e)).ok()
+    } else {
+        None
+    };
+    let sku = if hay_sku { validar_sku(&fila.sku).map_err(|e| anotar("sku", e)).ok() } else { None };
     let categoria = if fila.categoria.is_empty() {
         anotar("categoria", AppError::Validacion("La categoría es obligatoria.".into()));
         None
@@ -235,8 +251,8 @@ pub fn validar_fila(fila: &FilaCsv, decimal: char) -> (Option<FilaValida>, Vec<D
             None
         }
     };
-    let costo = monto(&fila.costo, "costo", "Costo");
-    let precio = monto(&fila.precio_venta, "precio_venta", "Precio de venta");
+    let costo = if hay_costo { monto(&fila.costo, "costo", "Costo") } else { None };
+    let precio = if hay_precio { monto(&fila.precio_venta, "precio_venta", "Precio de venta") } else { None };
     let stock_minimo = match fila.stock_minimo.parse::<i32>() {
         Ok(v) => validar_stock_minimo(v).map_err(|e| anotar("stock_minimo", e)).ok(),
         Err(_) => {

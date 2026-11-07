@@ -119,9 +119,11 @@ pub fn cantidad_entera(valor: &serde_json::Number) -> Result<i32, AppError> {
     ))
 }
 
-/// Observación opcional; con motivo `OTRO` es obligatoria (FR-024).
+/// Observación opcional; obligatoria con motivo `OTRO` y en todo `AJUSTE`
+/// (la justificación del ajuste es parte del requisito de auditoría, FR-024).
 pub fn validar_observacion(
     valor: Option<&str>,
+    tipo: &str,
     motivo: &str,
 ) -> Result<Option<String>, AppError> {
     let observacion = valor
@@ -129,10 +131,17 @@ pub fn validar_observacion(
         .filter(|v| !v.is_empty())
         .map(str::to_owned);
 
-    if motivo == "OTRO" && observacion.is_none() {
-        return Err(AppError::Validacion(
-            "Con motivo OTRO tenés que indicar una observación.".into(),
-        ));
+    if observacion.is_none() {
+        let mensaje = if tipo == "AJUSTE" {
+            "Un ajuste requiere una justificación: indicá la observación.".into()
+        } else if motivo == "OTRO" {
+            "Con motivo OTRO tenés que indicar una observación.".into()
+        } else {
+            String::new()
+        };
+        if !mensaje.is_empty() {
+            return Err(AppError::Validacion(mensaje));
+        }
     }
 
     match observacion {
@@ -217,11 +226,21 @@ mod pruebas {
 
     #[test]
     fn otro_exige_observacion() {
-        assert!(validar_observacion(None, "OTRO").is_err());
-        assert!(validar_observacion(Some("   "), "OTRO").is_err());
+        assert!(validar_observacion(None, "SALIDA", "OTRO").is_err());
+        assert!(validar_observacion(Some("   "), "SALIDA", "OTRO").is_err());
         assert_eq!(
-            validar_observacion(Some(" rotura "), "OTRO").unwrap_or_default(),
+            validar_observacion(Some(" rotura "), "SALIDA", "OTRO").unwrap_or_default(),
             Some("rotura".to_string())
+        );
+    }
+
+    #[test]
+    fn ajuste_exige_justificacion() {
+        assert!(validar_observacion(None, "AJUSTE", "AJUSTE").is_err());
+        assert!(validar_observacion(Some(" "), "AJUSTE", "AJUSTE").is_err());
+        assert_eq!(
+            validar_observacion(Some(" conteo "), "AJUSTE", "AJUSTE").unwrap_or_default(),
+            Some("conteo".to_string())
         );
     }
 }

@@ -1,6 +1,11 @@
 /** Configuración por entorno del servicio de asistente (spec 017, Supuestos). */
 
-export type Proveedor = 'anthropic' | 'openai';
+export type Proveedor = 'anthropic' | 'openai' | 'groq';
+
+const PROVEEDORES: readonly Proveedor[] = ['anthropic', 'openai', 'groq'];
+
+/** Groq expone una API compatible con OpenAI. */
+export const GROQ_BASE_URL = 'https://api.groq.com/openai/v1';
 
 export interface ConfigLlm {
 	proveedor: Proveedor;
@@ -22,15 +27,21 @@ export const MODELO_ANTHROPIC_POR_DEFECTO = 'claude-sonnet-5-5';
 
 type Entorno = Record<string, string | undefined>;
 
+function esProveedor(valor: string): valor is Proveedor {
+	return (PROVEEDORES as readonly string[]).includes(valor);
+}
+
 function leerLlm(env: Entorno): { llm: ConfigLlm | null; motivo: string | null } {
 	const proveedor = (env.LLM_PROVIDER?.trim() || 'anthropic').toLowerCase();
 	const apiKey = env.LLM_API_KEY?.trim() ?? '';
 	const modelo = env.LLM_MODEL?.trim() ?? '';
-	if (proveedor !== 'anthropic' && proveedor !== 'openai') {
-		return { llm: null, motivo: `LLM_PROVIDER debe ser anthropic u openai (recibido: ${proveedor}).` };
+	if (!esProveedor(proveedor)) {
+		return { llm: null, motivo: `LLM_PROVIDER debe ser anthropic, openai o groq (recibido: ${proveedor}).` };
 	}
 	if (!apiKey) return { llm: null, motivo: 'Falta LLM_API_KEY.' };
-	if (proveedor === 'openai' && !modelo) return { llm: null, motivo: 'Con LLM_PROVIDER=openai hay que definir LLM_MODEL.' };
+	if (proveedor !== 'anthropic' && !modelo) {
+		return { llm: null, motivo: `Con LLM_PROVIDER=${proveedor} hay que definir LLM_MODEL.` };
+	}
 	return {
 		llm: { proveedor, apiKey, modelo: modelo || MODELO_ANTHROPIC_POR_DEFECTO },
 		motivo: null

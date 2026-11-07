@@ -4,7 +4,10 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "npm run test:frontend && npm run test:assistant",
+    "test:frontend": "npm --prefix frontend test",
+    "test:assistant": "npm --prefix asistente test",
+    "test:backend": "cargo test --manifest-path backend/Cargo.toml"
   },
   "keywords": [],
   "author": "",

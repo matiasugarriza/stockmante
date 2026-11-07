@@ -24,6 +24,15 @@ describe('leerConfig', () => {
 		});
 	});
 
+	it('Groq usa la API compatible con OpenAI y exige LLM_MODEL', () => {
+		expect(leerConfig({ LLM_PROVIDER: 'groq', LLM_API_KEY: 'k' }).llm).toBeNull();
+		expect(leerConfig({ LLM_PROVIDER: 'GROQ', LLM_API_KEY: 'k', LLM_MODEL: 'openai/gpt-oss-20b' }).llm).toEqual({
+			proveedor: 'groq',
+			apiKey: 'k',
+			modelo: 'openai/gpt-oss-20b'
+		});
+	});
+
 	it('un proveedor desconocido deshabilita el LLM con un motivo claro', () => {
 		const config = leerConfig({ LLM_PROVIDER: 'otro', LLM_API_KEY: 'k' });
 		expect(config.llm).toBeNull();

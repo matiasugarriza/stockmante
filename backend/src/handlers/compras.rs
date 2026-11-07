@@ -2,13 +2,11 @@
 
 use crate::app::AppEstado;
 use crate::auth::extractors::RequiereGestion;
-use crate::docs::ErrorRespuesta;
 use crate::error::AppError;
 use crate::extractores::{JsonValido, PathValido, QueryValida};
 use crate::models::proveedor::{CompraDetalle, ListaCompras};
 use crate::services::compras::{self, FiltrosCompras, NuevaCompra, NuevaCompraLinea};
 use axum::{extract::State, http::StatusCode, routing::get, Json, Router};
-use chrono::{DateTime, Utc};
 use rust_decimal::Decimal;
 use serde::Deserialize;
 use utoipa::{IntoParams, ToSchema};

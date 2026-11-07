@@ -195,6 +195,14 @@ async fn ventas_por_dia_local_sin_anuladas() {
     let (app, pool, _correo) = app_de_test().await;
     let cookie = sesion_gestion(&pool).await;
     let a = anio_propio();
+    // La base de test se reutiliza entre corridas: limpiar las ventas de mayo del año
+    // de la prueba para que el reporte sea determinista (las líneas caen por CASCADE).
+    sqlx::query("DELETE FROM ventas WHERE creado_en >= $1::timestamptz AND creado_en < $2::timestamptz")
+        .bind(format!("{a}-05-01T00:00:00Z"))
+        .bind(format!("{a}-06-01T00:00:00Z"))
+        .execute(&pool)
+        .await
+        .expect("limpieza de ventas de mayo");
     let e = crear_transferencia_de_prueba(&pool, 10).await;
     sqlx::query("UPDATE productos SET precio_venta = 100 WHERE id = $1")
         .bind(e.producto_id).execute(&pool).await.expect("precio");

@@ -28,6 +28,7 @@ const URI: &str = "/api/asistente/consulta";
 
 /// Lo que el mock recibió: header de sesión reenviado + body.
 #[derive(Clone, Debug)]
+#[allow(dead_code)]
 struct Recibido {
     cookie: Option<String>,
     body: Value,

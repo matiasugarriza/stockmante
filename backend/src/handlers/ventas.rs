@@ -2,7 +2,6 @@
 
 use crate::app::AppEstado;
 use crate::auth::extractors::{AuthUsuario, RequiereGestion};
-use crate::docs::ErrorRespuesta;
 use crate::error::AppError;
 use crate::extractores::{JsonValido, PathValido, QueryValida};
 use crate::models::venta::{VentaDetalle, ListaVentas};

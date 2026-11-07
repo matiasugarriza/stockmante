@@ -3,7 +3,7 @@ import { ChatAnthropic } from '@langchain/anthropic';
 import { ChatOpenAI } from '@langchain/openai';
 import type { StructuredToolInterface } from '@langchain/core/tools';
 import type { ModeloConTools } from './agente.ts';
-import type { ConfigLlm } from './config.ts';
+import { GROQ_BASE_URL, type ConfigLlm } from './config.ts';
 
 export type FabricaModelo = (tools: StructuredToolInterface[]) => ModeloConTools;
 
@@ -12,7 +12,12 @@ export function crearFabricaModelo(config: ConfigLlm): FabricaModelo {
 		const chat =
 			config.proveedor === 'anthropic'
 				? new ChatAnthropic({ model: config.modelo, apiKey: config.apiKey, maxRetries: 1 })
-				: new ChatOpenAI({ model: config.modelo, apiKey: config.apiKey, maxRetries: 1 });
+				: new ChatOpenAI({
+						model: config.modelo,
+						apiKey: config.apiKey,
+						maxRetries: 1,
+						...(config.proveedor === 'groq' ? { configuration: { baseURL: GROQ_BASE_URL } } : {})
+					});
 		const conTools = chat.bindTools(tools);
 		return { invoke: (mensajes) => conTools.invoke(mensajes) };
 	};

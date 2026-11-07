@@ -98,6 +98,25 @@ fn errores_por_celda() {
 }
 
 #[test]
+fn obligatorios_vacios_usan_el_mensaje_de_la_spec() {
+    let csv = format!("{ENCABEZADO}\n,,Cat,UNIDAD,,,0,,,\n");
+    let archivo = parsear_archivo(csv.as_bytes()).expect("parsea");
+    let (valida, errores) = validar_fila(&archivo.filas[0], archivo.dialecto.decimal);
+    assert!(valida.is_none());
+    let mensajes: Vec<(&str, &str)> =
+        errores.iter().map(|e| (e.columna.as_str(), e.mensaje.as_str())).collect();
+    assert_eq!(
+        mensajes,
+        vec![
+            ("nombre", "El nombre es obligatorio."),
+            ("sku", "El SKU es obligatorio."),
+            ("costo", "El costo es obligatorio."),
+            ("precio_venta", "El precio de venta es obligatorio."),
+        ]
+    );
+}
+
+#[test]
 fn repetidos_nombran_la_primera_fila() {
     let filas = vec![(3, "YER-1K".to_string()), (5, "ARE-1".to_string()), (8, "YER-1K".to_string())];
     let r = repetidos(&filas, "sku", "El SKU");
