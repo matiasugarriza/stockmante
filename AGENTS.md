@@ -24,6 +24,16 @@ Desarrollar un sistema de gestión y control de inventario robusto, modular y se
 2. **Fase de Verificación de Esquema:** Utiliza el servidor MCP de PostgreSQL (o `sqlx-cli` como fallback) para contrastar la Spec contra el esquema real de la BD antes de generar código.
 3. **Fase de Memoria con Engram:** Antes y después de cada sesión de desarrollo, consulta/actualiza la memoria con Engram para registrar decisiones de arquitectura.
 
+### Invocación en DSH (DeepSeek Harness)
+
+Las fases están instaladas como skills nativas en `.dsh/skills` y se invocan con **guion**:
+`/speckit-specify`, `/speckit-clarify`, `/speckit-plan`, `/speckit-tasks`, `/speckit-implement`,
+`/speckit-analyze`, `/speckit-checklist`, `/speckit-converge`, `/speckit-constitution`.
+Los nombres con punto (`/speckit.specify`) son la forma de OpenCode; en DSH usan guion.
+Los scripts `.specify/scripts/powershell/*.ps1` se ejecutan con
+`powershell -NoProfile -ExecutionPolicy Bypass -File <script>` porque la política de ejecución de
+esta máquina bloquea los `.ps1` sin firma.
+
 ---
 
 ## ✅ Quality Gates (por tarea)

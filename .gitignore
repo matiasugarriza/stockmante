@@ -21,3 +21,6 @@ Thumbs.db
 
 # AI tooling caches (skill registry is generated locally)
 .atl/
+
+# Spec Kit integration catalog cache (machine-local)
+.specify/integrations/.cache/
