@@ -49,6 +49,31 @@ const detalle = {
 	]
 };
 
+const resultado = {
+	...detalle,
+	compra: { ...compra, estado: 'CONFIRMADA' as const },
+	movimiento: {
+		id: 98,
+		tipo: 'ENTRADA',
+		deposito: { id: 1, nombre: 'Depósito central' },
+		motivo: 'COMPRA',
+		observacion: 'Compra #12',
+		usuario: { id: 2, nombre: 'Gerente' },
+		creado_en: '2026-11-07T14:00:00Z',
+		lineas: [
+			{
+				producto_id: 9,
+				producto_nombre: 'Yerba',
+				sku: 'YER-001',
+				ubicacion_id: null,
+				ubicacion_nombre: null,
+				cantidad_delta: 3,
+				stock_resultante: 24
+			}
+		]
+	}
+};
+
 describe('cliente de compras', () => {
 	afterEach(() => {
 		vi.unstubAllGlobals();
@@ -121,16 +146,22 @@ describe('cliente de compras', () => {
 	it.each([
 		['confirmarCompra', confirmarCompra, '/api/compras/12/confirmar'],
 		['anularCompra', anularCompra, '/api/compras/12/anular']
-	])('%s hace POST y parsea el detalle', async (_nombre, accion, path) => {
-		const fetchMock = vi.fn(async () => jsonResponse(detalle));
+	])('%s hace POST y parsea el resultado con el movimiento', async (_nombre, accion, path) => {
+		const fetchMock = vi.fn(async () => jsonResponse(resultado));
 		vi.stubGlobal('fetch', fetchMock);
 
-		const resultado = await accion(12);
+		const r = await accion(12);
 
 		const [url, init] = fetchMock.mock.calls[0] as unknown as [string, RequestInit];
 		expect(url).toContain(path);
 		expect(init.method).toBe('POST');
-		expect(resultado.compra.id).toBe(12);
+		expect(r.compra.id).toBe(12);
+		expect(r.movimiento.lineas[0].stock_resultante).toBe(24);
+	});
+
+	it('rechaza una respuesta de confirmar sin movimiento (contrato de fase 6)', async () => {
+		vi.stubGlobal('fetch', vi.fn(async () => jsonResponse(detalle)));
+		await expect(confirmarCompra(12)).rejects.toThrow();
 	});
 
 	it('eliminarCompra resuelve con 204', async () => {

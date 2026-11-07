@@ -77,31 +77,31 @@ eran solo listados y los handlers no exigían GESTION.
 
 ### Fundacional (bloquea el resto de la fase)
 
-- [ ] T024 [US12] Verificar el esquema contra la BD en ejecución (MCP de PostgreSQL o `sqlx-cli`): `proveedores`, `compras`, `compra_lineas`, `movimientos.compra_id`, `stock_por_deposito`, `productos.costo NUMERIC(12,2)`; registrar el resultado y cualquier diferencia en `specs/012-proveedores-compras/data-model.md` (C2)
-- [ ] T025 [US12] Proponer el waiver W-003 (Principio IV, alcance T006/T020/T023 de 012, sin reconstruir el RED) con `/speckit constitution`, y crear `specs/012-proveedores-compras/progress.md` para registrar el RED de la fase 6 (C1, R7)
+- [X] T024 [US12] Verificar el esquema contra la BD en ejecución (MCP de PostgreSQL o `sqlx-cli`): `proveedores`, `compras`, `compra_lineas`, `movimientos.compra_id`, `stock_por_deposito`, `productos.costo NUMERIC(12,2)`; registrar el resultado y cualquier diferencia en `specs/012-proveedores-compras/data-model.md` (C2)
+- [X] T025 [US12] Proponer el waiver W-003 (Principio IV, alcance T006/T020/T023 de 012, sin reconstruir el RED) con `/speckit constitution`, y crear `specs/012-proveedores-compras/progress.md` para registrar el RED de la fase 6 (C1, R7)
 
 ### Integridad de la anulación (C3, SC-021)
 
-- [ ] T026 [US12] RED: test concurrente en el archivo nuevo `backend/tests/integration/test_compras_concurrencia.rs` (registrar `[[test]]` en `backend/Cargo.toml`): una compra confirmada de 10 unidades, con una anulación y una `SALIDA` de 007 por 5 unidades en paralelo → una 200 y otra 409 `stock_insuficiente`, ningún 500, saldo ≥ 0
-- [ ] T027 [US12] GREEN: en `backend/src/services/compras.rs::anular`, bloquear `depositos` y `productos ORDER BY id FOR UPDATE` antes de leer stock, y descontar con `UPDATE ... SET cantidad = cantidad - $n WHERE ... AND cantidad >= $n RETURNING cantidad`; sin fila → `StockInsuficiente` con el saldo bloqueado (R1; depende de T026)
+- [X] T026 [US12] RED: test concurrente en el archivo nuevo `backend/tests/integration/test_compras_concurrencia.rs` (registrar `[[test]]` en `backend/Cargo.toml`): una compra confirmada de 10 unidades, con una anulación y una `SALIDA` de 007 por 5 unidades en paralelo → una 200 y otra 409 `stock_insuficiente`, ningún 500, saldo ≥ 0
+- [X] T027 [US12] GREEN: en `backend/src/services/compras.rs::anular`, bloquear `depositos` y `productos ORDER BY id FOR UPDATE` antes de leer stock, y descontar con `UPDATE ... SET cantidad = cantidad - $n WHERE ... AND cantidad >= $n RETURNING cantidad`; sin fila → `StockInsuficiente` con el saldo bloqueado (R1; depende de T026)
 
 ### Errores y validaciones (U1, U4, U5, R5)
 
-- [ ] T028 [P] [US12] RED: tests unitarios en el archivo nuevo `backend/tests/unit/test_compras_validacion.rs` (registrar `[[test]]`): `validar_numero` (> 40 caracteres), `validar_costo` (> 9.999.999.999,99), `validar_estado` (`PAGADA`) y `parsear_fecha` (`07-11-2026`) devuelven `Validacion`; más tests HTTP en `backend/tests/integration/test_compras_http.rs` para 12.2b (409 `proveedor_inactivo` al crear, editar y confirmar), 12.5b (409 `compra_no_anulable` en borrador y en anulada) y 12.8 (422 en filtros)
-- [ ] T029 [US12] GREEN: agregar `AppError::CompraNoAnulable(String)` y `AppError::ProveedorInactivo(String)` (409, códigos `compra_no_anulable` y `proveedor_inactivo`) en `backend/src/error.rs`; usarlos en `backend/src/services/compras.rs` (`validar_destinos`, `confirmar`, `anular`) con los mensajes de `contracts/api.md` (R3; depende de T028)
-- [ ] T030 [US12] GREEN: agregar `validar_numero`, `validar_costo` y `validar_estado` en `backend/src/models/proveedor.rs`, aplicarlos en `crear`/`actualizar` de `backend/src/services/compras.rs`, y convertir `parsear_fecha` de `backend/src/handlers/compras.rs` en `Result` con mensaje que nombra el parámetro (R4, R5; depende de T028)
+- [X] T028 [P] [US12] RED: tests unitarios en el archivo nuevo `backend/tests/unit/test_compras_validacion.rs` (registrar `[[test]]`): `validar_numero` (> 40 caracteres), `validar_costo` (> 9.999.999.999,99), `validar_estado` (`PAGADA`) y `parsear_fecha` (`07-11-2026`) devuelven `Validacion`; más tests HTTP en `backend/tests/integration/test_compras_http.rs` para 12.2b (409 `proveedor_inactivo` al crear, editar y confirmar), 12.5b (409 `compra_no_anulable` en borrador y en anulada) y 12.8 (422 en filtros)
+- [X] T029 [US12] GREEN: agregar `AppError::CompraNoAnulable(String)` y `AppError::ProveedorInactivo(String)` (409, códigos `compra_no_anulable` y `proveedor_inactivo`) en `backend/src/error.rs`; usarlos en `backend/src/services/compras.rs` (`validar_destinos`, `confirmar`, `anular`) con los mensajes de `contracts/api.md` (R3; depende de T028)
+- [X] T030 [US12] GREEN: agregar `validar_numero`, `validar_costo` y `validar_estado` en `backend/src/models/proveedor.rs`, aplicarlos en `crear`/`actualizar` de `backend/src/services/compras.rs`, y convertir `parsear_fecha` de `backend/src/handlers/compras.rs` en `Result` con mensaje que nombra el parámetro (R4, R5; depende de T028)
 
 ### Resultado concreto al confirmar y anular (C4, Principio III)
 
-- [ ] T031 [US12] RED: en `backend/tests/integration/test_compras_http.rs`, confirmar y anular devuelven `movimiento` con `tipo`, `motivo`, `deposito` y `lineas[].stock_resultante` correctos; SC-020: exactamente una `ENTRADA` con `compra_id` tras confirmar
-- [ ] T032 [US12] GREEN: agregar `ResultadoCompra { compra, lineas, movimiento: MovimientoDetalle }` en `backend/src/models/proveedor.rs`; `confirmar` y `anular` de `backend/src/services/compras.rs` lo devuelven usando `services::movimientos::obtener` después del commit; actualizar `responses(...)` en `backend/src/handlers/compras.rs` y el schema en `backend/src/docs.rs` + `backend/tests/unit/test_openapi.rs` (R2; depende de T031 y T027)
-- [ ] T033 [P] [US12] RED → GREEN frontend: `ResultadoCompraSchema` en `frontend/src/lib/schemas/compras.ts` (reusa el schema de movimiento de `frontend/src/lib/schemas/movimientos.ts`) y `confirmar`/`anular` en `frontend/src/lib/api/compras.ts` tipados con él, con sus tests en `compras.test.ts`; una función pura que arma el aviso («Compra #7 confirmada en Depósito Central: Cemento 50 kg → 24 u.») con su test (depende de T032)
-- [ ] T034 [US12] UI: `frontend/src/routes/admin/compras/+page.svelte` muestra el aviso de T033 al confirmar y al anular; `CompraForm.svelte` rotula `numero` como «Nº factura/remito del proveedor» (máx. 40) y `CompraTabla.svelte` muestra «Compra #id»; mostrar los mensajes de `compra_no_anulable` y `proveedor_inactivo` tal como llegan (clarificación 1; depende de T033)
+- [X] T031 [US12] RED: en `backend/tests/integration/test_compras_http.rs`, confirmar y anular devuelven `movimiento` con `tipo`, `motivo`, `deposito` y `lineas[].stock_resultante` correctos; SC-020: exactamente una `ENTRADA` con `compra_id` tras confirmar
+- [X] T032 [US12] GREEN: agregar `ResultadoCompra { compra, lineas, movimiento: MovimientoDetalle }` en `backend/src/models/proveedor.rs`; `confirmar` y `anular` de `backend/src/services/compras.rs` lo devuelven usando `services::movimientos::obtener` después del commit; actualizar `responses(...)` en `backend/src/handlers/compras.rs` y el schema en `backend/src/docs.rs` + `backend/tests/unit/test_openapi.rs` (R2; depende de T031 y T027)
+- [X] T033 [P] [US12] RED → GREEN frontend: `ResultadoCompraSchema` en `frontend/src/lib/schemas/compras.ts` (reusa el schema de movimiento de `frontend/src/lib/schemas/movimientos.ts`) y `confirmar`/`anular` en `frontend/src/lib/api/compras.ts` tipados con él, con sus tests en `compras.test.ts`; una función pura que arma el aviso («Compra #7 confirmada en Depósito Central: Cemento 50 kg → 24 u.») con su test (depende de T032)
+- [X] T034 [US12] UI: `frontend/src/routes/admin/compras/+page.svelte` muestra el aviso de T033 al confirmar y al anular; `CompraForm.svelte` rotula `numero` como «Nº factura/remito del proveedor» (máx. 40) y `CompraTabla.svelte` muestra «Compra #id»; mostrar los mensajes de `compra_no_anulable` y `proveedor_inactivo` tal como llegan (clarificación 1; depende de T033)
 
 ### Polish
 
-- [ ] T035 [P] Actualizar `docs/api.md` (sección 012): códigos `compra_no_anulable` y `proveedor_inactivo`, 422 de filtros y límites, forma de `ResultadoCompra`
-- [ ] T036 Gates: `cargo test`, `cargo sqlx prepare --check`, `npm test`, `npm run check`, `npm run build`; recorrer `quickstart.md`; registrar los resultados en `progress.md`
+- [X] T035 [P] Actualizar `docs/api.md` (sección 012): códigos `compra_no_anulable` y `proveedor_inactivo`, 422 de filtros y límites, forma de `ResultadoCompra`
+- [X] T036 Gates: `cargo test`, `cargo sqlx prepare --check`, `npm test`, `npm run check`, `npm run build`; recorrer `quickstart.md`; registrar los resultados en `progress.md`
 
 ---
 

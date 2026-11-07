@@ -70,14 +70,6 @@ pub struct ListarComprasQuery {
     pub por_pagina: Option<i64>,
 }
 
-fn parsear_fecha(v: Option<&str>) -> Option<DateTime<Utc>> {
-    let t = v.map(str::trim).filter(|s| !s.is_empty())?;
-    if let Ok(d) = DateTime::parse_from_rfc3339(t) { return Some(d.with_timezone(&Utc)); }
-    if let Ok(d) = chrono::NaiveDate::parse_from_str(t, "%Y-%m-%d") {
-        return d.and_hms_opt(0,0,0).map(|x| x.and_utc());
-    }
-    None
-}
 
 #[utoipa::path(get, path = "/api/compras", tag = "compras", summary = "Listar compras",
     params(ListarComprasQuery),
@@ -87,9 +79,9 @@ pub async fn listar_compras(
 ) -> Result<Json<ListaCompras>, AppError> {
     let f = FiltrosCompras {
         proveedor_id: q.proveedor_id,
-        estado: q.estado,
-        desde: parsear_fecha(q.desde.as_deref()),
-        hasta: parsear_fecha(q.hasta.as_deref()),
+        estado: crate::models::proveedor::validar_estado(q.estado.as_deref())?,
+        desde: crate::models::proveedor::parsear_fecha("desde", q.desde.as_deref())?,
+        hasta: crate::models::proveedor::parsear_fecha("hasta", q.hasta.as_deref())?,
         pagina: q.pagina,
         por_pagina: q.por_pagina,
     };
@@ -126,19 +118,30 @@ pub async fn eliminar_compra(
 }
 
 #[utoipa::path(post, path = "/api/compras/{id}/confirmar", tag = "compras", summary = "Confirmar recepción",
+    description = "Devuelve la compra y el movimiento `ENTRADA` (motivo `COMPRA`) con el stock resultante.",
     params(("id" = i32, Path)),
-    responses((status = 200, body = CompraDetalle)))]
+    responses(
+        (status = 200, description = "Compra confirmada y movimiento generado", body = crate::models::proveedor::ResultadoCompra),
+        (status = 404, description = "Compra inexistente", body = crate::docs::ErrorRespuesta),
+        (status = 409, description = "`compra_ya_confirmada`, `compra_no_editable`, `proveedor_inactivo` o `producto_inactivo`", body = crate::docs::ErrorRespuesta),
+        (status = 422, description = "Depósito inactivo", body = crate::docs::ErrorRespuesta)
+    ))]
 pub async fn confirmar_compra(
     State(e): State<AppEstado>, RequiereGestion(usuario): RequiereGestion, PathValido(id): PathValido<i32>,
-) -> Result<Json<CompraDetalle>, AppError> {
+) -> Result<Json<crate::models::proveedor::ResultadoCompra>, AppError> {
     Ok(Json(compras::confirmar(&e.pool, id, &usuario).await?))
 }
 
 #[utoipa::path(post, path = "/api/compras/{id}/anular", tag = "compras", summary = "Anular compra confirmada",
+    description = "Revierte el stock con una `SALIDA` (motivo `DEVOLUCION`) y la devuelve junto con la compra.",
     params(("id" = i32, Path)),
-    responses((status = 200, body = CompraDetalle)))]
+    responses(
+        (status = 200, description = "Compra anulada y movimiento generado", body = crate::models::proveedor::ResultadoCompra),
+        (status = 404, description = "Compra inexistente", body = crate::docs::ErrorRespuesta),
+        (status = 409, description = "`stock_insuficiente` o `compra_no_anulable`", body = crate::docs::ErrorRespuesta)
+    ))]
 pub async fn anular_compra(
     State(e): State<AppEstado>, RequiereGestion(usuario): RequiereGestion, PathValido(id): PathValido<i32>,
-) -> Result<Json<CompraDetalle>, AppError> {
+) -> Result<Json<crate::models::proveedor::ResultadoCompra>, AppError> {
     Ok(Json(compras::anular(&e.pool, id, &usuario).await?))
 }

@@ -1,24 +1,19 @@
 <!-- Sync Impact Report
-- Version change: 1.3.2 → 1.3.3 (PATCH)
-  - PATCH: se registra el waiver W-006 (verificación de esquema retroactiva en T000 y RED no
-    registrado en T003/T006/T009 de 004). No se agrega, elimina ni redefine ningún principio; el
-    núcleo normativo I–V se conserva íntegro.
+- Version change: 1.3.3 → 1.3.4 (PATCH)
+  - PATCH: se registran los waivers reservados W-003 (012) y W-004 (008). No se agrega, elimina
+    ni redefine ningún principio; el núcleo normativo I–V se conserva íntegro.
 - Modified principles: ninguno
 - Added sections: ninguno
 - Removed sections: ninguno
 - Other changes:
-  - Se agrega W-006 a «Waivers registrados», con alcance acotado a T000, T003, T006 y T009 de
-    `specs/004-busqueda-caja/tasks.md`.
-  - Se conservan W-001, W-002 y W-005 sin cambios.
-  - Numeración: W-003 (012) y W-004 (008) siguen reservados por sus specs; por eso el waiver de
-    004 es W-006.
-- Templates: `plan-template.md`, `spec-template.md`, `tasks-template.md` sin cambios necesarios
-  (el waiver no altera ningún principio ni gate).
+  - W-003: RED no observado en T006/T020/T023 de 012 (tests escritos junto con el código).
+  - W-004: tests de 008 que pasaron en su primera corrida (T006, T031, T032 y los casos de falla
+    de T007) porque verifican comportamiento ya implementado.
+  - Se conservan W-001, W-002, W-005 y W-006 sin cambios.
+- Templates: `plan-template.md`, `spec-template.md`, `tasks-template.md` sin cambios necesarios.
 - Follow-up TODOs:
-  - Crear `specs/007-movimientos-stock/progress.md` con la evidencia que exige W-005 (T020 de 007).
-  - Condición de cierre de W-005 pendiente de verificación (T030 de 007).
-  - Condición de cierre de W-006 pendiente de verificación (T026 de 004); `progress.md` de 004
-    debe registrar el waiver.
+  - Condición de cierre de W-003 y W-004: suite de backend en verde y `cargo sqlx prepare --check`
+    sin diferencias en los gates de 012 (T036) y 008 (T036).
 -->
 
 # Stockmante Constitution
@@ -122,8 +117,12 @@ Un waiver es una excepción histórica y acotada, aprobada y registrada. NO modi
 
 - **W-002 — P-IV: RED no observado en T010/T015/T016 de 003 (aprobado 2026-11-06)**: los tests unitarios de normalización/validación (`test_categoria_normalizacion`, `test_sku`, `test_producto_validacion`) se escribieron después de T006 y quedaron verdes en su primera corrida; `progress.md` lo registra. El RED sí se observó en los tests HTTP de T011/T017/T018. Alcance: solo esas tres tareas de `specs/003-catalogo-productos/tasks.md`. No se reconstruye un RED artificial. Condición de cierre: suite de backend en verde y `cargo sqlx prepare --check` sin diferencias, verificado el 2026-11-06.
 
+- **W-003 — P-IV: RED no observado en T006/T020/T023 de 012 (aprobado 2026-11-07)**: los tests de proveedores y compras de esas tareas se escribieron junto con el servicio y el handler, sin registrar el fallo previo. Alcance: solo T006, T020 y T023 de `specs/012-proveedores-compras/tasks.md`; desde la fase 6 (T024 en adelante) el RED es obligatorio. No se reconstruye un RED artificial; `specs/012-proveedores-compras/progress.md` DEBE registrarlo. Condición de cierre: suite de backend en verde y `cargo sqlx prepare --check` sin diferencias en T036 de 012.
+
+- **W-004 — P-IV: tests de 008 verdes en su primera corrida (aprobado 2026-11-07)**: T006 (`test_transferencia_validacion`), los casos de falla de T007 y T031 (`fallas_no_escriben_nada`) y T032 (OpenAPI de transferencias) verifican reglas que ya estaban implementadas y pasaron en verde la primera vez. El RED sí se observó en el resto de `test_transferencias_http` (500 por columnas inexistentes y alias reservado, 404 sin siguiente paso, desborde sin control). Alcance: solo esas tareas de `specs/008-transferencias-depositos/tasks.md`. No se reconstruye un RED artificial; `specs/008-transferencias-depositos/progress.md` lo registra. Condición de cierre: suite de backend en verde y `cargo sqlx prepare --check` sin diferencias en T036 de 008.
+
 - **W-005 — P-IV: RED no observado en T011/T012, T025 y T033 de 007 (aprobado 2026-11-07)**: los tests históricos de movimientos (`test_movimiento_validacion` en T011 y `test_movimientos_http` en T012) se escribieron junto con el servicio y no dejaron evidencia del fallo previo. T025 (concurrencia: dos altas simultáneas del mismo producto en ubicaciones distintas) y T033 (filtro `categoria_id` de `GET /api/stock`) verifican comportamiento ya implementado, así que pueden pasar en verde en su primera corrida. Alcance: solo esas cuatro tareas de `specs/007-movimientos-stock/tasks.md`; el resto de la ampliación (T021–T024, T031, T032) DEBE observar RED antes de T026. No se reconstruye un RED artificial; `specs/007-movimientos-stock/progress.md` DEBE registrar el estado de cada una. Condición de cierre: suite de backend en verde y `cargo sqlx prepare --check` sin diferencias en T030 (pendiente de verificación).
 
 - **W-006 — P-V y P-IV: verificación de esquema retroactiva y RED no registrado en 004 (aprobado 2026-11-07)**: la verificación del esquema real de `productos` y `categorias` (T000) se registró el 2026-11-07, después de la implementación del 2026-10-26, y confirmó que el esquema coincide con `data-model.md`. Los tests de T003 (`test_busqueda`), T006 (`test_busqueda_http`) y T009 (schema y cliente de `buscarProductos`) existen y están verdes, pero `progress.md` no registró su fallo previo. Alcance: solo T000, T003, T006 y T009 de `specs/004-busqueda-caja/tasks.md`; la ampliación de 004 (T018 en adelante) DEBE observar RED y la verificación de esquema de T021 DEBE preceder a T022. No se reconstruye evidencia artificial; `specs/004-busqueda-caja/progress.md` DEBE registrar el waiver. Condición de cierre: suite de backend en verde y `cargo sqlx prepare --check` sin diferencias en T026 (pendiente de verificación).
 
-**Version**: 1.3.3 | **Ratified**: 2026-10-11 | **Last Amended**: 2026-11-07
+**Version**: 1.3.4 | **Ratified**: 2026-10-11 | **Last Amended**: 2026-11-07

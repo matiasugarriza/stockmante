@@ -327,9 +327,15 @@ async fn escenario_12_1_duplicado_exacto_y_baja_logica_impide_compra() {
         "proveedor_id": proveedor_id, "deposito_id": deposito_id,
         "lineas": [{ "producto_id": producto_id, "cantidad": 1, "costo_unitario": 1.0 }]
     }))).await;
-    assert_eq!(status, StatusCode::UNPROCESSABLE_ENTITY);
-    assert_eq!(error["error"]["codigo"], "validacion");
-    assert_eq!(error["error"]["mensaje"], "El proveedor está inactivo.");
+    // Fase 6 (clarificación 3): 409 `proveedor_inactivo` con el nombre y el siguiente paso.
+    assert_eq!(status, StatusCode::CONFLICT, "{error}");
+    assert_eq!(error["error"]["codigo"], "proveedor_inactivo");
+    assert!(
+        error["error"]["mensaje"]
+            .as_str()
+            .is_some_and(|m| m.ends_with("está dado de baja; reactivalo o elegí otro proveedor.")),
+        "{error}"
+    );
 }
 
 #[tokio::test]
@@ -420,4 +426,170 @@ async fn validaciones_de_edicion_no_devuelven_500() {
     }))).await;
     assert_eq!(status, StatusCode::CONFLICT, "{error}");
     assert_eq!(error["error"]["codigo"], "cuit_duplicado");
+}
+// --- Fase 6 (T028, T031): códigos nuevos, filtros y resultado concreto. ---
+
+async fn compra_borrador(
+    app: &Router,
+    cookie: &str,
+    proveedor_id: i32,
+    deposito_id: i32,
+    producto_id: i32,
+) -> i64 {
+    let (status, body) = pedir(app, cookie, "POST", "/api/compras", Some(json!({
+        "proveedor_id": proveedor_id, "deposito_id": deposito_id,
+        "lineas": [{ "producto_id": producto_id, "cantidad": 10, "costo_unitario": 1500.0 }]
+    }))).await;
+    assert_eq!(status, StatusCode::CREATED, "{body}");
+    body["compra"]["id"].as_i64().expect("id de compra")
+}
+
+/// 12.2b: proveedor dado de baja → 409 al crear, editar y confirmar.
+#[tokio::test]
+async fn escenario_12_2b_proveedor_inactivo_es_409() {
+    let (app, pool, _) = app_de_test().await;
+    let cookie = sesion_gestion(&pool).await;
+    let categoria_id = crear_categoria(&app, &cookie).await;
+    let producto_id = crear_producto(&app, &cookie, categoria_id).await;
+    let deposito_id = crear_deposito(&app, &cookie).await;
+    let proveedor_id = crear_proveedor(&app, &cookie).await;
+    let id = compra_borrador(&app, &cookie, proveedor_id, deposito_id, producto_id).await;
+    let (status, _) = pedir(
+        &app,
+        &cookie,
+        "POST",
+        &format!("/api/proveedores/{proveedor_id}/desactivar"),
+        None,
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK);
+
+    let cuerpo = json!({
+        "proveedor_id": proveedor_id, "deposito_id": deposito_id,
+        "lineas": [{ "producto_id": producto_id, "cantidad": 1, "costo_unitario": 1.0 }]
+    });
+    let casos: Vec<(&str, String, Option<Value>)> = vec![
+        ("POST", "/api/compras".to_string(), Some(cuerpo.clone())),
+        ("PUT", format!("/api/compras/{id}"), Some(cuerpo.clone())),
+        ("POST", format!("/api/compras/{id}/confirmar"), None),
+    ];
+    for (metodo, uri, body) in casos {
+        let (status, error) = pedir(&app, &cookie, metodo, &uri, body).await;
+        assert_eq!(status, StatusCode::CONFLICT, "{metodo} {uri}: {error}");
+        assert_eq!(error["error"]["codigo"], "proveedor_inactivo", "{metodo} {uri}");
+    }
+    assert_eq!(stock_en_deposito(&pool, producto_id, deposito_id).await, 0);
+}
+
+/// 12.5b: anular un borrador o una anulada → 409 `compra_no_anulable`.
+#[tokio::test]
+async fn escenario_12_5b_compra_no_anulable() {
+    let (app, pool, _) = app_de_test().await;
+    let cookie = sesion_gestion(&pool).await;
+    let categoria_id = crear_categoria(&app, &cookie).await;
+    let producto_id = crear_producto(&app, &cookie, categoria_id).await;
+    let deposito_id = crear_deposito(&app, &cookie).await;
+    let proveedor_id = crear_proveedor(&app, &cookie).await;
+    let id = compra_borrador(&app, &cookie, proveedor_id, deposito_id, producto_id).await;
+    let anular = format!("/api/compras/{id}/anular");
+
+    let (status, error) = pedir(&app, &cookie, "POST", &anular, None).await;
+    assert_eq!(status, StatusCode::CONFLICT, "{error}");
+    assert_eq!(error["error"]["codigo"], "compra_no_anulable");
+    assert_eq!(
+        error["error"]["mensaje"],
+        "La compra está en borrador; no hay stock que revertir. Si no la vas a usar, eliminala."
+    );
+
+    let (status, _) =
+        pedir(&app, &cookie, "POST", &format!("/api/compras/{id}/confirmar"), None).await;
+    assert_eq!(status, StatusCode::OK);
+    let (status, _) = pedir(&app, &cookie, "POST", &anular, None).await;
+    assert_eq!(status, StatusCode::OK);
+    let (status, error) = pedir(&app, &cookie, "POST", &anular, None).await;
+    assert_eq!(status, StatusCode::CONFLICT, "{error}");
+    assert_eq!(error["error"]["codigo"], "compra_no_anulable");
+    assert_eq!(
+        error["error"]["mensaje"],
+        "La compra ya fue anulada; no se puede anular dos veces."
+    );
+}
+
+/// 12.8: filtros inválidos y límites → 422 que nombra el campo.
+#[tokio::test]
+async fn escenario_12_8_filtros_y_limites_responden_422() {
+    let (app, pool, _) = app_de_test().await;
+    let cookie = sesion_gestion(&pool).await;
+    for (uri, mensaje) in [
+        ("/api/compras?estado=PAGADA", "El estado debe ser BORRADOR, CONFIRMADA o ANULADA."),
+        ("/api/compras?desde=07-11-2026", "El parámetro 'desde' debe tener formato AAAA-MM-DD."),
+        ("/api/compras?hasta=ayer", "El parámetro 'hasta' debe tener formato AAAA-MM-DD."),
+    ] {
+        let (status, body) = pedir(&app, &cookie, "GET", uri, None).await;
+        assert_eq!(status, StatusCode::UNPROCESSABLE_ENTITY, "{uri}: {body}");
+        assert_eq!(body["error"]["mensaje"], mensaje, "{uri}");
+    }
+
+    let categoria_id = crear_categoria(&app, &cookie).await;
+    let producto_id = crear_producto(&app, &cookie, categoria_id).await;
+    let deposito_id = crear_deposito(&app, &cookie).await;
+    let proveedor_id = crear_proveedor(&app, &cookie).await;
+    let largo = "x".repeat(41);
+    let casos = [
+        (
+            json!({ "proveedor_id": proveedor_id, "deposito_id": deposito_id, "numero": largo,
+                    "lineas": [{ "producto_id": producto_id, "cantidad": 1, "costo_unitario": 1.0 }] }),
+            "El número de factura o remito no puede superar los 40 caracteres.",
+        ),
+        (
+            json!({ "proveedor_id": proveedor_id, "deposito_id": deposito_id,
+                    "lineas": [{ "producto_id": producto_id, "cantidad": 1, "costo_unitario": 10000000000.0 }] }),
+            "El costo unitario no puede superar 9.999.999.999,99.",
+        ),
+    ];
+    for (cuerpo, mensaje) in casos {
+        let (status, body) = pedir(&app, &cookie, "POST", "/api/compras", Some(cuerpo)).await;
+        assert_eq!(status, StatusCode::UNPROCESSABLE_ENTITY, "{body}");
+        assert_eq!(body["error"]["mensaje"], mensaje);
+    }
+}
+
+/// T031 (Principio III, SC-020): confirmar y anular devuelven el movimiento generado.
+#[tokio::test]
+async fn confirmar_y_anular_devuelven_el_movimiento() {
+    let (app, pool, _) = app_de_test().await;
+    let cookie = sesion_gestion(&pool).await;
+    let categoria_id = crear_categoria(&app, &cookie).await;
+    let producto_id = crear_producto(&app, &cookie, categoria_id).await;
+    let deposito_id = crear_deposito(&app, &cookie).await;
+    let proveedor_id = crear_proveedor(&app, &cookie).await;
+    let id = compra_borrador(&app, &cookie, proveedor_id, deposito_id, producto_id).await;
+
+    let (status, r) =
+        pedir(&app, &cookie, "POST", &format!("/api/compras/{id}/confirmar"), None).await;
+    assert_eq!(status, StatusCode::OK, "{r}");
+    assert_eq!(r["compra"]["estado"], "CONFIRMADA");
+    assert_eq!(r["lineas"].as_array().map(Vec::len), Some(1));
+    assert_eq!(r["movimiento"]["tipo"], "ENTRADA");
+    assert_eq!(r["movimiento"]["motivo"], "COMPRA");
+    assert_eq!(r["movimiento"]["deposito"]["id"], deposito_id);
+    assert_eq!(r["movimiento"]["lineas"][0]["cantidad_delta"], 10);
+    assert_eq!(r["movimiento"]["lineas"][0]["stock_resultante"], 10);
+    let entradas: i64 = sqlx::query_scalar(
+        "SELECT count(*) FROM movimientos WHERE compra_id = $1 AND tipo = 'ENTRADA'",
+    )
+    .bind(id as i32)
+    .fetch_one(&pool)
+    .await
+    .expect("entradas");
+    assert_eq!(entradas, 1, "SC-020: exactamente una ENTRADA por compra");
+
+    let (status, r) =
+        pedir(&app, &cookie, "POST", &format!("/api/compras/{id}/anular"), None).await;
+    assert_eq!(status, StatusCode::OK, "{r}");
+    assert_eq!(r["compra"]["estado"], "ANULADA");
+    assert_eq!(r["movimiento"]["tipo"], "SALIDA");
+    assert_eq!(r["movimiento"]["motivo"], "DEVOLUCION");
+    assert_eq!(r["movimiento"]["lineas"][0]["cantidad_delta"], -10);
+    assert_eq!(r["movimiento"]["lineas"][0]["stock_resultante"], 0);
 }

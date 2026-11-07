@@ -86,3 +86,12 @@ auditan `movimientos/CREAR` y `compras/CONFIRMAR|ANULAR`.
 - **Nuevo** `ResultadoCompra { compra: Compra, lineas: CompraLinea[], movimiento: MovimientoDetalle }`:
   `POST /{id}/confirmar` y `POST /{id}/anular`. `MovimientoDetalle` es el de
   `backend/src/models/stock.rs` (007), sin cambios (R2).
+
+## Verificación de esquema (T024, 2026-11-07)
+
+Se aplicaron todas las migraciones a una base temporal y se comparó el esquema completo (columnas,
+tipos, nulabilidad, defaults, constraints e índices) con `stockmante` y `stockmante_test`:
+**idéntico**, incluidos `proveedores`, `compras`, `compra_lineas`, `movimientos.compra_id`,
+`stock_por_deposito` y `productos.costo NUMERIC(12,2)`. `0013_proveedores_compras.sql` estaba
+aplicada a mano (sin fila en `_sqlx_migrations`); se registró con su checksum real (ver
+`specs/011-alertas-stock-minimo/progress.md`). Sin diferencias con este data-model.

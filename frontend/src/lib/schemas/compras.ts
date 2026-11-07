@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { MovimientoDetalleSchema } from './movimientos';
 
 export const EstadoCompraSchema = z.enum(['BORRADOR', 'CONFIRMADA', 'ANULADA']);
 export type EstadoCompra = z.infer<typeof EstadoCompraSchema>;
@@ -39,6 +40,12 @@ export const CompraDetalleSchema = z.object({
 	lineas: z.array(CompraLineaSchema)
 });
 export type CompraDetalle = z.infer<typeof CompraDetalleSchema>;
+
+/** Respuesta de confirmar y anular (012, fase 6): la compra y el movimiento generado. */
+export const ResultadoCompraSchema = CompraDetalleSchema.extend({
+	movimiento: MovimientoDetalleSchema
+});
+export type ResultadoCompra = z.infer<typeof ResultadoCompraSchema>;
 
 export const ListaComprasSchema = z.object({
 	items: z.array(CompraSchema),

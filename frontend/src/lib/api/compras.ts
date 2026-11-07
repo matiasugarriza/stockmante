@@ -8,11 +8,13 @@ import {
 	CompraDetalleSchema,
 	CrearCompraSchema,
 	ListaComprasSchema,
+	ResultadoCompraSchema,
 	type ActualizarCompraInput,
 	type CompraDetalle,
 	type CrearCompraInput,
 	type EstadoCompra,
-	type ListaCompras
+	type ListaCompras,
+	type ResultadoCompra
 } from '../schemas/compras';
 
 export interface ListarComprasParams {
@@ -82,12 +84,12 @@ export async function eliminarCompra(id: number): Promise<void> {
 	await api(`/api/compras/${id}`, { method: 'DELETE' });
 }
 
-export async function confirmarCompra(id: number): Promise<CompraDetalle> {
+export async function confirmarCompra(id: number): Promise<ResultadoCompra> {
 	const body = await api<unknown>(`/api/compras/${id}/confirmar`, { method: 'POST' });
-	return CompraDetalleSchema.parse(body);
+	return ResultadoCompraSchema.parse(body);
 }
 
-export async function anularCompra(id: number): Promise<CompraDetalle> {
+export async function anularCompra(id: number): Promise<ResultadoCompra> {
 	const body = await api<unknown>(`/api/compras/${id}/anular`, { method: 'POST' });
-	return CompraDetalleSchema.parse(body);
+	return ResultadoCompraSchema.parse(body);
 }
