@@ -8,6 +8,7 @@ use crate::models::movimiento::LineaNueva;
 use chrono::{DateTime, Utc};
 use rust_decimal::Decimal;
 use sqlx::PgPool;
+use std::collections::HashSet;
 
 pub struct NuevaCompraLinea {
     pub producto_id: i32,
@@ -32,26 +33,45 @@ pub struct FiltrosCompras {
     pub por_pagina: Option<i64>,
 }
 
-pub async fn crear(pool: &PgPool, nueva: NuevaCompra, usuario: &crate::models::usuario::Usuario) -> Result<CompraDetalle, AppError> {
-    // validar proveedor activo
+async fn validar_destinos(pool: &PgPool, proveedor_id: i32, deposito_id: i32) -> Result<(), AppError> {
     let prov_activo: bool = sqlx::query_scalar("SELECT activo FROM proveedores WHERE id=$1")
-        .bind(nueva.proveedor_id).fetch_optional(pool).await?
+        .bind(proveedor_id).fetch_optional(pool).await?
         .ok_or_else(|| AppError::RecursoNoEncontrado("El proveedor no existe.".into()))?;
     if !prov_activo { return Err(AppError::Validacion("El proveedor está inactivo.".into())); }
-    // deposito activo
+
     let dep_activo: bool = sqlx::query_scalar("SELECT activo FROM depositos WHERE id=$1")
-        .bind(nueva.deposito_id).fetch_optional(pool).await?
+        .bind(deposito_id).fetch_optional(pool).await?
         .ok_or_else(|| AppError::RecursoNoEncontrado("El depósito no existe.".into()))?;
     if !dep_activo { return Err(AppError::Validacion("El depósito está inactivo.".into())); }
-    if nueva.lineas.is_empty() { return Err(AppError::Validacion("La compra debe tener al menos una línea.".into())); }
-    for l in &nueva.lineas {
-        if l.cantidad <= 0 { return Err(AppError::Validacion("La cantidad debe ser mayor a cero.".into())); }
-        if l.costo_unitario < Decimal::ZERO { return Err(AppError::Validacion("El costo unitario no puede ser negativo.".into())); }
+    Ok(())
+}
+
+async fn validar_lineas(pool: &PgPool, lineas: &[NuevaCompraLinea]) -> Result<(), AppError> {
+    if lineas.is_empty() {
+        return Err(AppError::Validacion("La compra debe tener al menos una línea.".into()));
+    }
+    let mut productos: HashSet<i32> = HashSet::new();
+    for l in lineas {
+        if l.cantidad <= 0 {
+            return Err(AppError::Validacion("La cantidad debe ser mayor a cero.".into()));
+        }
+        if l.costo_unitario < Decimal::ZERO {
+            return Err(AppError::Validacion("El costo unitario no puede ser negativo.".into()));
+        }
+        if !productos.insert(l.producto_id) {
+            return Err(AppError::Validacion("No se puede repetir el mismo producto en dos líneas.".into()));
+        }
         let activo: bool = sqlx::query_scalar("SELECT activo FROM productos WHERE id=$1")
             .bind(l.producto_id).fetch_optional(pool).await?
             .ok_or_else(|| AppError::RecursoNoEncontrado("El producto no existe.".into()))?;
         if !activo { return Err(AppError::ProductoInactivo); }
     }
+    Ok(())
+}
+
+pub async fn crear(pool: &PgPool, nueva: NuevaCompra, usuario: &crate::models::usuario::Usuario) -> Result<CompraDetalle, AppError> {
+    validar_destinos(pool, nueva.proveedor_id, nueva.deposito_id).await?;
+    validar_lineas(pool, &nueva.lineas).await?;
 
     let mut tx = pool.begin().await?;
     let total: Decimal = nueva.lineas.iter().map(|l| l.costo_unitario * Decimal::from(l.cantidad)).sum();
@@ -147,11 +167,13 @@ pub async fn actualizar(pool: &PgPool, id: i32, nueva: NuevaCompra, usuario_id: 
         .bind(id).fetch_optional(pool).await?
         .ok_or_else(|| AppError::RecursoNoEncontrado("La compra no existe.".into()))?;
     if estado != "BORRADOR" { return Err(AppError::CompraNoEditable); }
+    validar_destinos(pool, nueva.proveedor_id, nueva.deposito_id).await?;
+    validar_lineas(pool, &nueva.lineas).await?;
+    let obs = pm::validar_observacion(nueva.observacion.as_deref())?;
     // reuse crear logic: delete lineas and reinsert
     let mut tx = pool.begin().await?;
     sqlx::query("DELETE FROM compra_lineas WHERE compra_id=$1").bind(id).execute(&mut *tx).await?;
     let total: Decimal = nueva.lineas.iter().map(|l| l.costo_unitario * Decimal::from(l.cantidad)).sum();
-    let obs = pm::validar_observacion(nueva.observacion.as_deref())?;
     sqlx::query(
         "UPDATE compras SET proveedor_id=$1, deposito_id=$2, numero=$3, observacion=$4, total_costo=$5, actualizado_en=now() WHERE id=$6",
     )

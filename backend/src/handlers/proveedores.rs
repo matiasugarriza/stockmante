@@ -1,7 +1,7 @@
 //! Handlers de proveedores y compras (012).
 
 use crate::app::AppEstado;
-use crate::auth::extractors::AuthUsuario;
+use crate::auth::extractors::RequiereGestion;
 use crate::docs::ErrorRespuesta;
 use crate::error::AppError;
 use crate::extractores::{JsonValido, PathValido, QueryValida};
@@ -34,7 +34,7 @@ pub struct ProveedorDto {
     responses((status = 201, body = Proveedor), (status = 409, body = ErrorRespuesta)))]
 pub async fn crear_proveedor(
     State(e): State<AppEstado>,
-    AuthUsuario(usuario): AuthUsuario,
+    RequiereGestion(usuario): RequiereGestion,
     JsonValido(dto): JsonValido<ProveedorDto>,
 ) -> Result<(StatusCode, Json<Proveedor>), AppError> {
     let nuevo = NuevoProveedor {
@@ -56,7 +56,7 @@ pub struct ListarProveedoresQuery {
     responses((status = 200, body = ListaProveedores)))]
 pub async fn listar_proveedores(
     State(e): State<AppEstado>,
-    _u: AuthUsuario,
+    _gestion: RequiereGestion,
     QueryValida(q): QueryValida<ListarProveedoresQuery>,
 ) -> Result<Json<ListaProveedores>, AppError> {
     let activo = crate::handlers::parsear_activo(q.activo.as_deref(), None)?;
@@ -69,7 +69,7 @@ pub async fn listar_proveedores(
     responses((status = 200, body = Proveedor), (status = 404, body = ErrorRespuesta)))]
 pub async fn obtener_proveedor(
     State(e): State<AppEstado>,
-    _u: AuthUsuario,
+    _gestion: RequiereGestion,
     PathValido(id): PathValido<i32>,
 ) -> Result<Json<Proveedor>, AppError> {
     Ok(Json(proveedores::obtener(&e.pool, id).await?))
@@ -80,7 +80,7 @@ pub async fn obtener_proveedor(
     responses((status = 200, body = Proveedor)))]
 pub async fn actualizar_proveedor(
     State(e): State<AppEstado>,
-    AuthUsuario(usuario): AuthUsuario,
+    RequiereGestion(usuario): RequiereGestion,
     PathValido(id): PathValido<i32>,
     JsonValido(dto): JsonValido<ProveedorDto>,
 ) -> Result<Json<Proveedor>, AppError> {
@@ -97,7 +97,7 @@ async fn toggle(e: &AppEstado, id: i32, activo: bool, u: i32) -> Result<Proveedo
 #[utoipa::path(post, path = "/api/proveedores/{id}/activar", tag = "proveedores", summary = "Reactivar proveedor",
     params(("id" = i32, Path)), responses((status = 200, body = Proveedor)))]
 pub async fn activar_proveedor(
-    State(e): State<AppEstado>, AuthUsuario(usuario): AuthUsuario, PathValido(id): PathValido<i32>,
+    State(e): State<AppEstado>, RequiereGestion(usuario): RequiereGestion, PathValido(id): PathValido<i32>,
 ) -> Result<Json<Proveedor>, AppError> {
     Ok(Json(toggle(&e, id, true, usuario.id).await?))
 }
@@ -105,7 +105,7 @@ pub async fn activar_proveedor(
 #[utoipa::path(post, path = "/api/proveedores/{id}/desactivar", tag = "proveedores", summary = "Desactivar proveedor",
     params(("id" = i32, Path)), responses((status = 200, body = Proveedor)))]
 pub async fn desactivar_proveedor(
-    State(e): State<AppEstado>, AuthUsuario(usuario): AuthUsuario, PathValido(id): PathValido<i32>,
+    State(e): State<AppEstado>, RequiereGestion(usuario): RequiereGestion, PathValido(id): PathValido<i32>,
 ) -> Result<Json<Proveedor>, AppError> {
     Ok(Json(toggle(&e, id, false, usuario.id).await?))
 }

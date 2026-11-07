@@ -40,6 +40,24 @@
 
 ---
 
+## Phase 5: Frontend completo y RBAC (2026-11-06)
+
+Cierra la brecha detectada: T010 estaba marcado pero los clientes/schemas no existían,
+las páginas eran solo listados y los handlers no exigían GESTION.
+
+- [X] T014 [US12] RBAC: `handlers/proveedores.rs` y `handlers/compras.rs` usan `RequiereGestion` (403 `sin_permisos` para OPERACION)
+- [X] T015 [US12] Schemas Zod `frontend/src/lib/schemas/proveedores.ts` y `compras.ts` + tests
+- [X] T016 [US12] API clients `frontend/src/lib/api/proveedores.ts` y `compras.ts` + tests
+- [X] T017 [US12] Componentes `ProveedorForm.svelte` y `ProveedorTabla.svelte`
+- [X] T018 [US12] Componentes `CompraForm.svelte` (alta/edición con líneas) y `CompraTabla.svelte`
+- [X] T019 [US12] Páginas `admin/proveedores` y `admin/compras`: alta/edición, confirmar/anular/eliminar borrador, estado vacío y errores 401/403/parseo
+- [X] T020 [US12] Tests backend: matriz RBAC ampliada + `test_compras_http.rs` (flujo completo y 403 OPERACION)
+- [X] T021 [US12] Gates: `cargo test`, `cargo sqlx prepare --check`, `npm test`, `npm run check`, `npm run build`
+- [X] T022 [US12] Cerrar advisories de la verificación independiente: validación de líneas en PUT de compras (vacías/cantidad negativa/producto repetido), unicidad de CUIT en edición (`409 cuit_duplicado`) y guard de producto repetido en `CompraForm`
+- [X] T023 [US12] Tests de regresión para 12.1, 12.5, 12.6, FR-046 y validaciones de edición (A1-A4)
+
+---
+
 ## Notes
 
 - Implementación pesada; se recomienda por etapas (proveedores primero, luego compras).

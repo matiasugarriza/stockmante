@@ -125,6 +125,29 @@ async fn matriz_rbac_de_escritura_y_listados_restringidos() {
             "POST",
             format!("/api/ubicaciones/{ID_INEXISTENTE}/reactivar"),
         ),
+        // 012 — proveedores y compras.
+        ("GET", "/api/proveedores".into()),
+        ("POST", "/api/proveedores".into()),
+        ("GET", format!("/api/proveedores/{ID_INEXISTENTE}")),
+        ("PUT", format!("/api/proveedores/{ID_INEXISTENTE}")),
+        (
+            "POST",
+            format!("/api/proveedores/{ID_INEXISTENTE}/activar"),
+        ),
+        (
+            "POST",
+            format!("/api/proveedores/{ID_INEXISTENTE}/desactivar"),
+        ),
+        ("GET", "/api/compras".into()),
+        ("POST", "/api/compras".into()),
+        ("GET", format!("/api/compras/{ID_INEXISTENTE}")),
+        ("PUT", format!("/api/compras/{ID_INEXISTENTE}")),
+        ("DELETE", format!("/api/compras/{ID_INEXISTENTE}")),
+        (
+            "POST",
+            format!("/api/compras/{ID_INEXISTENTE}/confirmar"),
+        ),
+        ("POST", format!("/api/compras/{ID_INEXISTENTE}/anular")),
     ];
 
     for (metodo, ruta) in rutas {

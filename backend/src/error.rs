@@ -31,6 +31,8 @@ pub enum AppError {
     CategoriaDuplicada,
     #[error("Ya existe un proveedor con ese nombre.")]
     ProveedorDuplicado,
+    #[error("Ya existe un proveedor con ese CUIT.")]
+    CuitDuplicado,
     #[error("La compra ya fue confirmada; no se puede confirmar dos veces.")]
     CompraYaConfirmada,
     #[error("La compra no se puede editar en su estado actual.")]
@@ -104,6 +106,7 @@ impl AppError {
             | AppError::CodigoBarrasDuplicado
             | AppError::CategoriaDuplicada
             | AppError::ProveedorDuplicado
+            | AppError::CuitDuplicado
             | AppError::CompraYaConfirmada
             | AppError::CompraNoEditable
             | AppError::VentaYaAnulada
@@ -143,6 +146,7 @@ impl AppError {
             AppError::CodigoBarrasDuplicado => "codigo_barras_duplicado",
             AppError::CategoriaDuplicada => "categoria_duplicada",
             AppError::ProveedorDuplicado => "proveedor_duplicado",
+            AppError::CuitDuplicado => "cuit_duplicado",
             AppError::CompraYaConfirmada => "compra_ya_confirmada",
             AppError::CompraNoEditable => "compra_no_editable",
             AppError::VentaYaAnulada => "venta_ya_anulada",

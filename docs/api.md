@@ -19,7 +19,7 @@ código (`utoipa`); esta página resume las decisiones que no se ven en el esque
 
 | Rol | Familia | Puede |
 |---|---|---|
-| `ADMIN`, `GERENTE` | `GESTION` | CRUD de usuarios, categorías, productos, depósitos, ubicaciones y asignaciones; todos los movimientos incluido `AJUSTE` |
+| `ADMIN`, `GERENTE` | `GESTION` | CRUD de usuarios, categorías, productos, depósitos, ubicaciones, proveedores y compras; todos los movimientos incluido `AJUSTE` |
 | `OPERARIO`, `CAJERO` | `OPERACION` | Lectura de catálogo, búsqueda de caja, su propia sesión, consulta de stock e historial, y movimientos `ENTRADA`/`SALIDA`/`MERMA` |
 
 Las rutas de escritura y los listados de administración exigen `RequiereGestion`. El backend es la
@@ -44,7 +44,7 @@ Códigos estables: `credenciales_invalidas`, `sesion_expirada`, `no_autenticado`
 `recurso_no_encontrado`, `email_duplicado`, `sku_duplicado`, `codigo_barras_duplicado`,
 `categoria_duplicada`, `deposito_con_dependencias`, `deposito_nombre_duplicado`,
 `deposito_identificador_duplicado`, `ubicacion_huerfana`, `ubicacion_con_dependencias`,
-`ubicacion_duplicada`,
+`ubicacion_duplicada`, `proveedor_duplicado`, `cuit_duplicado`, `compra_ya_confirmada`, `compra_no_editable`,
 `ultimo_administrador`, `cambio_password_requerido`, `stock_insuficiente`,
 `producto_inactivo`, `validacion`, `interno`.
 
@@ -164,6 +164,32 @@ La operación es inmediata y atómica: descuenta origen, incrementa destino, esc
 movimientos (`SALIDA` y `ENTRADA`, motivo `TRANSFERENCIA`) enlazados a la transferencia
 y audita (`tabla_ref = 'transferencias'`, acción `CREAR`). La suma global de stock se
 conserva (SC-016).
+
+### Proveedores y compras (Módulo 3, spec 012)
+
+Toda la superficie exige familia `GESTION`; `OPERACION` recibe `403 sin_permisos`.
+
+| Método | Ruta | Éxito |
+|---|---|---|
+| GET | `/api/proveedores?activo=true\|false\|all&pagina=&por_pagina=` | 200 página |
+| POST | `/api/proveedores` | 201 proveedor |
+| GET | `/api/proveedores/{id}` | 200 |
+| PUT | `/api/proveedores/{id}` | 200 (DTO completo) |
+| POST | `/api/proveedores/{id}/desactivar` | 200 proveedor con `activo=false` |
+| POST | `/api/proveedores/{id}/activar` | 200 proveedor con `activo=true` |
+| GET | `/api/compras?proveedor_id=&estado=&desde=&hasta=&pagina=&por_pagina=` | 200 página |
+| POST | `/api/compras` | 201 `{ compra, lineas }` en `BORRADOR` |
+| GET | `/api/compras/{id}` | 200 `{ compra, lineas }` |
+| PUT | `/api/compras/{id}` | 200 (solo `BORRADOR`) |
+| DELETE | `/api/compras/{id}` | 204 (solo `BORRADOR`) |
+| POST | `/api/compras/{id}/confirmar` | 200 `{ compra, lineas }` en `CONFIRMADA` |
+| POST | `/api/compras/{id}/anular` | 200 `{ compra, lineas }` en `ANULADA` |
+
+Confirmar ejecuta una única transacción: escribe un movimiento `ENTRADA` con motivo `COMPRA`,
+actualiza `stock_por_deposito`, el costo del producto y el cache `stock_actual`. Confirmar dos
+veces responde `409 compra_ya_confirmada` sin duplicar stock. Editar/eliminar una compra que no
+está en `BORRADOR` responde `409 compra_no_editable`. Anular revierte el stock con un movimiento
+`SALIDA` (motivo `DEVOLUCION`) y falla con `409 stock_insuficiente` si ya no alcanza.
 
 ### Salud y documentación
 

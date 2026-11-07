@@ -41,7 +41,7 @@ pub async fn crear(pool: &PgPool, nuevo: NuevoProveedor, usuario_id: i32) -> Res
             .fetch_one(pool)
             .await?;
         if dup {
-            return Err(AppError::ProveedorDuplicado);
+            return Err(AppError::CuitDuplicado);
         }
     }
 
@@ -104,6 +104,13 @@ pub async fn actualizar(pool: &PgPool, id: i32, nuevo: NuevoProveedor, usuario_i
     let dup: bool = sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM proveedores WHERE lower(nombre)=lower($1) AND id<>$2)")
         .bind(&nombre).bind(id).fetch_one(pool).await?;
     if dup { return Err(AppError::ProveedorDuplicado); }
+
+    // duplicado CUIT (si se informa)
+    if let Some(c) = &cuit {
+        let dup_cuit: bool = sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM proveedores WHERE cuit = $1 AND id<>$2)")
+            .bind(c).bind(id).fetch_one(pool).await?;
+        if dup_cuit { return Err(AppError::CuitDuplicado); }
+    }
 
     sqlx::query(
         "UPDATE proveedores SET nombre=$1, cuit=$2, email=$3, telefono=$4, direccion=$5, actualizado_en=now() WHERE id=$6",

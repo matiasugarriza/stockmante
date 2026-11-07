@@ -1,7 +1,7 @@
 //! Handlers de compras (012).
 
 use crate::app::AppEstado;
-use crate::auth::extractors::AuthUsuario;
+use crate::auth::extractors::RequiereGestion;
 use crate::docs::ErrorRespuesta;
 use crate::error::AppError;
 use crate::extractores::{JsonValido, PathValido, QueryValida};
@@ -54,7 +54,7 @@ fn dto_a_nueva(dto: CompraDto) -> NuevaCompra {
     request_body = CompraDto,
     responses((status = 201, body = CompraDetalle)))]
 pub async fn crear_compra(
-    State(e): State<AppEstado>, AuthUsuario(usuario): AuthUsuario, JsonValido(dto): JsonValido<CompraDto>,
+    State(e): State<AppEstado>, RequiereGestion(usuario): RequiereGestion, JsonValido(dto): JsonValido<CompraDto>,
 ) -> Result<(StatusCode, Json<CompraDetalle>), AppError> {
     let c = compras::crear(&e.pool, dto_a_nueva(dto), &usuario).await?;
     Ok((StatusCode::CREATED, Json(c)))
@@ -83,7 +83,7 @@ fn parsear_fecha(v: Option<&str>) -> Option<DateTime<Utc>> {
     params(ListarComprasQuery),
     responses((status = 200, body = ListaCompras)))]
 pub async fn listar_compras(
-    State(e): State<AppEstado>, _u: AuthUsuario, QueryValida(q): QueryValida<ListarComprasQuery>,
+    State(e): State<AppEstado>, _gestion: RequiereGestion, QueryValida(q): QueryValida<ListarComprasQuery>,
 ) -> Result<Json<ListaCompras>, AppError> {
     let f = FiltrosCompras {
         proveedor_id: q.proveedor_id,
@@ -100,7 +100,7 @@ pub async fn listar_compras(
     params(("id" = i32, Path)),
     responses((status = 200, body = CompraDetalle)))]
 pub async fn obtener_compra(
-    State(e): State<AppEstado>, _u: AuthUsuario, PathValido(id): PathValido<i32>,
+    State(e): State<AppEstado>, _gestion: RequiereGestion, PathValido(id): PathValido<i32>,
 ) -> Result<Json<CompraDetalle>, AppError> {
     Ok(Json(compras::obtener(&e.pool, id).await?))
 }
@@ -109,7 +109,7 @@ pub async fn obtener_compra(
     params(("id" = i32, Path)), request_body = CompraDto,
     responses((status = 200, body = CompraDetalle)))]
 pub async fn actualizar_compra(
-    State(e): State<AppEstado>, AuthUsuario(usuario): AuthUsuario, PathValido(id): PathValido<i32>,
+    State(e): State<AppEstado>, RequiereGestion(usuario): RequiereGestion, PathValido(id): PathValido<i32>,
     JsonValido(dto): JsonValido<CompraDto>,
 ) -> Result<Json<CompraDetalle>, AppError> {
     Ok(Json(compras::actualizar(&e.pool, id, dto_a_nueva(dto), usuario.id).await?))
@@ -119,7 +119,7 @@ pub async fn actualizar_compra(
     params(("id" = i32, Path)),
     responses((status = 204, description = "Eliminada")))]
 pub async fn eliminar_compra(
-    State(e): State<AppEstado>, _u: AuthUsuario, PathValido(id): PathValido<i32>,
+    State(e): State<AppEstado>, _gestion: RequiereGestion, PathValido(id): PathValido<i32>,
 ) -> Result<StatusCode, AppError> {
     compras::eliminar(&e.pool, id).await?;
     Ok(StatusCode::NO_CONTENT)
@@ -129,7 +129,7 @@ pub async fn eliminar_compra(
     params(("id" = i32, Path)),
     responses((status = 200, body = CompraDetalle)))]
 pub async fn confirmar_compra(
-    State(e): State<AppEstado>, AuthUsuario(usuario): AuthUsuario, PathValido(id): PathValido<i32>,
+    State(e): State<AppEstado>, RequiereGestion(usuario): RequiereGestion, PathValido(id): PathValido<i32>,
 ) -> Result<Json<CompraDetalle>, AppError> {
     Ok(Json(compras::confirmar(&e.pool, id, &usuario).await?))
 }
@@ -138,7 +138,7 @@ pub async fn confirmar_compra(
     params(("id" = i32, Path)),
     responses((status = 200, body = CompraDetalle)))]
 pub async fn anular_compra(
-    State(e): State<AppEstado>, AuthUsuario(usuario): AuthUsuario, PathValido(id): PathValido<i32>,
+    State(e): State<AppEstado>, RequiereGestion(usuario): RequiereGestion, PathValido(id): PathValido<i32>,
 ) -> Result<Json<CompraDetalle>, AppError> {
     Ok(Json(compras::anular(&e.pool, id, &usuario).await?))
 }
