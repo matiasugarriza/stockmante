@@ -27,6 +27,9 @@
 - [x] Scope is clearly bounded
 - [x] Dependencies and assumptions identified
 
+- [x] Configuración externa documentada como supuesto y prerequisito verificable
+  (Google Cloud Console → *Authorized redirect URI*, T054)
+
 ## Feature Readiness
 
 - [x] All functional requirements have clear acceptance criteria

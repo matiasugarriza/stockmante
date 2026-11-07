@@ -144,7 +144,7 @@ Cada FR tiene **un solo dueño**. Los demás specs lo referencian, no lo repiten
 | SC-025 | 017 | Cero escrituras del asistente fuera de la API |
 | SC-026 | 001 | Registro con verificación por correo y sin enumeración |
 | SC-027 | 001 | Botones SSO ocultos sin credenciales; flujo completo con ellas |
-| SC-028 | 001 | Credenciales (correo + contraseña) visibles en pantalla al crear usuario |
+| SC-028 | 001 | Credenciales (correo + contraseña) visibles en pantalla al crear usuario (criterio compartido con SC-001/002; evidencia del módulo en 002 Phase 2, ver dueños §FR-008a/FR-008b) |
 
 ## Ledger de migraciones
 

@@ -4,6 +4,7 @@
 	import { page } from '$app/state';
 	import { cerrarSesion, refrescarSesion, sesion } from '#lib/stores/sesion';
 	import { listarStock } from '#lib/api/stock';
+	import { esRutaPublica } from '#lib/utils/rutas';
 	import './layout.css';
 	import favicon from '#lib/assets/favicon.svg';
 	import type { LayoutProps } from './$types';
@@ -26,13 +27,14 @@
 		}
 	}
 
-	// Sin sesión → a /login (excepto la propia /login). Con password temporal → cambio obligatorio.
+	// Sin sesión → a /login (excepto en RUTAS públicas, p. ej. /registro: FR-070 "accesible
+	// públicamente"; T053). Con password temporal → cambio obligatorio.
 	$effect(() => {
 		const estado = $sesion;
-		const enLogin = page.url.pathname === '/login';
-		if (estado.estado === 'sin_sesion' && !enLogin) {
+		const publica = esRutaPublica(page.url.pathname);
+		if (estado.estado === 'sin_sesion' && !publica) {
 			void goto('/login');
-		} else if (estado.estado === 'activa' && estado.usuario.debe_cambiar_password && !enLogin) {
+		} else if (estado.estado === 'activa' && estado.usuario.debe_cambiar_password && !publica) {
 			void goto('/login');
 		}
 	});

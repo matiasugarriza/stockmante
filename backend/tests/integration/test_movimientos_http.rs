@@ -376,16 +376,25 @@ async fn multilínea_con_falla_no_deja_nada_escrito() {
     let (status, _) = entrada(&app, &cookie, deposito, producto_b, 1).await;
     assert_eq!(status, StatusCode::CREATED);
 
+    // Conteos acotados al depósito propio del test: los tests de este archivo y los
+    // otros binarios corren en paralelo sobre `stockmante_test`, y un conteo de tabla
+    // completa competía con los movimientos de los tests hermanos (flake 2026-11-02).
+    // El significado de SC-015 no cambia: esta petición fallida no agrega filas suyas.
     let movimientos_antes: i64 =
-        sqlx::query_scalar(r#"SELECT count(*) FROM movimientos"#)
+        sqlx::query_scalar(r#"SELECT count(*) FROM movimientos WHERE deposito_id = $1"#)
+            .bind(deposito)
             .fetch_one(&pool)
             .await
             .expect("conteo previo");
-    let lineas_antes: i64 =
-        sqlx::query_scalar(r#"SELECT count(*) FROM movimiento_lineas"#)
-            .fetch_one(&pool)
-            .await
-            .expect("conteo previo de líneas");
+    let lineas_antes: i64 = sqlx::query_scalar(
+        r#"SELECT count(*) FROM movimiento_lineas ml
+           JOIN movimientos m ON m.id = ml.movimiento_id
+           WHERE m.deposito_id = $1"#,
+    )
+    .bind(deposito)
+    .fetch_one(&pool)
+    .await
+    .expect("conteo previo de líneas");
 
     // Escenario 7.5: la tercera línea no tiene stock → 409 y nada escrito.
     let (status, body) = pedir(
@@ -410,15 +419,20 @@ async fn multilínea_con_falla_no_deja_nada_escrito() {
 
     // SC-015: sin cabecera, sin líneas, sin stock tocado.
     let movimientos_despues: i64 =
-        sqlx::query_scalar(r#"SELECT count(*) FROM movimientos"#)
+        sqlx::query_scalar(r#"SELECT count(*) FROM movimientos WHERE deposito_id = $1"#)
+            .bind(deposito)
             .fetch_one(&pool)
             .await
             .expect("conteo posterior");
-    let lineas_despues: i64 =
-        sqlx::query_scalar(r#"SELECT count(*) FROM movimiento_lineas"#)
-            .fetch_one(&pool)
-            .await
-            .expect("conteo posterior de líneas");
+    let lineas_despues: i64 = sqlx::query_scalar(
+        r#"SELECT count(*) FROM movimiento_lineas ml
+           JOIN movimientos m ON m.id = ml.movimiento_id
+           WHERE m.deposito_id = $1"#,
+    )
+    .bind(deposito)
+    .fetch_one(&pool)
+    .await
+    .expect("conteo posterior de líneas");
     assert_eq!(movimientos_despues, movimientos_antes);
     assert_eq!(lineas_despues, lineas_antes);
     assert_eq!(stock_en_deposito(&pool, producto_a, deposito).await, Some(5));

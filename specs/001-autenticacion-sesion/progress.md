@@ -197,3 +197,66 @@ Evidencia: `cargo test` completo en verde (incluye `test_sso_config` 3/3 y
 `test_sso_no_configurado` 2/2 nuevos), `npm test` 167/167, `npm run check` 0/0.
 Renumeración de IDs: `FR-009`–`FR-012` → `FR-070`–`FR-073` y `SC-005`–`SC-007` → `SC-026`–`SC-028`
 (los dueños originales de 003/004/005/006 no se tocaron).
+
+## Análisis /speckit.analyze 2026-11-01 — reportes vivos del usuario
+
+Reporte del usuario: «el SSO Google sigue sin funcionar y al hacer click en 'Registrate' se
+vuelve a renderizar la página login». Ambos **reproducidos en vivo** (Edge + `playwright-core`)
+y diagnosticados:
+
+1. **Rebote de `/registro` (CRITICAL)** — guard del `$layout` (`+layout.svelte`) redirigía
+   `sin_sesion && pathname!=='/login'` → `/login` **sin whitelist pública**; FR-070 exige
+   «accesible públicamente» pero ninguna task tocaba el guard de T025 (rodaba sin test: hueco
+   P-IV). Fix **T053**: `esRutaPublica()`/`RUTAS_PUBLICAS` en `lib/utils/rutas.ts` con test
+   TDD (RED observado → GREEN 5/5), guard usa la whitelist. **Repro posterior**: clic en
+   «Registrate» permanece en `http://localhost:5173/registro` con el formulario renderizado.
+2. **SSO Google `Error 400: redirect_uri_mismatch` (CRITICAL)** — el backend está correcto
+   (sonda `google_disponible:true`, 307 al proveedor con `redirect_uri`
+   `http://localhost:3000/api/auth/sso/google/callback`, callback 303 + cookie). Google rechaza
+   porque **esa URI no está registrada en Google Cloud Console** para el client_id
+   `1005586062443-…apps.googleusercontent.com`; en modo «Testing» además hace falta la cuenta
+   como *test user*. Esto ya estaba anotado en filetes (`progress.md` «fuera del código») pero
+   **sin task dueño**: ahora es **T054** (onboarding en consola) + **T055** (E2E quickstart V12),
+   y el supuesto quedó escrito en `spec.md` §Supuestos.
+
+Consistencia agregada: **SC-027** reescrita medible (precondiciones de consola + sonda + V12);
+**FR-008a** anclada a su dueño 002/FR-008b (modal copiable) según `specs/README.md`; **SC-028**
+nota de criterio compartido con SC-001; **T045** marcada histórica (modal definitiva = 002/T015);
+**T056** registra retroactivamente la sonda `SondaSso` (commit `0b23c23`); docstrings utoipa de
+`sso_iniciar` corregidos 302 → **307** (contrato `contracts/api.md` ya decía 307); quickstart
+con **V11** (registro público) y **V12** (SSO Google E2E) + el paso de Google Cloud en
+Prerrequisitos; `checklists/requirements.md` con el ítem de config externa; IDs nuevos T053+
+porque T045–T052 están tomados por «Tareas movidas»; `.specify/feature.json` (stale, apuntaba a
+`specs/010-consulta-stock`) eliminado.
+
+Evidencia de gates (2026-11-01): `cargo test` exit 0 en verde (un fallo aislado previo de
+`multilínea_con_falla_no_deja_nada_escrito` fue interferencia por correr `cargo sqlx
+prepare --check` en paralelo; solo pasa), `cargo sqlx prepare --check` exit 0,
+`npm test` **179/179**, `npm run check` 0/0, `npm run build` OK.
+**Pendiente**: T054 (usuario) y T055 (E2E) — 001 no cierra SSO sin la URI en la consola.
+
+## Reporte del usuario 2026-11-02 — SSO OK / login sin verificar
+
+- **SSO Google**: el usuario registró la *Authorized redirect URI* en Google Cloud Console
+  (T054) y confirmó el flujo completo funcionando → **T055 (V12) verificada en vivo** y 001
+  queda sin pendientes de SSO. Dato clave del diagnóstico previo: el error era
+  `redirect_uri_mismatch` (config externa), no de código.
+- **Bug de verificación (CRITICAL, usuario)**: una cuenta auto-registrada **podía iniciar
+  sesión sin verificar el correo**. Reproducido (registro 202 → login **204**) y corregido
+  (T057): `registro.rs` creaba el usuario con `activo = TRUE` y `login` sólo filtra por
+  `activo`; ahora `activo = FALSE` hasta `verificar_correo` (que lo activa). Test nuevo
+  `registro_pendiente_no_puede_iniciar_sesion_hasta_verificar` (RED observado → GREEN);
+  re-verificado en vivo: 202 → login **401** genérico, indistinguible de correo inexistente
+  (anti-enumeración intacta).
+- **Flake de gate (T058)**: `multilínea_con_falla_no_deja_nada_escrito` comparaba `count(*)`
+  de tabla completa mientras tests hermanos insertan en paralelo (falló 2 de 4 corridas
+  completas). Acotado a `deposito_id` propio (mismo significado SC-015); la suite completa
+  ahora pasa **2 corridas seguidas** (exit 0) + `cargo sqlx prepare --check` exit 0.
+- **Advertencia (no bloqueante, fuera de este alcance)**: el `INSERT` de `services/usuarios.rs`
+  (alta por admin) no setea `email_verificado` → queda `FALSE` por default, contradiciendo el
+  comentario de la migración 0012 ("cuentas creadas por admin se consideran verificadas").
+  Hoy no afecta el login (no se filtra por ese flag); si querés, se alinea con una task aparte.
+- **Dudas de UI resueltas**: el menú "Caja, Movimientos, Transferencias" para ambos casos es el
+  comportamiento esperado: la cabecera en familia OPERACION muestra siempre esos tres enlaces
+  (los de GESTION sólo si `familia_rol === 'GESTION'`); el auto-registro y el SSO ambos crean
+  cuenta OPERARIO/OPERACION (FR-073).

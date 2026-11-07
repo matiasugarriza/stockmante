@@ -9,6 +9,10 @@ autenticación. No incluye código de negocio.
 - **SvelteKit (modo SPA) + Tailwind CSS** — frontend (el toolchain de SvelteKit puede requerir un runtime JS solo para build/dev; la app en sí es SvelteKit + Tailwind, no Node.js)
 - PostgreSQL 15+ corriendo (local o contenedor)
 - `sqlx-cli` (`cargo install sqlx-cli --no-default-features --features postgres`)
+- **Google Cloud Console** (sólo para el flujo SSO, T054): en *APIs & Services → Credentials →
+  tu OAuth Client*, registrar como *Authorized redirect URI* exactamente
+  `http://localhost:3000/api/auth/sso/google/callback`; si la app está en modo "Testing", sumar la
+  cuenta de prueba en *Audience → Test users*
 
 ## Variables de entorno
 
@@ -76,6 +80,29 @@ npm run dev            # http://localhost:5173 (SPA SvelteKit)
 
 1. Disparar dos logins simultáneos con el mismo usuario.
 2. Esperado: una sola sesión vigente; la cookie perdedora responde 401.
+
+### V11 — Registro público (FR-070 / SC-026 / T053)
+
+1. Abrir `http://localhost:5173/registro` en un navegador **sin sesión** (ventana incógnita):
+   DEBE renderizar el formulario **sin rebotar a /login** (regresión del guard del layout).
+2. Registrarse con correo válido: respuesta 202 genérica y link de verificación en `CorreoDev`
+   (log del backend en desarrollo).
+3. Abrir el link `/verificar-correo?token=...`: la cuenta queda activa y el login con esa
+   contraseña nueva funciona.
+
+### V12 — SSO Google E2E (FR-071 / SC-027 / T054-T055)
+
+> Prerrequisito: T054 completada (redirect URI en Google Cloud Console) y backend levantado.
+
+1. `GET http://localhost:3000/api/auth/sso/config` → `google_disponible: true` y el botón
+   "Continuar con Google" visible en `/login`.
+2. Clic en "Continuar con Google": Google muestra el consentimiento o el selector de cuenta
+   (**NO** `Error 400: redirect_uri_mismatch` ni "Acceso bloqueado: La solicitud de esta app no
+   es válida").
+3. Tras aceptar: callback `303` → panel en `http://localhost:5173/` con sesión activa
+   (el refresh de `/auth/sesion` devuelve 200; F5 en dev lo revalida).
+4. Regresión: si la app vuelve a modo "Testing" sin la cuenta como *test user*, Google bloquea
+   con "Acceso bloqueado" — volver al paso 0 del T054.
 
 ### V8 — Regresión de calidad
 

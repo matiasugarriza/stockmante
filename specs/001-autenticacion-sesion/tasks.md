@@ -229,6 +229,60 @@ Base y US1 **implementadas**; T026–T032 cerradas con evidencia (2026-10-25). P
 - [X] T042 [P] Frontend: schema Zod `RegistroSchema` en `frontend/src/lib/schemas/auth.ts` (email, password con política); cliente `frontend/src/lib/api/auth.ts` para registro y sso/config. **Aceptación**: vitest de schemas + cliente mock.
 - [X] T043 [US1] Frontend: ruta `frontend/src/routes/registro/+page.svelte` (formulario de registro con validación, mensaje genérico de éxito/fallo). **Aceptación**: manual V1 de quickstart; sin menú de admin si no hay sesión.
 - [X] T044 [US1] Frontend: `frontend/src/routes/login/+page.svelte` — botones SSO ocultos si `sso/config` responde `false` para ese proveedor; visibles y funcionales si `true`. **Aceptación**: manual de quickstart; SSO oculto sin credenciales.
-- [X] T045 [US1] Frontend: alerta/mensaje emergente en pantalla al crear usuario desde admin con correo + contraseña temporal (popup de entrega inmediata). **Aceptación**: manual de quickstart; `password_temporal = true` bloquea primer ingreso.
+- [X] T045 [US1] Frontend: alerta/mensaje emergente en pantalla al crear usuario desde admin con correo + contraseña temporal (popup de entrega inmediata). **Aceptación**: manual de quickstart; `password_temporal = true` bloquea primer ingreso. *(Consolidada 2026-11: la modal definitiva vive en 002/T015; T045 queda como evidencia histórica del popup original.)*
+
+### Correcciones del análisis 2026-11-01
+
+> Abiertas por `/speckit.analyze` sobre las specs 001 y 002 (reporte de "SSO no funciona" y
+> "Registrate rebota a /login"). ID nuevo T053+ porque T045–T052 están asignados en
+> «Tareas movidas a otras specs».
+
+- [X] T053 [P] [US1] Frontend — rutas públicas sin sesión (FR-070): whitelist en el guard del
+  layout de `frontend/src/routes/+layout.svelte` vía `esRutaPublica()`/`RUTAS_PUBLICAS` en
+  `frontend/src/lib/utils/rutas.ts` (`/login`, `/registro`, `/verificar-correo`), de modo que
+  `/registro` **no rebote a /login** sin sesión. **Archivos**: `frontend/src/lib/utils/rutas.ts`,
+  `frontend/src/lib/utils/rutas.test.ts`, `frontend/src/routes/+layout.svelte`.
+  **Aceptación**: RED observado (vitest falla por módulo inexistente) → GREEN 5/5; `npm test`
+  **179/179**, `npm run check` 0/0, `npm run build` OK; repro en vivo con Edge (click
+  "Registrate" permanece en `http://localhost:5173/registro` con el formulario renderizado,
+  quickstart V11 paso 1). *(TDD exigido por P-IV: era la FR sin test que falló en vivo.)*
+- [ ] T054 [P] [US1] Onboarding SSO Google — **configuración externa, en Google Cloud Console**
+  (Supuestos/quickstart): registrar en *APIs & Services → Credentials → OAuth Client* como
+  *Authorized redirect URI* exactamente `http://localhost:3000/api/auth/sso/google/callback`; si
+  la app está en modo "Testing", sumar la cuenta como *test user*. **Aceptación**: la URI figura
+  en la consola y el clic "Continuar con Google" ya no devuelve `Error 400 redirect_uri_mismatch`.
+  *(Dato del cliente actual: client_id `1005586062443-…apps.googleusercontent.com`.)*
+- [ ] T055 [US1] Verificación E2E de SC-027 (quickstart **V12**): `/login` → "Continuar con
+  Google" → consentimiento/selector de Google → callback 303 → sesión activa en el panel.
+  **Aceptación**: V12 en verde (requiere T054).
+- [X] T056 [P] [US1] Sonda de salud del proveedor SSO (FR-071): `SondaSso` (timeout 1,5 s,
+  cache 60 s, modo fijo inyectado en `AppEstado` para tests) integrada en
+  `GET /api/auth/sso/config`; si la sonda falla, el frontend oculta el botón del proveedor.
+  **Aceptación**: `test_sso_config` 3/3 y `test_sso_no_configurado` 2/2 verdes.
+  *(Evidencia: commit `0b23c23`, 2026-11-01 — implementado sin task previa; registrado acá para
+  cerrar el hueco de trazabilidad del análisis.)*
+
+### Reporte del usuario 2026-11-02 (login sin verificar / SSO OK)
+
+> El usuario confirmó el SSO Google operativo (T054 completa en consola) y reportó que una
+> cuenta auto-registrada **podía iniciar sesión sin verificar el correo** (viola escenario 5 de
+> US1 y FR-070). `T055` queda **verificada en vivo**: flujo SSO completo OK.
+
+- [X] T057 [US1] Backend — cuenta pendiente inactiva (FR-070/escenario 5):
+  el `INSERT` de auto-registro, corregido en `backend/src/services/registro.rs` para crear con
+  `activo = FALSE` (antes `TRUE`, ya que `login` filtra por `activo` y no por
+  `email_verificado`; `verificar_correo` activa la cuenta). **Aceptación (TDD)**: RED observado
+  con `registro_pendiente_no_puede_iniciar_sesion_hasta_verificar`
+  (`tests/unit/test_registro.rs`) que pinnea estado `activo=false`/`email_verificado=false` y
+  login 401; GREEN al corregir el INSERT; suite completa exit 0 **dos corridas seguidas**;
+  re-verificación en vivo: `POST /registro` 202 → `POST /login` **401** (antes 204) con el
+  mismo mensaje genérico que un correo inexistente (anti-enumeración intacta).
+- [X] T058 [US1] Tests — aislamiento del gate: `multilínea_con_falla_no_deja_nada_escrito`
+  (`tests/integration/test_movimientos_http.rs`) comparaba `count(*)` de **tabla completa**
+  mientras 9 tests hermanos insertan movimientos en paralelo sobre `stockmante_test` (flake
+  intermitente en corridas completas). Corregido a conteos **acotados al `deposito_id` propio**
+  (mismo significado SC-015: la petición fallida no agrega filas suyas).
 
 **Checkpoint**: Registro, SSO config, flujo OAuth y contraseña temporal verificables end-to-end.
+T054 completada por el usuario (URI en Google Cloud Console) y T055 (V12) verificada en vivo
+2026-11-02.

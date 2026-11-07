@@ -304,7 +304,7 @@ pub async fn sso_config(State(estado): State<AppEstado>) -> axum::Json<SsoConfig
     axum::Json(cfg)
 }
 
-/// GET /api/auth/sso/{proveedor}/iniciar → 302.
+/// GET /api/auth/sso/{proveedor}/iniciar → 307 (Redirect::temporary).
 #[utoipa::path(
     get,
     path = "/api/auth/sso/{proveedor}/iniciar",
@@ -312,7 +312,7 @@ pub async fn sso_config(State(estado): State<AppEstado>) -> axum::Json<SsoConfig
     summary = "Inicia el flujo SSO",
     params(("proveedor" = String, Path, description = "google o microsoft")),
     responses(
-        (status = 302, description = "Redirección al proveedor"),
+        (status = 307, description = "Redirección al proveedor"),
         (status = 422, description = "Proveedor no soportado", body = ErrorRespuesta),
         (status = 503, description = "Proveedor no disponible", body = ErrorRespuesta)
     ),

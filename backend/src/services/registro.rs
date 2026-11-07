@@ -51,8 +51,10 @@ pub async fn registrar(
     let mut tx = pool.begin().await?;
 
     let usuario_id: i32 = sqlx::query_scalar(
+        // FR-070 / escenario 5: cuenta **inactiva** hasta verificar el correo
+        // (`verificar_correo` la activa con `activo = TRUE`).
         r#"INSERT INTO usuarios (nombre, email, password_hash, password_temporal, rol, familia_rol, activo, email_verificado)
-           VALUES ($1, $2, $3, FALSE, 'OPERARIO', 'OPERACION', TRUE, FALSE)
+           VALUES ($1, $2, $3, FALSE, 'OPERARIO', 'OPERACION', FALSE, FALSE)
            RETURNING id"#,
     )
     .bind(nombre.trim())
