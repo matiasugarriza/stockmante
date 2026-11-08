@@ -35,5 +35,9 @@
   unicidad, etiqueta) y **escanear** (cámara, lector físico, entrada manual).
 - Se apoya en el campo `codigo_barras` y el SKU ya existentes; no propone un modelo de datos
   nuevo.
-- Quedan fuera de alcance RFID, QR/NFC, impresión masiva y navegadores sin soporte de cámara.
-- Lista para `/speckit-clarify` o `/speckit-plan`.
+- Quedan fuera de alcance RFID, NFC, Data Matrix/PDF417, impresión masiva y navegadores sin
+  soporte de cámara.
+- Clarify 2026-11-07 (5 preguntas): cámara del celular como medio principal, HTTPS en red local,
+  formatos EAN-13/Code 128/QR elegidos al imprimir, etiqueta con código o SKU, escaneo en los 5
+  buscadores. Agrega FR-157 … FR-161 y SC-060, SC-061. Re-validado: 16/16 ítems siguen en verde.
+- Lista para `/speckit-plan`.

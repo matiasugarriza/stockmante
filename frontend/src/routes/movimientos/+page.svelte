@@ -28,6 +28,9 @@
 	import TablaDatos from '#lib/components/ui/TablaDatos.svelte';
 	import Tarjeta from '#lib/components/ui/Tarjeta.svelte';
 	import type { Columna } from '#lib/components/ui/tabla';
+	import BotonEscanear from '#lib/components/codigos/BotonEscanear.svelte';
+	import AvisoLectura from '#lib/components/codigos/AvisoLectura.svelte';
+	import { leerProducto, type AvisoLectura as AvisoLecturaTipo } from '#lib/codigos/lectura';
 
 	const TIPOS: { valor: TipoMovimiento; etiqueta: string }[] = [
 		{ valor: 'ENTRADA', etiqueta: 'Entrada' },
@@ -238,6 +241,21 @@
 		};
 	}
 
+	// 020: la lectura elige el producto de esa línea; no registra nada hasta confirmar (FR-150).
+	let avisoLectura = $state<{ index: number; aviso: AvisoLecturaTipo } | null>(null);
+
+	async function leerEnLinea(index: number, valor: string) {
+		avisoLectura = null;
+		const { resultado, aviso } = await leerProducto(valor, esGestion);
+		if (aviso) avisoLectura = { index, aviso };
+		if (!lineas[index]) return;
+		if (resultado?.estado === 'encontrado') {
+			elegirProducto(index, resultado.producto);
+		} else {
+			lineas[index] = { ...lineas[index], producto: null, resultados: [], busqueda: valor };
+		}
+	}
+
 	function agregarLinea() {
 		if (lineas.length < 200) lineas = [...lineas, nuevaLinea()];
 	}
@@ -371,6 +389,11 @@
 									bind:valor={linea.busqueda}
 									oninput={(valor) => buscarEnLinea(index, valor)}
 								/>
+								<BotonEscanear
+									tamano="sm"
+									etiqueta="Escanear"
+									onLectura={(lectura) => void leerEnLinea(index, lectura.valor)}
+								/>
 								{#if linea.resultados.length > 0 && !linea.producto}
 									<ul class="resultados">
 										{#each linea.resultados as resultado (resultado.id)}
@@ -399,6 +422,12 @@
 											<Icono nombre="cerrar" tamano={12} />
 										</button>
 									</span>
+								{/if}
+								{#if avisoLectura?.index === index}
+									<AvisoLectura
+										aviso={avisoLectura.aviso}
+										onReintentar={(valor) => void leerEnLinea(index, valor)}
+									/>
 								{/if}
 							</div>
 
@@ -610,6 +639,13 @@
 		flex: 1;
 		min-width: 240px;
 		position: relative;
+		display: flex;
+		flex-direction: column;
+		gap: 6px;
+	}
+
+	.campo-producto :global(.boton-escanear) {
+		align-self: flex-start;
 	}
 
 	.resultados {

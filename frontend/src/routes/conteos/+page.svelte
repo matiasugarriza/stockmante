@@ -22,6 +22,11 @@
 	import TablaDatos from '#lib/components/ui/TablaDatos.svelte';
 	import Tarjeta from '#lib/components/ui/Tarjeta.svelte';
 	import type { Columna } from '#lib/components/ui/tabla';
+	import { tick } from 'svelte';
+	import BotonEscanear from '#lib/components/codigos/BotonEscanear.svelte';
+	import AvisoLectura from '#lib/components/codigos/AvisoLectura.svelte';
+	import { leerProducto, type AvisoLectura as AvisoLecturaTipo } from '#lib/codigos/lectura';
+	import { sesion } from '#lib/stores/sesion';
 
 	type EstadoConteo = Conteo['estado'];
 
@@ -80,6 +85,38 @@
 		...depositos.map((deposito) => ({ valor: String(deposito.id), etiqueta: deposito.nombre }))
 	]);
 	const conteoEditable = $derived(conteoActivo?.estado === 'ABIERTO');
+
+	// 020: la lectura ubica las líneas del producto y enfoca su cantidad contada; no guarda nada.
+	let avisoLectura = $state<AvisoLecturaTipo | null>(null);
+	let productoResaltado = $state<number | null>(null);
+	const esGestion = $derived(
+		$sesion.estado === 'activa' && $sesion.usuario.familia_rol === 'GESTION'
+	);
+
+	async function alLeer(valor: string) {
+		avisoLectura = null;
+		productoResaltado = null;
+		const { resultado, aviso } = await leerProducto(valor, esGestion);
+		if (resultado?.estado !== 'encontrado' || !conteoActivo) {
+			avisoLectura = aviso;
+			return;
+		}
+		const { producto } = resultado;
+		const linea = conteoActivo.lineas.find((l) => l.producto_id === producto.id);
+		if (!linea) {
+			avisoLectura = {
+				variante: 'advertencia',
+				valor,
+				texto: `El producto ${producto.nombre} (SKU ${producto.sku}) no está en el conteo #${conteoActivo.id}: no tiene stock registrado en ese depósito.`
+			};
+			return;
+		}
+		productoResaltado = producto.id;
+		await tick();
+		const input = document.getElementById(`contado-${linea.id}`);
+		input?.scrollIntoView({ block: 'center' });
+		(input as HTMLInputElement | null)?.select();
+	}
 
 	async function cargarDepositos() {
 		try {
@@ -246,13 +283,24 @@
 				</div>
 			{/if}
 
+			{#if conteoEditable}
+				<div class="escanear">
+					<BotonEscanear
+						tamano="sm"
+						etiqueta="Escanear producto"
+						onLectura={(lectura) => void alLeer(lectura.valor)}
+					/>
+				</div>
+				<AvisoLectura aviso={avisoLectura} onReintentar={(valor) => void alLeer(valor)} />
+			{/if}
+
 			<TablaDatos
 				columnas={COLUMNAS_LINEAS}
 				filas={conteoActivo.lineas}
 				etiqueta={`Líneas del conteo ${conteoActivo.id}`}
 			>
 				{#snippet fila(linea)}
-					<td>
+					<td class:resaltada={productoResaltado === linea.producto_id}>
 						{linea.producto_nombre}
 						<span class="sku">{linea.sku}</span>
 					</td>
@@ -261,6 +309,8 @@
 					<td class="numero">
 						{#if conteoEditable}
 							<input
+								id={`contado-${linea.id}`}
+								aria-label={`Cantidad contada de ${linea.producto_nombre}`}
 								class="input-contado"
 								type="number"
 								min="0"
@@ -411,6 +461,15 @@
 
 	.numero.negativo {
 		color: var(--peligro-texto);
+	}
+
+	.escanear {
+		margin-bottom: 10px;
+	}
+
+	.resaltada {
+		box-shadow: inset 3px 0 0 var(--primario);
+		font-weight: 600;
 	}
 
 	.input-contado {

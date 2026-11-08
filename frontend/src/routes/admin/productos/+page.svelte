@@ -23,6 +23,9 @@
 	import EncabezadoPagina from '#lib/components/ui/EncabezadoPagina.svelte';
 	import Paginacion from '#lib/components/ui/Paginacion.svelte';
 	import Tarjeta from '#lib/components/ui/Tarjeta.svelte';
+	import BotonEscanear from '#lib/components/codigos/BotonEscanear.svelte';
+	import AvisoLectura from '#lib/components/codigos/AvisoLectura.svelte';
+	import { leerProducto, type AvisoLectura as AvisoLecturaTipo } from '#lib/codigos/lectura';
 
 	const POR_PAGINA = 20;
 
@@ -46,6 +49,26 @@
 	let aviso = $state<string | null>(null);
 	let modalAbierto = $state(false);
 	let editando = $state<Producto | null>(null);
+	let codigoInicial = $state<string | undefined>(undefined);
+
+	// 020: la lectura abre la ficha; si el código no existe, se ofrece crearlo precargado.
+	// El catálogo es solo de gestión, así que también ve inactivos.
+	let avisoLectura = $state<AvisoLecturaTipo | null>(null);
+	let codigoSinProducto = $state<string | null>(null);
+
+	async function alLeer(valor: string) {
+		avisoLectura = null;
+		codigoSinProducto = null;
+		const { resultado, aviso: avisoLeido } = await leerProducto(valor, true);
+		if (resultado === null) {
+			avisoLectura = avisoLeido;
+		} else if (resultado.estado === 'no_encontrado') {
+			avisoLectura = avisoLeido;
+			codigoSinProducto = valor;
+		} else {
+			abrirEdicion(resultado.producto);
+		}
+	}
 
 	$effect(() => {
 		if (
@@ -159,8 +182,11 @@
 		void cargar();
 	}
 
-	function abrirAlta() {
+	function abrirAlta(codigo?: string) {
 		editando = null;
+		codigoInicial = codigo;
+		avisoLectura = null;
+		codigoSinProducto = null;
 		modalAbierto = true;
 		error = null;
 		errorModal = null;
@@ -169,6 +195,7 @@
 
 	function abrirEdicion(producto: Producto) {
 		editando = producto;
+		codigoInicial = undefined;
 		modalAbierto = true;
 		error = null;
 		errorModal = null;
@@ -231,11 +258,20 @@
 		titulo="Productos"
 		descripcion="Catálogo maestro con SKU único y baja lógica: nunca se borra un producto."
 	>
-		<Boton icono="mas" onclick={abrirAlta}>Nuevo producto</Boton>
+		<BotonEscanear onLectura={(lectura) => void alLeer(lectura.valor)} />
+		<Boton icono="mas" onclick={() => abrirAlta()}>Nuevo producto</Boton>
 	</EncabezadoPagina>
 
 	{#if error}<Aviso variante="error">{error}</Aviso>{/if}
 	{#if aviso}<Aviso variante="exito">{aviso}</Aviso>{/if}
+	<AvisoLectura aviso={avisoLectura} onReintentar={(valor) => void alLeer(valor)} />
+	{#if codigoSinProducto}
+		<div class="crear-con-codigo">
+			<Boton variante="secundario" icono="mas" onclick={() => abrirAlta(codigoSinProducto ?? undefined)}>
+				Crear producto con el código {codigoSinProducto}
+			</Boton>
+		</div>
+	{/if}
 	{#if advertenciaDepositos}<Aviso variante="advertencia">{advertenciaDepositos}</Aviso>{/if}
 	{#if advertenciaUbicaciones}<Aviso variante="advertencia">{advertenciaUbicaciones}</Aviso>{/if}
 
@@ -269,6 +305,7 @@
 		{categorias}
 		{guardando}
 		error={errorModal}
+		{codigoInicial}
 		onGuardar={(datos) => void guardar(datos)}
 		onCerrar={cerrarModal}
 	/>

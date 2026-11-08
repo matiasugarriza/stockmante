@@ -16,11 +16,14 @@
 		categorias: Categoria[];
 		guardando: boolean;
 		error: string | null;
+		/** 020: código leído que no existía; precarga el alta. */
+		codigoInicial?: string;
 		onGuardar: (datos: CrearProductoInput) => void;
 		onCerrar: () => void;
 	}
 
-	let { producto, categorias, guardando, error, onGuardar, onCerrar }: Props = $props();
+	let { producto, categorias, guardando, error, codigoInicial, onGuardar, onCerrar }: Props =
+		$props();
 
 	// El padre monta el formulario al abrirlo, con `producto` ya definido.
 	// svelte-ignore state_referenced_locally
@@ -28,7 +31,7 @@
 	// svelte-ignore state_referenced_locally
 	let sku = $state(producto?.sku ?? '');
 	// svelte-ignore state_referenced_locally
-	let codigoBarras = $state(producto?.codigo_barras ?? '');
+	let codigoBarras = $state(producto?.codigo_barras ?? codigoInicial ?? '');
 	// svelte-ignore state_referenced_locally
 	let categoriaId = $state(producto ? String(producto.categoria.id) : '');
 	// svelte-ignore state_referenced_locally

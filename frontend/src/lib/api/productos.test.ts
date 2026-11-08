@@ -7,7 +7,8 @@ import {
 	desactivarProducto,
 	listarProductos,
 	obtenerProducto,
-	reactivarProducto
+	reactivarProducto,
+	resolverLectura
 } from './productos';
 
 function jsonResponse(body: unknown, status = 200): Response {
@@ -209,5 +210,103 @@ describe('cliente de productos', () => {
 		const [url, init] = fetchMock.mock.calls[0] as unknown as [string, RequestInit];
 		expect(url).toContain(path);
 		expect(init.method).toBe('POST');
+	});
+});
+
+describe('resolverLectura (020, FR-138/FR-140/FR-141)', () => {
+	afterEach(() => {
+		vi.unstubAllGlobals();
+	});
+
+	function urls(fetchMock: ReturnType<typeof vi.fn>): string[] {
+		return fetchMock.mock.calls.map((llamada) => String((llamada as unknown[])[0]));
+	}
+
+	it('acierta por código exacto y no consulta el SKU', async () => {
+		const conCodigo = { ...producto, codigo_barras: '7791234567898' };
+		const fetchMock = vi.fn(async () => jsonResponse({ items: [conCodigo] }));
+		vi.stubGlobal('fetch', fetchMock);
+
+		const resultado = await resolverLectura('7791234567898');
+
+		expect(resultado).toEqual({ estado: 'encontrado', campo: 'codigo', producto: conCodigo });
+		const pedidas = urls(fetchMock);
+		expect(pedidas).toHaveLength(1);
+		expect(pedidas[0]).toContain('campo=codigo');
+		expect(pedidas[0]).toContain('q=7791234567898');
+		expect(pedidas[0]).toContain('limite=2');
+	});
+
+	it('si no hay código, busca por SKU exacto', async () => {
+		const fetchMock = vi
+			.fn()
+			.mockResolvedValueOnce(jsonResponse({ items: [] }))
+			.mockResolvedValueOnce(jsonResponse({ items: [producto] }));
+		vi.stubGlobal('fetch', fetchMock);
+
+		const resultado = await resolverLectura('yerba-1k');
+
+		expect(resultado).toEqual({ estado: 'encontrado', campo: 'sku', producto });
+		const pedidas = urls(fetchMock);
+		expect(pedidas[1]).toContain('campo=sku');
+		expect(pedidas.some((u) => u.includes('campo=todos'))).toBe(false);
+		expect(pedidas.every((u) => u.includes('campo='))).toBe(true);
+	});
+
+	it('sin coincidencias exactas es no_encontrado (nunca aproxima)', async () => {
+		const fetchMock = vi.fn(async () => jsonResponse({ items: [] }));
+		vi.stubGlobal('fetch', fetchMock);
+
+		await expect(resolverLectura('00000000')).resolves.toEqual({ estado: 'no_encontrado' });
+		expect(fetchMock).toHaveBeenCalledTimes(2);
+	});
+
+	it('con incluirInactivos (gestión) informa el producto dado de baja', async () => {
+		const inactivo = { ...producto, activo: false };
+		const fetchMock = vi.fn(async () => jsonResponse({ items: [inactivo] }));
+		vi.stubGlobal('fetch', fetchMock);
+
+		const resultado = await resolverLectura('YERBA-1K', { incluirInactivos: true });
+
+		expect(resultado).toEqual({ estado: 'inactivo', campo: 'codigo', producto: inactivo });
+		expect(urls(fetchMock)[0]).toContain('incluir_inactivos=true');
+	});
+
+	it('sin incluirInactivos (operación) no pide inactivos para evitar el 403', async () => {
+		const fetchMock = vi.fn(async () => jsonResponse({ items: [] }));
+		vi.stubGlobal('fetch', fetchMock);
+
+		await resolverLectura('YERBA-1K');
+
+		expect(urls(fetchMock).some((u) => u.includes('incluir_inactivos'))).toBe(false);
+	});
+
+	it('normaliza la lectura antes de buscar', async () => {
+		const fetchMock = vi.fn(async () => jsonResponse({ items: [producto] }));
+		vi.stubGlobal('fetch', fetchMock);
+
+		await resolverLectura(' 779 1234567898 ');
+
+		expect(urls(fetchMock)[0]).toContain('q=7791234567898');
+	});
+
+	it('vacío o más de 160 caracteres es no_encontrado sin pedir nada', async () => {
+		const fetchMock = vi.fn(async () => jsonResponse({ items: [] }));
+		vi.stubGlobal('fetch', fetchMock);
+
+		await expect(resolverLectura('   ')).resolves.toEqual({ estado: 'no_encontrado' });
+		await expect(resolverLectura('x'.repeat(161))).resolves.toEqual({ estado: 'no_encontrado' });
+		expect(fetchMock).not.toHaveBeenCalled();
+	});
+
+	it('propaga el error de red para reintentar con el mismo valor (FR-155)', async () => {
+		vi.stubGlobal(
+			'fetch',
+			vi.fn(async () => {
+				throw new TypeError('Failed to fetch');
+			})
+		);
+
+		await expect(resolverLectura('7791234567898')).rejects.toBeInstanceOf(Error);
 	});
 });

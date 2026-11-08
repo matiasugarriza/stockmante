@@ -32,7 +32,7 @@ conservan **verbatim**; solo se distribuyeron por caso de uso.
 | [017-asistente-inventario](./017-asistente-inventario/spec.md) | Asistente con tools de lectura y escrituras vía API | FR-066 … FR-069, FR-076 … FR-078 | SC-025 | Implementado y verificado (2026-11-07) | 007, 010, 013, 014 |
 | [018-rediseno-visual-desktop](./018-rediseno-visual-desktop/spec.md) | Rediseño visual del escritorio (17 capturas) y tema claro/oscuro | FR-079 … FR-099 | SC-032 … SC-038 | Implementado en frontend (2026-11-07) con tipografía Outfit autoalojada; test/check/build en verde y evidencia 1440×900 claro/oscuro + 320 px; pendiente la captura del cambio de contraseña y la revisión manual de escenarios | 001 |
 | [019-rediseno-visual-mobile](./019-rediseno-visual-mobile/spec.md) | Rediseño visual móvil cyberpunk dark (21 pantallas), navegación táctil y tarjetas de inventario | FR-102 … FR-133 | SC-039 … SC-049 | Implementación parcial (2026-11-07): 58/87 tareas; MVP móvil, tablero, tarjetas de Stock/Caja/Movimientos y guard de contraste en verde; 29 tareas pendientes | 018 |
-| [020-escaneo-codigos-barra](./020-escaneo-codigos-barra/spec.md) | Generar y escanear códigos de barras/SKU con cámara, lector físico y etiquetas | FR-134 … FR-156 | SC-050 … SC-059 | Especificado (2026-11-07); pendiente de plan/tasks (implementación delegada) | 003, 004 |
+| [020-escaneo-codigos-barra](./020-escaneo-codigos-barra/spec.md) | Generar y escanear códigos de barras/SKU con la cámara del celular, lector físico y etiquetas EAN-13/Code 128/QR | FR-134 … FR-161 | SC-050 … SC-061 | Clarificado, planificado y con tareas (2026-11-07): 43 tareas, sin migración; pendiente de implementación | 003, 004 |
 
 ## Partición de requisitos funcionales
 
@@ -172,6 +172,7 @@ Cada FR tiene **un solo dueño**. Los demás specs lo referencian, no lo repiten
 | FR-132 | 019 | Pruebas de lógica pura de la capa móvil |
 | FR-133 | 019 | Preferencias de accesibilidad del sistema (contraste alto y colores forzados) |
 | FR-134 … FR-156 | 020 | Escaneo y generación de códigos de barras/SKU, etiquetas y permisos |
+| FR-157 … FR-161 | 020 | Formatos de lectura, formato de etiqueta elegido al imprimir, SKU en etiquetas sin código, escaneo en los 5 buscadores y HTTPS en red local |
 
 ## Partición de criterios de éxito
 
@@ -227,6 +228,7 @@ Cada FR tiene **un solo dueño**. Los demás specs lo referencian, no lo repiten
 | SC-048 | 019 | Sin destellos claros en 10 recargas y área segura respetada |
 | SC-049 | 019 | Pares AAA con `prefers-contrast` y sin glow con `forced-colors` |
 | SC-050 … SC-059 | 020 | Escaneo, generación, etiquetas, permisos y auditoría de códigos |
+| SC-060, SC-061 | 020 | Etiquetas EAN-13/Code 128/QR legibles con el celular y escaneo en las 5 pantallas |
 
 ## Ledger de migraciones
 

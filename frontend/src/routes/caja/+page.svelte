@@ -42,6 +42,10 @@
 	import TablaDatos from '#lib/components/ui/TablaDatos.svelte';
 	import Tarjeta from '#lib/components/ui/Tarjeta.svelte';
 	import type { Columna } from '#lib/components/ui/tabla';
+	import BotonEscanear from '#lib/components/codigos/BotonEscanear.svelte';
+	import AvisoLectura from '#lib/components/codigos/AvisoLectura.svelte';
+	import { leerProducto, type AvisoLectura as AvisoLecturaTipo } from '#lib/codigos/lectura';
+	import type { Lectura } from '#lib/codigos/escaner';
 
 	const CAMPOS: { valor: CampoBusqueda; etiqueta: string }[] = [
 		{ valor: 'todos', etiqueta: 'Todo' },
@@ -318,7 +322,24 @@
 		return fallback;
 	}
 
+	// 020: una lectura (cámara, lector o teclado) se resuelve exacta y se muestra con la
+	// búsqueda existente filtrando por el campo que coincidió; nunca se aproxima (FR-140).
+	let avisoLectura = $state<AvisoLecturaTipo | null>(null);
+
+	async function alLeer(lectura: Lectura) {
+		avisoLectura = null;
+		const { resultado, aviso } = await leerProducto(lectura.valor, esGestion);
+		avisoLectura = aviso;
+		if (resultado === null) return;
+		categoriaId = '';
+		q = lectura.valor;
+		campo = resultado.estado === 'no_encontrado' ? 'codigo' : resultado.campo;
+		// Un inactivo se informa pero no se lista para vender (FR-141).
+		if (resultado.estado === 'inactivo') incluirInactivos = false;
+	}
+
 	function limpiar() {
+		avisoLectura = null;
 		q = '';
 		campo = 'todos';
 		categoriaId = '';
@@ -371,6 +392,7 @@
 				/>
 			{/if}
 			<div class="acciones-filtro">
+				<BotonEscanear tamano="sm" onLectura={(lectura) => void alLeer(lectura)} />
 				{#if esGestion}
 					<label class="checkbox">
 						<input type="checkbox" bind:checked={incluirInactivos} />
@@ -397,6 +419,10 @@
 		{#if errorStock}
 			<Aviso variante="advertencia">{errorStock}</Aviso>
 		{/if}
+		<AvisoLectura
+			aviso={avisoLectura}
+			onReintentar={(valor) => void alLeer({ valor, formato: 'teclado' })}
+		/>
 	</Tarjeta>
 
 	{#if error}

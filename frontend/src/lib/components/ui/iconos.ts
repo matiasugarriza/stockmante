@@ -32,7 +32,8 @@ export type NombreIcono =
 	| 'editar'
 	| 'basura'
 	| 'salir'
-	| 'subir';
+	| 'subir'
+	| 'camara';
 
 export type ElementoIcono =
 	| { tag: 'path'; d: string }
@@ -146,6 +147,10 @@ export const ICONOS: Record<NombreIcono, ElementoIcono[]> = {
 	subir: [
 		{ tag: 'path', d: 'M4 15v4a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-4' },
 		{ tag: 'path', d: 'M12 15V4M7 9l5-5 5 5' }
+	],
+	camara: [
+		{ tag: 'path', d: 'M4 8h3l2-3h6l2 3h3v11H4V8Z' },
+		{ tag: 'circle', cx: 12, cy: 13, r: 3.5 }
 	]
 };
 

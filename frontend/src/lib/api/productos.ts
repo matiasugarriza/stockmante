@@ -3,6 +3,7 @@
  * Listado de gestión y escritura: familia GESTION; detalle: cualquier sesión.
  */
 import { api } from './client';
+import { normalizarLectura } from '../codigos/escaner';
 import {
 	ListaBusquedaSchema,
 	ListaProductosSchema,
@@ -103,4 +104,39 @@ export async function buscarProductos(params: BuscarProductosParams = {}): Promi
 		`/api/productos/buscar${serializado ? `?${serializado}` : ''}`
 	);
 	return ListaBusquedaSchema.parse(body);
+}
+
+/** Largo máximo de `q` en la búsqueda de caja (backend `Q_MAX`). */
+const Q_MAX = 160;
+
+export type ResultadoLectura =
+	| { estado: 'encontrado' | 'inactivo'; campo: 'codigo' | 'sku'; producto: Producto }
+	| { estado: 'no_encontrado' };
+
+/**
+ * 020 (R3): resuelve una lectura de cámara, lector o teclado a lo sumo a un producto, por
+ * coincidencia exacta de código y luego de SKU. Nunca usa `campo=todos`, que aproximaría por
+ * nombre (FR-140). `incluirInactivos` solo para gestión: el backend responde 403 a operación.
+ * Los errores de red se propagan para que la pantalla reintente con el mismo valor (FR-155).
+ */
+export async function resolverLectura(
+	valor: string,
+	opciones: { incluirInactivos?: boolean } = {}
+): Promise<ResultadoLectura> {
+	const q = normalizarLectura(valor);
+	if (q === null || q.length > Q_MAX) return { estado: 'no_encontrado' };
+
+	for (const campo of ['codigo', 'sku'] as const) {
+		const { items } = await buscarProductos({
+			q,
+			campo,
+			incluirInactivos: opciones.incluirInactivos,
+			limite: 2
+		});
+		const producto = items[0];
+		if (producto) {
+			return { estado: producto.activo ? 'encontrado' : 'inactivo', campo, producto };
+		}
+	}
+	return { estado: 'no_encontrado' };
 }

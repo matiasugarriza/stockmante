@@ -17,6 +17,10 @@
 	import TablaDatos from '#lib/components/ui/TablaDatos.svelte';
 	import Tarjeta from '#lib/components/ui/Tarjeta.svelte';
 	import type { Columna } from '#lib/components/ui/tabla';
+	import BotonEscanear from '#lib/components/codigos/BotonEscanear.svelte';
+	import AvisoLectura from '#lib/components/codigos/AvisoLectura.svelte';
+	import { leerProducto, type AvisoLectura as AvisoLecturaTipo } from '#lib/codigos/lectura';
+	import { sesion } from '#lib/stores/sesion';
 
 	const formatoFecha = new Intl.DateTimeFormat('es-AR', {
 		dateStyle: 'short',
@@ -126,6 +130,25 @@
 		productoResultados = [];
 	}
 
+	// 020: la lectura elige el producto a transferir; no se escribe hasta confirmar (FR-150).
+	let avisoLectura = $state<AvisoLecturaTipo | null>(null);
+	const esGestion = $derived(
+		$sesion.estado === 'activa' && $sesion.usuario.familia_rol === 'GESTION'
+	);
+
+	async function alLeer(valor: string) {
+		avisoLectura = null;
+		const { resultado, aviso } = await leerProducto(valor, esGestion);
+		avisoLectura = aviso;
+		if (resultado?.estado === 'encontrado') {
+			elegirProducto(resultado.producto);
+		} else {
+			productoSel = null;
+			productoResultados = [];
+			productoQuery = valor;
+		}
+	}
+
 	function cambiarOrigen() {
 		ubicacionOrigenId = '';
 		void cargarUbicaciones();
@@ -228,6 +251,12 @@
 						void buscarProducto(valor);
 					}}
 				/>
+				<BotonEscanear
+					tamano="sm"
+					etiqueta="Escanear"
+					onLectura={(lectura) => void alLeer(lectura.valor)}
+				/>
+				<AvisoLectura aviso={avisoLectura} onReintentar={(valor) => void alLeer(valor)} />
 				{#if productoResultados.length > 0 && !productoSel}
 					<ul class="resultados">
 						{#each productoResultados as producto (producto.id)}
@@ -366,6 +395,13 @@
 
 	.campo-producto {
 		position: relative;
+		display: flex;
+		flex-direction: column;
+		gap: 6px;
+	}
+
+	.campo-producto :global(.boton-escanear) {
+		align-self: flex-start;
 	}
 
 	.resultados {
