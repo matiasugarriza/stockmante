@@ -326,19 +326,3 @@ dbhub.toml      Configuración de DBHub (DSN desde DATABASE_URL)
   no en la suite normal.
 - **Asistente**: requiere Node 24, un proveedor de LLM y el servicio levantado; sin eso responde
   503 de forma controlada.
-
-## Entrega
-
-El proyecto se entrega desde **`main`**, actualizado con el código y la documentación
-(último commit de `main`). La rama de trabajo `004-ampliacion-y-specs-2026-11-07` quedó sincronizada con
-`main`. Si clonás el repo, seguí los pasos de «Puesta en marcha».
-
-### PDF de entrega
-
-[Descargar el PDF del Grupo 2](docs/entrega/entrega-grupo-2.pdf) ·
-[HTML editable](docs/entrega/entrega-grupo-2.html) ·
-[Cómo regenerarlo](docs/entrega/README.md).
-
-## Licencia
-
-Trabajo práctico académico. Sin licencia de distribución.
