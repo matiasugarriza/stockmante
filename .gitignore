@@ -25,5 +25,5 @@ Thumbs.db
 # Spec Kit integration catalog cache (machine-local)
 .specify/integrations/.cache/
 
-# Documentación local (no se publica en GitHub)
-docs/
+# Material de entrega del TP (no se publica en GitHub)
+docs/entrega/
