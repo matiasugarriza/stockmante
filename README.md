@@ -12,48 +12,6 @@ auditoría, alertas y un **asistente de inventario con LangChain**.
 - **Documentación de API**: OpenAPI 3.1 + Swagger UI (`utoipa`)
 - **Desarrollo asistido**: Spec Kit (SDD), skills de agente, MCP PostgreSQL (DBHub) y MCP Playwright
 
-## Estado del TP
-
-| Criterio                         | Estado                                                                                                           |
-| -------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
-| Funcionalidad (10 CUs, mínimo 7) | **9 completos + 1 parcial (CU-09)**                                                                              |
-| AI Engineering                   | Proceso SDD documentado en [`docs/ai-engineering.md`](./docs/ai-engineering.md)                                  |
-| README / bitácora                | Este documento + [`docs/casos-de-uso.md`](./docs/casos-de-uso.md) + [`docs/aceptacion.md`](./docs/aceptacion.md) |
-| MCP (mínimo 2, 1 externo)        | **DBHub PostgreSQL + Playwright MCP**, ambos externos                                                            |
-| Chatbot LangChain                | Integrado en `/asistente`, con tools y confirmación; recorrido real con Groq verificado                          |
-
-## Los 10 casos de uso
-
-La lista original del TP, con su estado y la spec que lo implementa. El detalle de flujos,
-errores, criterios de aceptación y evidencia está en
-[`docs/casos-de-uso.md`](./docs/casos-de-uso.md).
-
-| ID    | Caso de uso                                                     | Actor                   | Specs         | Estado                              |
-| ----- | --------------------------------------------------------------- | ----------------------- | ------------- | ----------------------------------- |
-| CU-01 | Registrar/Editar Productos en Catálogo, Ubicaciones y Depósitos | Administrador / Gerente | 003, 005      | Completo                            |
-| CU-02 | Registrar Entrada de Stock (Compra / Reabastecimiento)          | Administrador / Gerente | 007, 012, 016 | Completo                            |
-| CU-03 | Configurar Alertas de Stock Mínimo                              | Administrador / Gerente | 003, 011      | Completo                            |
-| CU-04 | Ajustar Stock Manualmente (Auditoría / Mermas)                  | Administrador / Gerente | 007           | Completo                            |
-| CU-05 | Consultar Valorización de Inventario y Reportes                 | Administrador / Gerente | 010, 014      | Completo                            |
-| CU-06 | Gestionar Usuarios y Asignar Roles                              | Administrador / Gerente | 001, 002      | Completo                            |
-| CU-07 | Registrar Movimientos de Stock                                  | Operario / Cajero       | 007           | Completo                            |
-| CU-08 | Consultar Disponibilidad y Ubicación de Producto                | Operario / Cajero       | 004, 005, 010 | Completo                            |
-| CU-09 | Generar / Escanear Código de Barras o SKU                       | Operario / Cajero       | 003, 004      | **Parcial** (sin cámara/generación) |
-| CU-10 | Notificación Automática de Inventario Crítico                   | Sistema                 | 011           | Completo                            |
-
-> **CU-09**: el sistema guarda y busca códigos de barras únicos y funciona con un lector físico
-> que emula teclado. No incluye lectura por cámara ni generación/impresión de etiquetas; está
-> documentado como limitación. Aun así, **9/10 supera el mínimo de 7/10**.
-
-### Alcance adicional implementado
-
-Además de los 10 CUs, el sistema incluye: registro público con verificación por correo, SSO
-Google/Microsoft, RBAC y auditoría de todas las escrituras, transferencias entre depósitos,
-conteo físico con ajuste automático, ventas de caja con clientes y anulación, reportes
-(kardex, stock valorizado, rotación, ventas y CSV), auditoría consultable, importación masiva de
-productos por CSV, rediseño visual de escritorio con tema claro/oscuro y un rediseño móvil
-parcial.
-
 ## Arquitectura
 
 ```text
